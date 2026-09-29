@@ -35,12 +35,6 @@ export {
 export { curl2, fbm2, noise2, wander } from './noise';
 export { drawAshtray, drawCigarette, drawLighter, drawPack } from './props';
 export { drawBackground } from './background';
-export {
-  drawEffects,
-  EffectList,
-  type EffectKind,
-  type SceneEffect,
-} from './effects';
+export { drawEffects, EffectList, type EffectKind, type SceneEffect } from './effects';
 export { clearWeatherCache, drawDust, drawRain } from './weather';
 export { drawAffordanceHint, type TrayFeedback } from './props';
-

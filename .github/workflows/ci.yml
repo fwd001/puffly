@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, types and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        env:
+          # The Pages deploy builds from the same command, so a broken build is caught here
+          # rather than in the deploy job.
+          PUBLIC_BASE: /puffly/
+        run: npm run build
+
+      - name: The build is servable from its subpath
+        # Serves the real artefact the way Pages will. A wrong base path is invisible in every
+        # unit test and shows up as a blank page in production, so this is checked here.
+        run: bash tests/smoke/served-build.sh

@@ -626,7 +626,11 @@ export function createEngine(options: EngineOptions): GameEngine {
     const cigarette = rt.state.cigarette;
     const wind = rt.state.world.wind;
     updateWobble(cigarette.pose, rt.timers.wobblePhaseMs, 0.8 + wind * 2.2);
-    const target = restingTarget(cigarette.state, rt.drag.pressed ? rt.drag.pointer : null, rt.layout);
+    const target = restingTarget(
+      cigarette.state,
+      rt.drag.pressed ? rt.drag.pointer : null,
+      rt.layout,
+    );
     integratePose(cigarette.pose, target, cigarette.rodRemaining, cigarette.ash.length, STEP_MS);
 
     cigarette.lengthRemaining = clamp01(
@@ -800,7 +804,13 @@ export function createEngine(options: EngineOptions): GameEngine {
       const keep = rt.state.cigarette.state;
       rt.cigarette = rt.content.cigarette(id);
       rt.smokeStyle = rt.content.smokeStyle(rt.cigarette.smokeStyleId);
-      const next = createCigaretteSnapshot(rt.cigarette, rt.rng, ANGLES.tableDeg, 'IDLE', rt.layout);
+      const next = createCigaretteSnapshot(
+        rt.cigarette,
+        rt.rng,
+        ANGLES.tableDeg,
+        'IDLE',
+        rt.layout,
+      );
       rt.state.cigarette = next;
       rt.state.smoke.tint = rt.smokeStyle.tint;
       rt.state.smoke.character = deriveSmokeCharacter(rt.cigarette);

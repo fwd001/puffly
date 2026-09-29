@@ -8,7 +8,15 @@ import { VitePWA } from 'vite-plugin-pwa';
  * the shell and the game assets, and everything else lives in IndexedDB on the device
  * (§52). No backend, no account, no CDN dependency.
  */
+/**
+ * GitHub Pages serves a project site from `/<repo>/`, and nowhere else, so the base has to come
+ * from the environment instead of being baked in: the same build must work from a bare domain,
+ * a subpath and `file://`-free local preview.
+ */
+const base = process.env['PUBLIC_BASE'] ?? '/';
+
 export default defineConfig({
+  base,
   plugins: [
     tsconfigPaths(),
     vue(),

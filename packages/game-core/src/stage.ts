@@ -140,6 +140,8 @@ export function stageDistance(a: Point, b: Point, aspect: number): number {
  */
 export const TOUCH_HIT_TOLERANCE = 1.6;
 
-export function hitToleranceFor(source: 'touch' | 'pointer' | 'mouse' | 'keyboard' | 'shortcut' | undefined): number {
+export function hitToleranceFor(
+  source: 'touch' | 'pointer' | 'mouse' | 'keyboard' | 'shortcut' | undefined,
+): number {
   return source === 'touch' ? TOUCH_HIT_TOLERANCE : 1;
 }

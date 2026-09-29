@@ -31,7 +31,10 @@ export function deriveSmokeCharacter(cigarette: CigaretteContent): SmokeCharacte
 }
 
 /** Per-character shaping multipliers, applied on top of the rod's own profile numbers. */
-const CHARACTER_SHAPE: Record<SmokeCharacter, { rise: number; turbulence: number; dispersion: number; density: number }> = {
+const CHARACTER_SHAPE: Record<
+  SmokeCharacter,
+  { rise: number; turbulence: number; dispersion: number; density: number }
+> = {
   column: { rise: 1.15, turbulence: 0.72, dispersion: 0.75, density: 0.95 },
   haze: { rise: 0.7, turbulence: 0.95, dispersion: 1.35, density: 0.85 },
   curls: { rise: 0.95, turbulence: 1.65, dispersion: 1.1, density: 1 },
@@ -56,7 +59,10 @@ function densityTarget(rt: EngineRuntime): number {
       : 0;
 
   return clamp01(
-    profile.density * modifier.density * CHARACTER_SHAPE[rt.state.smoke.character].density * (draw + smoulder + waning),
+    profile.density *
+      modifier.density *
+      CHARACTER_SHAPE[rt.state.smoke.character].density *
+      (draw + smoulder + waning),
   );
 }
 
