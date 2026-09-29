@@ -140,6 +140,22 @@ export default tseslint.config(
     },
   },
   {
+    // The smoke checks are Node scripts that speak to a browser: `document` and `PointerEvent`
+    // appear inside `page.evaluate`, where they are the page's globals, not this process's.
+    files: ['tests/smoke/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        URL: 'readonly',
+        document: 'readonly',
+        window: 'readonly',
+        PointerEvent: 'readonly',
+        getComputedStyle: 'readonly',
+      },
+    },
+  },
+  {
     files: ['packages/game-core/src/rules/*.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },

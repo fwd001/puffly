@@ -73,8 +73,12 @@ break through it: any write would throw a TypeError instead of corrupting the si
 
 ## One copy of every fact
 
-- Geometry lives in the core (`CigarettePose`, `StageAnchors`, `LAYOUT`, `HIT`) so hit-testing and
-  drawing cannot drift apart, and a desktop shell gets the same anchors (SPEC.md §79).
+- Geometry lives in the core: `stage.ts` owns the stage box (`stageBoxFor`), the prop table for
+  each shape (`StageLayout`, `layoutFor`) and the one distance metric (`stageDistance`) that both
+  hit-testing and drawing use, so they cannot drift apart on a phone any more than they can on a
+  desktop (SPEC.md §55, §79). The renderer's `createViewport` calls the same `stageBoxFor` rather
+  than keeping its own letterbox maths, and `engine.setStageAspect` is the only way the core learns
+  the shape — which is also why `LAYOUT` is now just the regular table inside that file.
 - Content→visual conversion lives in the core too: `state.style` (`SceneStyle`) is assembled from
   content by the engine, so a renderer stays a pure function of state and never imports content.
 - Counters live in one place. `Progress` is owned by the engine and exposed as
@@ -94,7 +98,9 @@ All randomness flows through `shared/rng.ts` (sfc32, integer-only). `Math.random
 the guard, and `Date.now()` / `new Date()` are forbidden in the core: the shell supplies wall-clock
 time and the UTC offset, so a save replays identically on another machine.
 
-`GameEngine.send()` does not apply an input immediately. It resolves the point and target, then
+`GameEngine.send()` does not apply an input immediately. It resolves the target — a keyboard or
+shortcut input names an anchor and borrows its position, a pointer keeps the pixel it was pressed
+at (§65) — then
 **snaps the input to the next fixed step** (`STEP_MS = 1000/60`) and queues it. That is what makes
 §71 real rather than aspirational: `replaySession(session, content)` rebuilds an engine from
 `seed`, `engineStartWallClockMs` and the content ids, advances to each recorded step, and reproduces
@@ -117,6 +123,9 @@ SPEC.md §54 and §81 (6/9) are why the renderer is structured the way it is:
   frame), and `blur` is the sprite's own falloff rather than `ctx.filter`, which is slow and
   inconsistently supported;
 - quality tiers set the budget (1400 / 800 / 380, and 160 under `reducedMotion`) — SPEC.md §64;
+- `quality: 'auto'` is measured, not guessed: the shell keeps an exponential average of its own
+  frame times and walks the tier down twice as eagerly as it climbs back, and a coarse pointer
+  caps the canvas at 2× DPR instead of 3× (§54, §66);
 - `dt` is clamped to 250 ms per frame and 50 ms per render step, so a backgrounded tab neither
   fast-forwards the burn nor teleports smoke.
 
@@ -141,6 +150,22 @@ and `StorageAdapter` (`game-storage`).
   `WORLD_EVENT_RULES`; adding one means a rule plus an `applyStart` case, not a new protocol.
 - **Haptics (§30)**: `Settings.haptics` exists and is unread on the web. A native shell consumes it
   without touching the simulation.
+
+## Verification layers
+
+Each layer proves something the one below it cannot, and each is run by `npm test` or by
+`.github/workflows/ci.yml`:
+
+1. **Per-package unit tests** — the state machine, the systems, the particle pool, the cue planner.
+2. **`tests/architecture.test.ts`** — the dependency rule, with positive controls so a guard cannot
+   pass by matching nothing.
+3. **`tests/sessionLoop.test.ts`** — one whole break on the shipped content, through the real
+   renderer, and then the statistics that reach the screen are checked against the log (§70).
+4. **`tests/smoke/served-build.sh`** — the built artefact served the way Pages will serve it. A wrong
+   base path is invisible to every layer above and is a blank page in production.
+5. **`tests/smoke/touch-device.mjs`** — a real browser on an emulated phone, portrait and landscape:
+   a break completed with taps, targets that fit a finger, no double-tap zoom, no words on the main
+   screen, and a drawn breath that measurably changes the pixels.
 
 ## Deliberately not built
 
