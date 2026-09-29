@@ -159,20 +159,6 @@ body {
   transform: translateY(0);
 }
 
-.chrome--top {
-  top: 0;
-  bottom: auto;
-  flex-direction: column;
-  align-items: flex-start;
-  padding-top: calc(10px + env(safe-area-inset-top));
-  background: linear-gradient(to bottom, var(--chrome-bg), transparent);
-  transform: translateY(-10px);
-}
-
-.chrome--top[data-visible='true'] {
-  transform: translateY(0);
-}
-
 .sheet {
   /*
    * A sheet that is slid away is still in the layout, so without this it swallows taps meant
@@ -369,4 +355,67 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
   .swatch.fresh::after {
     animation: none;
   }
+}
+
+/*
+ * A finger is not a cursor (§66). Everything the thumb has to reach gets the larger target, and
+ * the sliders get a taller track, because a 22 px knob on a 3 px line is a miss most of the time.
+ */
+@media (pointer: coarse) {
+  :root {
+    --tap-target: 54px;
+  }
+
+  input[type='range'] {
+    height: 40px;
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    width: 30px;
+    height: 30px;
+    margin-top: -14px;
+  }
+
+  /* The date field is the one native control on the sheet; at 38px it is a miss. */
+  .date,
+  select {
+    min-height: var(--tap-target);
+  }
+}
+
+/*
+ * A landscape phone is ~390 px tall: a sheet that takes 76 % of that covers the scene it belongs
+ * to, and the chrome rows crowd the tray. So the sheet becomes a side panel and the chrome moves
+ * to the sides, where a thumb is not reaching across the table.
+ */
+@media (orientation: landscape) and (max-height: 520px) {
+  .sheet {
+    left: auto;
+    width: min(58%, 520px);
+    max-height: 100%;
+    border-radius: 22px 0 0 22px;
+    border-top: none;
+    border-left: 1px solid var(--chrome-line);
+    transform: translateX(100%);
+    padding-left: calc(22px + env(safe-area-inset-right));
+  }
+
+  .sheet[data-open='true'] {
+    transform: translateX(0);
+  }
+
+  .chrome {
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+
+  .notice {
+    bottom: auto;
+    top: 12%;
+  }
+}
+
+/* iOS inflates text it decides is a heuristic "main content"; the clock must not jump (§61). */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }

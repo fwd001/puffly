@@ -40,6 +40,10 @@ export const MAX_SMOKE_RADIUS_PX = 220;
 const NEAR_DEPTH = 0.55;
 /** Ash pieces that fill the tray mound; past this the tray just looks full. */
 const TRAY_LOAD_FRAGMENTS = 14;
+/** Overlap instead of opacity: see `drawSmoke`. */
+const PUFF_SPREAD = 1.34;
+const PUFF_ALPHA = 0.62;
+const PUFF_FLATTEN = 0.74;
 
 export interface RendererSettings {
   reducedMotion: boolean;
@@ -204,15 +208,22 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       const tint = tintFor(particle.tint, particle.heat, field.visibility);
       const sprite = sprites.soft(tint);
       const depthScale = 0.72 + particle.depth * 0.5;
+      // Wider and dimer per particle: the same light spread over more overlapping puffs is what
+      // turns a jar of bubbles into a body of smoke (§16).
       const radiusPx = Math.min(
-        viewport.len(particle.radius * particle.scale * particle.size) * depthScale,
+        viewport.len(particle.radius * particle.scale * particle.size) * depthScale * PUFF_SPREAD,
         MAX_SMOKE_RADIUS_PX,
       );
       if (!sprite || radiusPx <= 0.4) return;
 
       const centre = viewport.px(particle);
       const alpha = clamp01(
-        particle.alpha * style.opacity * (0.35 + field.visibility * 0.8) * lift * (near ? 1 : 0.72),
+        particle.alpha *
+          style.opacity *
+          (0.35 + field.visibility * 0.8) *
+          lift *
+          PUFF_ALPHA *
+          (near ? 1 : 0.72),
       );
       if (alpha <= 0.004) return;
 
@@ -221,7 +232,16 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       ctx.globalAlpha = alpha;
       ctx.translate(centre.x, centre.y);
       ctx.rotate(particle.rotation);
-      ctx.drawImage(sprite, -radiusPx, -radiusPx, radiusPx * 2, radiusPx * 2);
+      // A puff is not a circle: smoke flattens as it spreads, and an ellipse that turns with the
+      // flow stops a thousand sprites reading as one repeated dot. Flattened in the destination
+      // rect rather than with a transform, because that is one matrix we do not have to push.
+      ctx.drawImage(
+        sprite,
+        -radiusPx,
+        -radiusPx * PUFF_FLATTEN,
+        radiusPx * 2,
+        radiusPx * 2 * PUFF_FLATTEN,
+      );
       ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
     });
 

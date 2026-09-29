@@ -16,7 +16,11 @@ import type { CigarettePose, StageAnchors } from './types/state';
 /** Ash is only a target once there is something to flick. */
 const ASH_MIN_LENGTH = 0.008;
 
-export function computeAnchors(pose: CigarettePose, ashLength: number, layout: StageLayout): StageAnchors {
+export function computeAnchors(
+  pose: CigarettePose,
+  ashLength: number,
+  layout: StageLayout,
+): StageAnchors {
   const { pivot, angleDeg, length } = pose;
   const body = offset(pivot, length * 0.45, angleDeg);
   const tip = pose.tip;
@@ -56,16 +60,16 @@ export function hitCandidates(anchors: StageAnchors, ashLength: number): Candida
 }
 
 /**
- * Nearest anchor whose generous radius contains the point. `ember` and `ash` are
- * checked before `cigarette` because they sit on top of it.
- */
-/**
- * Nearest anchor whose generous radius contains the point. `ember` and `ash` are checked
- * before `cigarette` because they sit on top of it.
+ * The nearest anchor the point falls inside. `ember` and `ash` are checked before
+ * `cigarette` because they sit on top of it.
  *
  * `aspect` keeps a hit area round on screen (the stage box is not square) and `tolerance`
  * widens every radius for a finger, which is how a 0.08-unit cherry stays hittable on a
  * 390 px phone (§66: no precise pixel targets).
+ *
+ * The winner is the candidate the point sits *furthest inside*, so a large target that
+ * merely reaches over a small one does not steal it: on a phone the tray's widened radius
+ * overlaps the rod lying next to it, and a finger on the cigarette stays on the cigarette.
  */
 export function resolveTarget(
   at: Point,

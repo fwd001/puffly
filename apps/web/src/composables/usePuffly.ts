@@ -16,6 +16,7 @@ import {
   type EngineEvent,
   type GameEngine,
   type GameStateView,
+  type QualityMode,
   type Selection,
   type Session,
   type Settings,
@@ -52,6 +53,34 @@ const SUMMARY_INTERVAL_MS = 200;
 const IDLE_CLOSE_MS = 90_000;
 /** Keep the canvas from costing more than it can show. */
 const MAX_DPR = 3;
+/** A phone at 3x is 3.4 million pixels of smoke per frame; it cannot show the difference. */
+const MAX_DPR_COARSE = 2;
+
+/**
+ * Frame time → quality tier, for a player who never chose one (§54, §64).
+ *
+ * `auto` is not a promise that something is fast: the only honest way to keep 60 FPS on an
+ * unknown device is to look at the frames that actually arrived. The ladder goes down twice
+ * as eagerly as it comes back up, so a single dropped frame cannot make the scene flicker
+ * between budgets.
+ */
+const AUTO_TIERS: readonly QualityMode[] = ['high', 'balanced', 'light'];
+/** Below this an average frame is late; above it, the device has room to spare. */
+const SLOW_FRAME_MS = 22;
+const FAST_FRAME_MS = 13.5;
+/** ~1/8 of a second of frames, so one stall from a background tab is not a trend. */
+const FRAME_SMOOTHING = 0.06;
+
+function coarsePointer(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+}
+
+/** A phone or tablet starts a tier down: its GPU is real, and so is its pixel count. */
+function startingTier(): QualityMode {
+  if (!coarsePointer()) return 'high';
+  const cores = typeof navigator === 'undefined' ? 8 : (navigator.hardwareConcurrency ?? 8);
+  return cores <= 4 ? 'light' : 'balanced';
+}
 
 export interface Summary {
   state: GameStateView | null;
@@ -79,6 +108,8 @@ export interface Puffly {
   unlocked: Ref<Record<string, readonly string[]>>;
   audioAvailable: Ref<boolean>;
   storageDegraded: Ref<boolean>;
+  /** Whether a vibration motor exists to be asked for one (§30). */
+  canVibrate: Ref<boolean>;
   attach(canvas: HTMLCanvasElement): Promise<void>;
   setSettings(patch: Partial<Settings>): void;
   select(selection: Partial<Selection>): void;
@@ -128,6 +159,22 @@ export function createPuffly(): Puffly {
   const unlocked = ref<Record<string, readonly string[]>>({});
   const audioAvailable = ref(false);
   const storageDegraded = ref(false);
+  const canVibrate = ref(typeof navigator !== 'undefined' && 'vibrate' in navigator);
+
+  /**
+   * A vibration is the one feedback a phone can give that a monitor cannot (§30). It marks the
+   * four beats that end a gesture — the cherry catching, the ash letting go, the stub dying, the
+   * rod landing — and nothing in between, because a motor on every puff stops meaning anything.
+   */
+  const haptic = (pattern: number | number[]): void => {
+    if (!settings.value.haptics || !canVibrate.value) return;
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      // Some browsers only allow it during a user gesture; a missing buzz is not an error.
+      canVibrate.value = false;
+    }
+  };
 
   let engine: GameEngine | null = null;
   let renderer: PufflyRenderer | null = null;
@@ -142,6 +189,48 @@ export function createPuffly(): Puffly {
 
   /** Shared with the pointer adapter, so hit-testing and drawing agree on the letterbox (§55). */
   const viewport = createViewport({ width: 640, height: 960, dpr: 1 });
+
+  /** The tier `quality: 'auto'` has settled on; the player's own choice is never overwritten. */
+  let autoTier: QualityMode = startingTier();
+  let frameEmaMs = 1000 / 60;
+  /** Frames spent at the current tier, so a tier cannot be swapped on the very next frame. */
+  let tierHeldFrames = 0;
+
+  const effectiveQuality = (): QualityMode =>
+    settings.value.quality === 'auto' ? autoTier : settings.value.quality;
+
+  const applyEffectiveQuality = (): void => {
+    const quality = effectiveQuality();
+    engine?.setSettings({ ...settings.value, quality });
+    renderer?.setSettings({
+      reducedMotion: settings.value.reducedMotion,
+      quality,
+      contrast: settings.value.contrast,
+    });
+  };
+
+  /**
+   * One pass of the ladder, from the frame time that just arrived. Deliberately dumb: no
+   * sampling windows, no percentiles, nothing that needs a tuning session on a real device.
+   */
+  const watchFrames = (dt: number): void => {
+    if (settings.value.quality !== 'auto') return;
+    frameEmaMs += (dt - frameEmaMs) * FRAME_SMOOTHING;
+    tierHeldFrames += 1;
+    if (tierHeldFrames < 90) return;
+
+    const index = AUTO_TIERS.indexOf(autoTier);
+    let next = index;
+    if (frameEmaMs > SLOW_FRAME_MS && index < AUTO_TIERS.length - 1) next = index + 1;
+    else if (frameEmaMs < FAST_FRAME_MS && index > 0) next = index - 1;
+    if (next === index) return;
+
+    autoTier = AUTO_TIERS[next] ?? autoTier;
+    tierHeldFrames = 0;
+    // Re-aim the average at the new tier so the next decision is about the new budget.
+    frameEmaMs = 1000 / 60;
+    applyEffectiveQuality();
+  };
 
   const deriveOptions = () => ({
     nowMs: Date.now(),
@@ -211,6 +300,12 @@ export function createPuffly(): Puffly {
       // A break begins the moment something is lit — nothing asks the player first (§31).
       engine.startSession();
     }
+    const type = event.event.type;
+    if (type === SessionEventType.LIGHT) haptic(24);
+    else if (type === SessionEventType.ASH) haptic([9, 26, 9]);
+    else if (type === SessionEventType.EXTINGUISH) haptic(64);
+    else if (type === SessionEventType.DISCARD) haptic([14, 40, 20]);
+
     if (event.event.type === SessionEventType.DISCARD) {
       // It ends when the stub goes into the tray. No dialog, no confirmation (§62).
       window.setTimeout(closeSession, 240);
@@ -222,6 +317,7 @@ export function createPuffly(): Puffly {
     const dt = lastFrameMs === 0 ? 1000 / 60 : Math.min(Math.max(nowMs - lastFrameMs, 0), 250);
     lastFrameMs = nowMs;
 
+    watchFrames(dt);
     engine.tick(dt);
     const live = engine.getState();
     renderer?.render(live, dt);
@@ -240,14 +336,24 @@ export function createPuffly(): Puffly {
     raf = requestAnimationFrame(frame);
   };
 
+  const dprFor = (): number =>
+    Math.min(window.devicePixelRatio || 1, coarsePointer() ? MAX_DPR_COARSE : MAX_DPR);
+
   const resize = (canvas: HTMLCanvasElement): void => {
-    const cssWidth = canvas.clientWidth || 640;
-    const cssHeight = canvas.clientHeight || 960;
-    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    // On a phone the layout viewport can be shorter than the visual one while the browser
+    // chrome slides away; `visualViewport` is the height the player actually has (§66).
+    const visual = typeof window === 'undefined' ? null : window.visualViewport;
+    const cssWidth = Math.round(visual?.width || canvas.clientWidth || 640);
+    const cssHeight = Math.round(visual?.height || canvas.clientHeight || 960);
+    const dpr = dprFor();
     canvas.width = Math.round(cssWidth * dpr);
     canvas.height = Math.round(cssHeight * dpr);
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
     viewport.resize(cssWidth, cssHeight, dpr);
     renderer?.setViewport(cssWidth, cssHeight, dpr);
+    // The core owns hit-testing, so it has to know the same shape the canvas just became.
+    engine?.setStageAspect(viewport.aspect);
   };
 
   const attach = async (canvas: HTMLCanvasElement): Promise<void> => {
@@ -283,15 +389,18 @@ export function createPuffly(): Puffly {
         grainTile: createGrainTile(defaultSpriteFactory(), 128),
         width: canvas.clientWidth || 640,
         height: canvas.clientHeight || 960,
-        dpr: Math.min(window.devicePixelRatio || 1, MAX_DPR),
+        dpr: dprFor(),
         settings: {
           reducedMotion: settings.value.reducedMotion,
-          quality: settings.value.quality,
+          quality: effectiveQuality(),
           contrast: settings.value.contrast,
         },
       });
     }
     resize(canvas);
+
+    // The very first aspect has to be in place before a pointer can be aimed at anything.
+    engine?.setStageAspect(viewport.aspect);
 
     audio = createAudioBridge(content, settings.value);
     audioAvailable.value = audio.available();
@@ -340,6 +449,17 @@ export function createPuffly(): Puffly {
       window.addEventListener('resize', () => resize(canvas));
     }
 
+    // Mobile chrome sliding away changes the visual viewport without resizing any element, and
+    // an orientation flip fires neither reliably (§66).
+    const onViewportShift = (): void => resize(canvas);
+    const visual = window.visualViewport;
+    if (visual) {
+      visual.addEventListener('resize', onViewportShift);
+      stop.push(() => visual.removeEventListener('resize', onViewportShift));
+    }
+    window.addEventListener('orientationchange', onViewportShift);
+    stop.push(() => window.removeEventListener('orientationchange', onViewportShift));
+
     stop.push(() => {
       cancelAnimationFrame(raf);
       audio?.dispose();
@@ -385,13 +505,15 @@ export function createPuffly(): Puffly {
     unlocked,
     audioAvailable,
     storageDegraded,
+    canVibrate,
     attach,
     setSettings(patch) {
       settings.value = { ...settings.value, ...patch };
-      engine?.setSettings(settings.value);
+      if (patch.quality === 'auto') autoTier = startingTier();
+      engine?.setSettings({ ...settings.value, quality: effectiveQuality() });
       renderer?.setSettings({
         reducedMotion: settings.value.reducedMotion,
-        quality: settings.value.quality,
+        quality: effectiveQuality(),
         contrast: settings.value.contrast,
       });
       audio?.setSettings(settings.value);

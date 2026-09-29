@@ -96,6 +96,23 @@ describe('stage shape decides where things live (§55)', () => {
     ).toBeLessThan(0.001);
   });
 
+  it('a widened tray target does not steal the rod lying next to it (§66)', () => {
+    // On a phone the tray's touch radius reaches over the rod lying beside it. The finger is
+    // on the rod, so the rod answers — otherwise every pick-up near the tray is a discard.
+    const h = harness();
+    h.engine.setStageAspect(0.46);
+    const state = h.state();
+    const body = state.anchors.body;
+    expect(
+      stageDistance(body, state.anchors.ashtray, 0.46) <
+        Math.max(state.anchors.ashtrayRadius, 0.135) * 1.6,
+    ).toBe(true);
+    expect(resolveTarget(body, state.anchors, state.cigarette.ash.length, 0.46, 1.6)).toBe(
+      'cigarette',
+    );
+    expect(resolveTarget(state.anchors.ashtray, state.anchors, 0, 0.46, 1.6)).toBe('ashtray');
+  });
+
   it('a finger gets a bigger target than a cursor (§66)', () => {
     expect(hitToleranceFor('touch')).toBeGreaterThan(1);
     expect(hitToleranceFor('mouse')).toBe(1);

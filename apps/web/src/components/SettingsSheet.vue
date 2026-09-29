@@ -156,6 +156,15 @@ watch(
       >
         ◷
       </button>
+      <button
+        v-if="game.canVibrate.value"
+        class="icon-button"
+        :aria-pressed="settings.haptics"
+        aria-label="haptics"
+        @click="game.setSettings({ haptics: !settings.haptics })"
+      >
+        ⌁
+      </button>
     </div>
 
     <div class="toggle-row">

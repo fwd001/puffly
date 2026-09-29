@@ -67,7 +67,8 @@ const TALL: StageLayout = {
   table: { x: 0.5, y: 0.9 },
   pack: { x: 0.24, y: 0.855 },
   lighter: { x: 0.12, y: 0.71 },
-  ashtray: { x: 0.79, y: 0.855 },
+  // Far enough left that a rod lying in it still fits on the screen.
+  ashtray: { x: 0.7, y: 0.855 },
   restPivot: { x: 0.5, y: 0.58 },
   tableEdgeY: 0.76,
   ashtrayRadius: 0.125,
