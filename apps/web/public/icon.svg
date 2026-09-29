@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="ember" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffe0b0" />
+      <stop offset="0.45" stop-color="#ff6a1a" />
+      <stop offset="1" stop-color="#ff6a1a" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="rod" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#cf9660" />
+      <stop offset="0.3" stop-color="#eee9de" />
+      <stop offset="0.85" stop-color="#f4f0e6" />
+      <stop offset="1" stop-color="#7e7e82" />
+    </linearGradient>
+    <linearGradient id="smoke" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#c4c6cd" stop-opacity="0.75" />
+      <stop offset="1" stop-color="#c4c6cd" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#121317" />
+  <path
+    d="M262 300c-26-18 6-44-14-66-18-20 10-42-8-62"
+    fill="none"
+    stroke="url(#smoke)"
+    stroke-width="26"
+    stroke-linecap="round"
+  />
+  <g transform="rotate(-17 256 340)">
+    <rect x="120" y="326" width="240" height="26" rx="13" fill="url(#rod)" />
+    <rect x="298" y="326" width="26" height="26" rx="6" fill="#c44434" opacity="0.85" />
+  </g>
+  <circle cx="356" cy="316" r="46" fill="url(#ember)" />
+  <circle cx="356" cy="316" r="13" fill="#ff9d4d" />
+</svg>

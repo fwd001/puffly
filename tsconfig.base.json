@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "useDefineForClassFields": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "noEmit": true,
+    "paths": {
+      "@puffly/shared": ["${configDir}/packages/shared/src/index.ts"],
+      "@puffly/game-core": ["${configDir}/packages/game-core/src/index.ts"],
+      "@puffly/game-content": ["${configDir}/packages/game-content/src/index.ts"],
+      "@puffly/game-renderer": ["${configDir}/packages/game-renderer/src/index.ts"],
+      "@puffly/game-audio": ["${configDir}/packages/game-audio/src/index.ts"],
+      "@puffly/game-storage": ["${configDir}/packages/game-storage/src/index.ts"],
+      "@puffly/game-statistics": ["${configDir}/packages/game-statistics/src/index.ts"]
+    }
+  }
+}

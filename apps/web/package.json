@@ -1,0 +1,23 @@
+{
+  "name": "@puffly/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "vue-tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@puffly/game-audio": "*",
+    "@puffly/game-content": "*",
+    "@puffly/game-core": "*",
+    "@puffly/game-renderer": "*",
+    "@puffly/game-statistics": "*",
+    "@puffly/game-storage": "*",
+    "@puffly/shared": "*",
+    "vue": "^3.5.43",
+    "workbox-window": "^7.4.1"
+  }
+}

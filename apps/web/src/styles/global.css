@@ -1,0 +1,372 @@
+/* Design contract for the shell: SPEC.md §56-61.
+   Cinematic + soft + slightly stylized. Restrained colour, the flame is the focus. */
+
+:root {
+  --deep-charcoal: #121317;
+  --warm-gray: #5e5852;
+  --soft-white: #e8e4dc;
+  --ember-orange: #ff6a1a;
+  --ember-core: #ffd696;
+  --smoke-gray: #c4c6cd;
+  --ash-gray: #7e7e82;
+
+  --chrome-bg: color-mix(in oklab, var(--deep-charcoal) 82%, transparent);
+  --chrome-line: color-mix(in oklab, var(--warm-gray) 45%, transparent);
+  --tap-target: 44px;
+  --text-scale: 1;
+  --radius: 14px;
+  --ease-out: cubic-bezier(0.16, 0.84, 0.3, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0.4);
+}
+
+/*
+ * The player's contrast choice is a CSS concern too: chrome and hairlines must stay readable
+ * over a deliberately dark scene (SPEC.md §64). The renderer gets the same setting and lifts the
+ * smoke and the rod's edge.
+ */
+html[data-contrast='high'] {
+  --chrome-bg: color-mix(in oklab, var(--deep-charcoal) 96%, black);
+  --chrome-line: color-mix(in oklab, var(--soft-white) 55%, transparent);
+}
+
+html[data-contrast='high'] .icon-button {
+  border-color: var(--chrome-line);
+}
+
+html[data-contrast='high'] .chrome {
+  opacity: 0.42;
+}
+
+html[data-contrast='high'] .chrome[data-visible='true'] {
+  opacity: 1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--deep-charcoal);
+  color: var(--soft-white);
+  font-family:
+    ui-rounded,
+    'SF Pro Rounded',
+    -apple-system,
+    'Segoe UI',
+    system-ui,
+    'Noto Sans',
+    sans-serif;
+  font-size: calc(16px * var(--text-scale));
+  /* The whole app is one gesture surface: no accidental scroll, zoom or text selection (§66). */
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.icon-row {
+  display: flex;
+  align-items: center;
+  gap: calc(10px * var(--text-scale));
+}
+
+.icon-button {
+  min-width: var(--tap-target);
+  min-height: var(--tap-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--soft-white);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    opacity 260ms var(--ease-out),
+    transform 200ms var(--ease-out),
+    background-color 200ms var(--ease-out);
+}
+
+.icon-button:active {
+  transform: scale(0.94);
+}
+
+.icon-button[aria-pressed='true'] {
+  border-color: color-mix(in oklab, var(--ember-orange) 60%, transparent);
+  background: color-mix(in oklab, var(--ember-orange) 14%, transparent);
+}
+
+.icon-button:focus-visible {
+  outline: 2px solid var(--ember-core);
+  outline-offset: 2px;
+}
+
+.icon-button.dim {
+  opacity: 0.42;
+}
+
+/* SPEC.md §61: chrome arrives with a fade plus a slight movement, and leaves as a fade. */
+.chrome {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: calc(8px * var(--text-scale));
+  padding: 10px calc(14px * var(--text-scale)) calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--chrome-bg), transparent);
+  /*
+   * §10 says the chrome recedes when the player stops; it must not become a dead zone.
+   * Fully transparent *and* pointer-events:none meant a tap on where the gear used to be did
+   * nothing at all. So the chrome dims to a hint and stays reachable.
+   */
+  opacity: 0.16;
+  transform: translateY(6px);
+  transition:
+    opacity 420ms var(--ease-out),
+    transform 420ms var(--ease-out);
+  pointer-events: auto;
+}
+
+.chrome[data-visible='true'] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chrome--top {
+  top: 0;
+  bottom: auto;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  background: linear-gradient(to bottom, var(--chrome-bg), transparent);
+  transform: translateY(-10px);
+}
+
+.chrome--top[data-visible='true'] {
+  transform: translateY(0);
+}
+
+.sheet {
+  /*
+   * A sheet that is slid away is still in the layout, so without this it swallows taps meant
+   * for the stage and takes tab focus. Opacity alone is not "closed".
+   */
+  pointer-events: none;
+  visibility: hidden;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 76%;
+  overflow-y: auto;
+  padding: calc(16px * var(--text-scale)) calc(18px * var(--text-scale))
+    calc(20px + env(safe-area-inset-bottom));
+  background: color-mix(in oklab, var(--deep-charcoal) 92%, black);
+  border-top: 1px solid var(--chrome-line);
+  border-radius: 22px 22px 0 0;
+  transform: translateY(100%);
+  opacity: 0;
+  transition:
+    transform 380ms var(--ease-out),
+    opacity 300ms var(--ease-out),
+    visibility 0s linear 380ms;
+  touch-action: pan-y;
+}
+
+.sheet[data-open='true'] {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transition:
+    transform 380ms var(--ease-out),
+    opacity 300ms var(--ease-out),
+    visibility 0s;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: calc(10px * var(--text-scale));
+  margin: calc(8px * var(--text-scale)) 0 calc(18px * var(--text-scale));
+}
+
+.swatch {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  border: 1px solid var(--chrome-line);
+  background: var(--deep-charcoal);
+  color: var(--soft-white);
+  display: grid;
+  place-items: center;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition:
+    transform 200ms var(--ease-out),
+    border-color 200ms var(--ease-out),
+    opacity 320ms var(--ease-out);
+}
+
+.swatch[data-locked='true'] {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.swatch[data-selected='true'] {
+  border-color: var(--ember-orange);
+  transform: translateY(-2px);
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--ember-core);
+  outline-offset: 2px;
+}
+
+/* SPEC.md §39: newly unlocked items light up on their own — no dialog, no text. */
+.swatch.fresh::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: calc(var(--radius) + 3px);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--ember-core) 70%, transparent);
+  animation: unlock-pulse 1900ms var(--ease-out) 2;
+}
+
+@keyframes unlock-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--ember-core) 70%, transparent);
+    opacity: 1;
+  }
+  70% {
+    box-shadow: 0 0 18px 6px color-mix(in oklab, var(--ember-core) 25%, transparent);
+    opacity: 0.5;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    opacity: 0.2;
+  }
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+  transition: opacity 700ms var(--ease-out);
+}
+
+.clock.hidden {
+  opacity: 0;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 26px;
+  background: transparent;
+  touch-action: none;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--chrome-line);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -10px;
+  border-radius: 50%;
+  background: var(--smoke-gray);
+  border: 1px solid var(--chrome-line);
+}
+
+input[type='range']:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--ember-core);
+}
+
+.mood {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 1.2rem;
+}
+
+.journey {
+  width: 100%;
+  overflow: hidden;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: calc(6px * var(--text-scale)) 0;
+}
+
+.group {
+  margin-bottom: calc(14px * var(--text-scale));
+}
+
+.notice {
+  position: absolute;
+  left: 50%;
+  bottom: 22%;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--chrome-bg);
+  border: 1px solid var(--chrome-line);
+  font-size: 0.9rem;
+  opacity: 0;
+  transition: opacity 500ms var(--ease-out);
+}
+
+.notice[data-show='true'] {
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome,
+  .sheet,
+  .swatch,
+  .icon-button,
+  .clock {
+    transition-duration: 1ms;
+  }
+
+  .swatch.fresh::after {
+    animation: none;
+  }
+}

@@ -1,0 +1,436 @@
+/**
+ * Canvas renderer — SPEC.md §15-20, §48, §54-60.
+ *
+ * `state → pixels`, one direction only. The renderer reads the read-only state view and
+ * receives discrete bursts from Game Core; it never writes to game state (the types make
+ * that a compile error, and `renderer does not mutate state` below proves it at runtime).
+ *
+ * Frame cost is bounded: one pool, baked sprites, no per-particle gradients, no DOM, and a
+ * budget that follows the settings the player actually chose (§54, §64).
+ */
+
+import { clamp01, mixRgb, rgbToCss, type Rgb } from '@puffly/shared';
+import type {
+  Burst,
+  ContrastMode,
+  EngineEvent,
+  GameStateView,
+  QualityMode,
+  RendererAdapter,
+} from '@puffly/game-core';
+import { FIELD_SCALE, budgetFor, intakeBurst } from './intake';
+import { ParticlePool, type Particle } from './particles';
+import { drawAffordanceHint, drawAshtray, drawCigarette, drawLighter, drawPack } from './props';
+import { drawBackground } from './background';
+import { EffectList, drawEffects, type SceneEffect } from './effects';
+import { drawDust, drawRain } from './weather';
+import {
+  createSpriteProvider,
+  defaultSpriteFactory,
+  type SpriteImage,
+  type SpriteProvider,
+} from './sprites';
+import { createViewport, type Viewport } from './viewport';
+
+/** Anything longer than this is a stalled tab, not a frame; smoke must not teleport. */
+const MAX_FRAME_MS = 50;
+/** A single puff may never cover the stage, whatever the lifetime maths says (§54, §58). */
+export const MAX_SMOKE_RADIUS_PX = 220;
+/** Particles at or past this depth draw in front of the props, the rest behind them. */
+const NEAR_DEPTH = 0.55;
+/** Ash pieces that fill the tray mound; past this the tray just looks full. */
+const TRAY_LOAD_FRAGMENTS = 14;
+
+export interface RendererSettings {
+  reducedMotion: boolean;
+  quality: QualityMode;
+  /** §64: raised smoke opacity and a lit rim on the rod, for a readable silhouette. */
+  contrast: ContrastMode;
+}
+
+export interface CanvasRendererOptions {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  dpr?: number;
+  /** Injectable so tests can run without a real canvas (§72). */
+  sprites?: SpriteProvider;
+  settings?: RendererSettings;
+  /** Baked film-grain tile; omit it (as tests do) and the scene renders without grain. */
+  grainTile?: SpriteImage | null;
+}
+
+export interface PufflyRenderer extends RendererAdapter {
+  handleEvent(event: EngineEvent): void;
+  setViewport(width: number, height: number, dpr: number): void;
+  setSettings(settings: Partial<RendererSettings>): void;
+  particleCount(): number;
+  poolCapacity(): number;
+}
+
+const TINT_CACHE_LIMIT = 32;
+
+function densityScaleFor(settings: RendererSettings): number {
+  if (settings.reducedMotion) return 0.28;
+  switch (settings.quality) {
+    case 'light':
+      return 0.5;
+    case 'balanced':
+      return 0.75;
+    default:
+      return 1;
+  }
+}
+
+/**
+ * Where a burst should leave a mark on the scene. Only the physical bursts do: the smoke
+ * itself is the feedback for a puff, and drawing a ring around every wisp would be noise.
+ */
+function effectFor(burst: Burst, atMs: number): SceneEffect | null {
+  const tint: Rgb = [255, 196, 128];
+  switch (burst.kind) {
+    case 'extinguish':
+      return {
+        kind: 'flash',
+        x: burst.origin.x,
+        y: burst.origin.y,
+        bornMs: atMs,
+        ttlMs: 420,
+        strength: 0.85,
+        reach: 0.16,
+        tint: [255, 236, 208],
+      };
+    case 'impact':
+      return {
+        kind: 'ripple',
+        x: burst.origin.x,
+        y: burst.origin.y,
+        bornMs: atMs,
+        ttlMs: 520,
+        strength: 0.7,
+        reach: 0.14,
+        tint,
+      };
+    case 'flare':
+      return {
+        kind: 'flash',
+        x: burst.origin.x,
+        y: burst.origin.y,
+        bornMs: atMs,
+        ttlMs: 300,
+        strength: 0.5,
+        reach: 0.07,
+        tint: [255, 150, 60],
+      };
+    case 'ash':
+      return {
+        kind: 'ripple',
+        x: burst.origin.x,
+        y: burst.origin.y,
+        bornMs: atMs,
+        ttlMs: 380,
+        strength: 0.35,
+        reach: 0.05,
+        tint: [214, 214, 220],
+      };
+    default:
+      return null;
+  }
+}
+
+export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRenderer {
+  const ctx = options.ctx;
+  const viewport: Viewport = createViewport({
+    width: options.width,
+    height: options.height,
+    dpr: options.dpr ?? 1,
+  });
+  const settings: RendererSettings = {
+    reducedMotion: false,
+    quality: 'auto',
+    contrast: 'normal',
+    ...options.settings,
+  };
+  const grainTile = options.grainTile ?? null;
+  const sprites: SpriteProvider =
+    options.sprites ??
+    createSpriteProvider(defaultSpriteFactory(), settings.quality === 'light' ? 64 : 96);
+
+  let pool = new ParticlePool(budgetFor(settings.reducedMotion, settings.quality));
+  let clockMs = 0;
+  const tintCache = new Map<string, Rgb>();
+  const effects = new EffectList();
+
+  /** Ash that has landed, as the tray sees it: a mound, and a rock when it arrives. */
+  let trayLoad = 0;
+  let trayWobble = 0;
+  let lastDropped = -1;
+
+  const tintFor = (base: Rgb, particleHeat: number, visibility: number): Rgb => {
+    const key = `${base[0]}|${base[1]}|${base[2]}|${Math.round(particleHeat * 8)}|${Math.round(visibility * 8)}`;
+    const cached = tintCache.get(key);
+    if (cached) return cached;
+    // Night smoke reads brighter against a dark room (§24), and hot particles keep the
+    // cherry's colour for their first moments instead of jumping straight to grey.
+    const lit = mixRgb(base, [255, 255, 255], (visibility - 0.5) * 0.12);
+    const tinted = mixRgb(lit, [255, 176, 96], particleHeat * 0.55);
+    if (tintCache.size > TINT_CACHE_LIMIT) tintCache.clear();
+    tintCache.set(key, tinted);
+    return tinted;
+  };
+
+  /**
+   * One depth slice of smoke (§16). Drawing half the particles behind the props and half in
+   * front is what turns a flat fog into volume, and it costs nothing but a second loop.
+   */
+  const drawSmoke = (state: GameStateView, near: boolean): void => {
+    const field = state.smoke;
+    const style = state.style.smoke;
+    const stage = viewport.stage;
+    const lift = settings.contrast === 'high' ? 1.35 : 1;
+    const sparks: Particle[] = [];
+
+    ctx.save();
+    pool.forEachActive((particle: Particle) => {
+      if (particle.depth >= NEAR_DEPTH !== near) return;
+
+      if (particle.spark) {
+        // Sparks are streaks, not blobs: they are the only thing in the frame that moves
+        // fast, and a soft sprite on a fast particle is just a smear.
+        if (near) sparks.push(particle);
+        return;
+      }
+
+      const tint = tintFor(particle.tint, particle.heat, field.visibility);
+      const sprite = sprites.soft(tint);
+      const depthScale = 0.72 + particle.depth * 0.5;
+      const radiusPx = Math.min(
+        viewport.len(particle.radius * particle.scale * particle.size) * depthScale,
+        MAX_SMOKE_RADIUS_PX,
+      );
+      if (!sprite || radiusPx <= 0.4) return;
+
+      const centre = viewport.px(particle);
+      const alpha = clamp01(
+        particle.alpha * style.opacity * (0.35 + field.visibility * 0.8) * lift * (near ? 1 : 0.72),
+      );
+      if (alpha <= 0.004) return;
+
+      const isHot = particle.heat > 0.25;
+      ctx.globalCompositeOperation = isHot ? 'lighter' : 'source-over';
+      ctx.globalAlpha = alpha;
+      ctx.translate(centre.x, centre.y);
+      ctx.rotate(particle.rotation);
+      ctx.drawImage(sprite, -radiusPx, -radiusPx, radiusPx * 2, radiusPx * 2);
+      ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
+    });
+
+    if (sparks.length > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineCap = 'round';
+      for (const particle of sparks) {
+        const from = viewport.px({ x: particle.px, y: particle.py });
+        const to = viewport.px({ x: particle.x, y: particle.y });
+        const alpha = clamp01(particle.alpha * 3);
+        if (alpha <= 0.01) continue;
+        ctx.strokeStyle = rgbToCss(mixRgb(particle.tint, [255, 214, 150], 0.7), alpha);
+        ctx.lineWidth = Math.max(1, viewport.len(particle.radius * 0.9));
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+      }
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+
+    // Dense smoke dims the light behind it — a cheap approximation of scattering (§58).
+    if (near && field.density > 0.45 && stage.width > 0) {
+      const veil = ctx.createRadialGradient(
+        stage.x + stage.width * 0.5,
+        stage.y + stage.height * 0.42,
+        0,
+        stage.x + stage.width * 0.5,
+        stage.y + stage.height * 0.42,
+        stage.width * 0.7,
+      );
+      veil.addColorStop(0, rgbToCss(state.smoke.tint, clamp01((field.density - 0.45) * 0.06)));
+      veil.addColorStop(1, rgbToCss(state.smoke.tint, 0));
+      ctx.fillStyle = veil;
+      ctx.fillRect(stage.x, stage.y, stage.width, stage.height);
+    }
+  };
+
+  /**
+   * The cherry is a light source, not a red dot (§17): it halos the air it sits in and
+   * spills onto the table edge below it. When it is dark the whole scene loses its single
+   * warm anchor, which is exactly the difference between "a cigarette" and "a smoke break".
+   */
+  const drawCherryLight = (state: GameStateView): void => {
+    const ember = state.cigarette.ember;
+    const total = clamp01(ember.brightness + ember.flare * 0.6);
+    if (total <= 0.02) return;
+    if (!state.cigarette.pose.visible) return;
+
+    const at = viewport.px(state.anchors.ember);
+    const hot = mixRgb([255, 120, 32], [255, 236, 190], ember.temperature);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+
+    const halo = viewport.len(ember.glowRadius) * (1.9 + ember.flare * 1.4);
+    if (halo > 1) {
+      const glow = ctx.createRadialGradient(at.x, at.y, 0, at.x, at.y, halo);
+      glow.addColorStop(0, rgbToCss(hot, clamp01(0.16 * total)));
+      glow.addColorStop(1, rgbToCss(hot, 0));
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(at.x, at.y, halo, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // The spill: a wide, very soft ellipse of the cherry's colour where the table edge is.
+    const edgeY = viewport.stage.y + viewport.stage.height * state.stage.layout.tableEdgeY;
+    const spill = viewport.len(0.34) * (0.6 + total * 0.6);
+    if (edgeY > at.y && spill > 2) {
+      const dy = edgeY - at.y;
+      const grad = ctx.createRadialGradient(at.x, edgeY, 0, at.x, edgeY, spill);
+      grad.addColorStop(0, rgbToCss(hot, clamp01(0.11 * total * (1 - dy / viewport.stage.height))));
+      grad.addColorStop(1, rgbToCss(hot, 0));
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.ellipse(at.x, edgeY, spill, spill * 0.24, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  };
+
+  const drawGrain = (
+    context: CanvasRenderingContext2D,
+    state: GameStateView,
+    tile: SpriteImage | null,
+    reducedMotion: boolean,
+  ): void => {
+    // Grain is texture, not information: it is the first thing to go when the player asked for
+    // less movement, and it never appears without a tile to repeat (§64, §63: absent is fine).
+    if (!tile || reducedMotion) return;
+    const amount = state.environment.background.grain;
+    if (amount <= 0) return;
+    const pattern = context.createPattern(tile as unknown as CanvasImageSource, 'repeat');
+    if (!pattern) return;
+    context.save();
+    context.globalAlpha = Math.min(0.14, amount * 0.09);
+    context.fillStyle = pattern;
+    context.fillRect(0, 0, viewport.cssWidth, viewport.cssHeight);
+    context.restore();
+  };
+
+  const renderer: PufflyRenderer = {
+    render(state, dtMs) {
+      const frame = Math.max(0, Math.min(dtMs, MAX_FRAME_MS));
+      clockMs += frame;
+
+      pool.update(frame, state.smoke.drift, FIELD_SCALE, clockMs / 1000);
+
+      const dropped = state.cigarette.ash.dropped;
+      if (lastDropped >= 0 && dropped > lastDropped) {
+        trayWobble = Math.min(1, trayWobble + (dropped - lastDropped) * 0.5);
+      }
+      lastDropped = dropped;
+      trayLoad = clamp01(dropped / TRAY_LOAD_FRAGMENTS);
+      trayWobble = Math.max(0, trayWobble - frame / 620);
+
+      ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
+      ctx.clearRect(0, 0, viewport.cssWidth, viewport.cssHeight);
+
+      drawBackground(ctx, state, viewport);
+      drawGrain(ctx, state, grainTile, settings.reducedMotion);
+      drawDust(ctx, state, viewport, settings.reducedMotion);
+      drawSmoke(state, false);
+      drawAshtray(ctx, state, viewport, { load: trayLoad, wobble: trayWobble });
+      drawPack(ctx, state, viewport);
+      drawLighter(ctx, state, viewport);
+      drawCigarette(ctx, state, viewport, settings.contrast);
+      drawCherryLight(state);
+      drawSmoke(state, true);
+      drawAffordanceHint(ctx, state, viewport);
+      drawRain(ctx, state, viewport, settings.reducedMotion);
+      drawEffects(
+        ctx,
+        effects.active(clockMs),
+        clockMs,
+        (x, y) => viewport.px({ x, y }),
+        (units) => viewport.len(units),
+      );
+    },
+    resize(width, height, dpr) {
+      renderer.setViewport(width, height, dpr);
+    },
+    setViewport(width, height, dpr) {
+      viewport.resize(width, height, dpr);
+    },
+    setSettings(next) {
+      const budgetChanged =
+        (next.reducedMotion !== undefined && next.reducedMotion !== settings.reducedMotion) ||
+        (next.quality !== undefined && next.quality !== settings.quality);
+      Object.assign(settings, next);
+      if (budgetChanged) {
+        const nextBudget = budgetFor(settings.reducedMotion, settings.quality);
+        if (nextBudget !== pool.capacity) {
+          const resized = new ParticlePool(nextBudget);
+          // Keep what is already in the air rather than blanking the scene.
+          pool.forEachActive((particle) => {
+            resized.spawn({
+              x: particle.x,
+              y: particle.y,
+              vx: particle.vx,
+              vy: particle.vy,
+              radius: particle.radius,
+              alphaPeak: particle.alphaPeak,
+              alphaDecay: particle.alphaDecay,
+              life: particle.life,
+              noiseSeed: particle.noiseSeed,
+              rotation: particle.rotation,
+              scale: particle.scale,
+              scaleGrowth: particle.scaleGrowth,
+              turbulence: particle.turbulence,
+              rise: particle.rise,
+              gravity: particle.gravity,
+              tint: particle.tint,
+              heat: particle.heat,
+              depth: particle.depth,
+              spark: particle.spark,
+            });
+          });
+          pool = resized;
+        }
+      }
+    },
+    handleEvent(event) {
+      if (event.kind !== 'burst') return;
+      intakeBurst(event.burst, pool, { densityScale: densityScaleFor(settings) });
+      const effect = effectFor(event.burst, clockMs);
+      if (effect && !settings.reducedMotion) effects.push(effect);
+    },
+    particleCount() {
+      return pool.size;
+    },
+    poolCapacity() {
+      return pool.capacity;
+    },
+    dispose() {
+      pool.clear();
+      sprites.clear();
+      tintCache.clear();
+      effects.clear();
+    },
+  };
+
+  return renderer;
+}
+
+export { clearBackgroundCache } from './background';
+export { clearWeatherCache } from './weather';

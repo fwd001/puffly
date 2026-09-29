@@ -1,0 +1,17 @@
+{
+  "name": "@puffly/game-content",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@puffly/game-core": "*",
+    "@puffly/shared": "*"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}

@@ -1,0 +1,156 @@
+# Architecture
+
+One rule explains the whole layout (SPEC.md §86): **any future platform must be able to reuse the
+game, and only re-implement input, rendering and platform integration.** Everything below exists to
+keep that sentence true, rather than merely written down.
+
+```
+                    apps/web  (Vue shell: input, chrome, sheets, PWA)
+                       │
+        ┌──────────────┼──────────────┐
+        ↓              ↓              ↓
+   game-renderer   game-audio     game-storage      ← adapters (may touch the platform)
+        └──────────────┼──────────────┘
+                       ↓
+                  game-core                          ← pure TypeScript, no platform APIs
+                       │
+              game-content (data only)
+                       │
+                  shared (math, rng, clock, colour)
+```
+
+## The direction of dependence is enforced, not decorated
+
+`tests/architecture.test.ts` reads the shipped source of every package and fails on
+`window`, `document`, `indexedDB`, `AudioContext`, `requestAnimationFrame`, `canvas` types,
+`fetch`, `crypto`, `Math.random()`, `Date.now()`, `new Date(`, plus imports of `vue`,
+`@tauri-apps/*`, or any adapter package from inside the pure layer. It also fails if an adapter
+imports `createEngine` — an adapter observes, it does not drive (SPEC.md §48).
+
+Two details are deliberate, because both have produced fake green before:
+
+- **Comments are stripped before matching.** The pure layer's own doc comments contain the words
+  "Vue", "DOM" and "Canvas". Without stripping, the guard would have forced those explanations to
+  be deleted to get a green run — the documentation sacrificed to the metric.
+- **String literals are not stripped, and every matcher has a positive control.** Import
+  specifiers live in strings; an earlier version blanked string literals while removing comments,
+  which made all twelve import checks pass *nothing*. A guard that cannot fail is decoration, so
+  `the scanner itself reports every shape it claims to catch` feeds each matcher text it must
+  report, and the renderer is asserted to *contain* `document.` and `CanvasRenderingContext2D` so
+  the same scanner is proven able to see platform usage at all.
+
+`eslint.config.mjs` enforces the same boundary while writing code (`no-restricted-globals`,
+`no-restricted-imports`, `no-restricted-syntax` on the pure packages), so the failure arrives at
+save time rather than at test time. The linter is the early warning; the test is the door.
+
+## State is continuous, happenings are discrete
+
+SPEC.md §11 names eleven lifecycle states. Game Core splits them in two kinds, because the
+alternative — letting a handler decide what "burning" means — produces four slightly different
+definitions of the same word:
+
+- **interaction-driven** (`IDLE`, `PICKED_UP`, `LIGHTING`, `PUFFING`, `EXTINGUISHING`,
+  `EXTINGUISHED`, `DISCARDED`) are entered and left by input handlers; they last exactly as long as
+  the player is doing the thing;
+- **derived** (`NEAR_END` → `ASH_READY` → `RESTING` → `BURNING`, in that priority order) are
+  recomputed from the simulation every step by `deriveAmbientState`.
+
+The legal edges live in one table, `stateMachine.ts:TRANSITIONS`, and `setState` refuses an
+illegal edge instead of throwing: a stranded cigarette is a worse user experience than a missed
+transition, and the exhaustive table test is what keeps the table honest.
+
+Adapters therefore consume two different things and never mix them:
+
+| | what it is | who reads it |
+| --- | --- | --- |
+| `GameState` | continuous fields, read every frame | renderer, audio (beds), shell chrome |
+| `EngineEvent` | discrete `burst` / `world` / `session` / `transition` / `unlock` | renderer (particles), audio (cues), storage (log) |
+
+`GameStateView = DeepReadonly<GameState>` is what the core hands out, so the §48 rule "the renderer
+must not modify game state" is a compile error rather than a convention. `rendering.test.ts` then
+proves it at runtime by handing the renderer a **deep-frozen live snapshot** and driving a whole
+break through it: any write would throw a TypeError instead of corrupting the simulation.
+
+## One copy of every fact
+
+- Geometry lives in the core (`CigarettePose`, `StageAnchors`, `LAYOUT`, `HIT`) so hit-testing and
+  drawing cannot drift apart, and a desktop shell gets the same anchors (SPEC.md §79).
+- Content→visual conversion lives in the core too: `state.style` (`SceneStyle`) is assembled from
+  content by the engine, so a renderer stays a pure function of state and never imports content.
+- Counters live in one place. `Progress` is owned by the engine and exposed as
+  `engine.progressSnapshot()`; the shell mirrors it into storage and does not keep a second tally.
+  `Statistics` is **derived from the session log** on demand (SPEC.md §70), so no counter can
+  disagree with the events that produced it.
+- A flare is produced by one function (`ember.forceFlare`), reached both by the ember's own
+  `flareChance` and by a pooled `ember_flare` world event; `dropAsh` likewise. The `lighter_failure`
+  rule keeps weight `0` in the scheduler precisely so it cannot become a second coin flip competing
+  with `LighterContent.failureChance`.
+- The ashtray catch radius, the flick threshold and the particle budget are each named once and
+  read from there.
+
+## Determinism and replay
+
+All randomness flows through `shared/rng.ts` (sfc32, integer-only). `Math.random()` is forbidden by
+the guard, and `Date.now()` / `new Date()` are forbidden in the core: the shell supplies wall-clock
+time and the UTC offset, so a save replays identically on another machine.
+
+`GameEngine.send()` does not apply an input immediately. It resolves the point and target, then
+**snaps the input to the next fixed step** (`STEP_MS = 1000/60`) and queues it. That is what makes
+§71 real rather than aspirational: `replaySession(session, content)` rebuilds an engine from
+`seed`, `engineStartWallClockMs` and the content ids, advances to each recorded step, and reproduces
+the event stream — `replay.test.ts` asserts the replayed `SessionEvent` sequence equals the recorded
+one, including `SESSION_START`/`SESSION_END`, which replay re-issues at the same steps.
+
+`rendering.test.ts` adds the visual half of the same promise: the same `Burst` seed expands into the
+same particle layout, so a reproduced bug looks like the bug.
+
+## Performance
+
+SPEC.md §54 and §81 (6/9) are why the renderer is structured the way it is:
+
+- no DOM particles, and Vue never drives a particle: the rAF loop calls `engine.tick(dt)` and
+  `renderer.render(state, dt)`, while a summary is republished to the UI at 5 Hz so components
+  re-render on a human timescale;
+- a single fixed-capacity `ParticlePool` with ring-buffer allocation and zero per-frame allocation;
+  over budget, the oldest slot is recycled rather than the frame stalling;
+- smoke sprites are baked once per quantised tint (radial gradients are never built per particle per
+  frame), and `blur` is the sprite's own falloff rather than `ctx.filter`, which is slow and
+  inconsistently supported;
+- quality tiers set the budget (1400 / 800 / 380, and 160 under `reducedMotion`) — SPEC.md §64;
+- `dt` is clamped to 250 ms per frame and 50 ms per render step, so a backgrounded tab neither
+  fast-forwards the burn nor teleports smoke.
+
+## Extension seams
+
+The interfaces a new platform implements are declared in the pure layer, so the seam is part of the
+contract rather than an afterthought: `RendererAdapter`, `AudioAdapter`, `InputSink`, `ClockSource`,
+and `StorageAdapter` (`game-storage`).
+
+- **Desktop pet (SPEC.md §40-44, §78)**: `apps/desktop` would create a transparent, frameless,
+  always-on-top window, put the *same* `createCanvasRenderer` on its canvas, convert native mouse
+  events into `GameInput`, and reuse `game-storage` with a filesystem `StorageAdapter`. No game
+  logic is copied; `game-core` is imported once. This is not a paragraph claim: `game-renderer`'s
+  `platform.test.ts` deletes `document`, `window` and `navigator` from the global object and then
+  plays a whole break through the engine and the renderer. It draws, because it never needed them.
+- **Renderer swap (§79)**: only if a transparent-window or GPU requirement actually appears does a
+  `DesktopRenderer` get added; the core does not change, because it never knew which renderer existed.
+- **New content (§77)**: adding a cigarette, room, lighter, tray, smoke style or sound bed is an
+  entry in `game-content` plus an `UnlockRule`. Nothing in `game-core` is edited — the pools,
+  weights, and effects are looked up by id.
+- **New world event**: the id is listed in SPEC.md §21, so it already has a rule in
+  `WORLD_EVENT_RULES`; adding one means a rule plus an `applyStart` case, not a new protocol.
+- **Haptics (§30)**: `Settings.haptics` exists and is unread on the web. A native shell consumes it
+  without touching the simulation.
+
+## Deliberately not built
+
+Not every idea in the spec is a feature to ship on day one, and pretending otherwise would add
+complexity for hypothetical futures (SPEC.md §89, 9-10):
+
+- **no desktop or mobile shell yet** — only the seams above, which is why `apps/` holds `web` alone;
+- **no accounts, sync or telemetry** (§52) — there is no network code in the repository;
+- **no i18n in the game core** (§5) — the core is language independent by construction; the only
+  text is `aria-label` for screen readers and the PWA manifest;
+- **no game engine dependency** (§76) — Canvas 2D and `requestAnimationFrame` only;
+- **no medical claims or recovery percentages** (§84) — `smokeFreeDays` is a count of days on an
+  anchor the player sets themselves, and nothing in the UI turns it into a health statement.
