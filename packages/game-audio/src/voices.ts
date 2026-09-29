@@ -281,7 +281,7 @@ const ONE_SHOTS: Record<AudioVoiceId, OneShotRecipe> = {
     seconds: 0.06,
     build: (graph, into, peak, at) => {
       const band = graph.filter('band', 'bandpass', graph.jittered(2600, 0.16), 1.5);
-      const body = graph.filter('body', 'highpass', graph.jittered(950, 0.1), 0.7);
+      const body = graph.filter('body', 'highpass', graph.jittered(1800, 0.1), 0.7);
       const env = graph.gain('env', SILENT);
       band.connect(body);
       body.connect(env);
@@ -295,7 +295,8 @@ const ONE_SHOTS: Record<AudioVoiceId, OneShotRecipe> = {
         tickGain.connect(into);
         graph.punch(tickGain.gain, at, peak * 0.34, 0.0008, 0.022);
       }
-      return Math.max(graph.punch(env.gain, at, peak, 0.0009, 0.045), at + 0.06);
+      // A flint is a transient, not a note: 0.3 ms up, 12 ms gone.
+      return Math.max(graph.punch(env.gain, at, peak, 0.0003, 0.012), at + 0.06);
     },
   },
   flame: {
@@ -402,21 +403,28 @@ const ONE_SHOTS: Record<AudioVoiceId, OneShotRecipe> = {
       high.connect(env);
       shine.connect(env);
       env.connect(into);
-      const steam = graph.noise('steam', specOf('white', 0.85, undefined, 2), 1, false);
+      // Looped: a stub-out held for a second and a half used to run out of noise at 0.8 s
+      // and finish in silence while the rod was still visibly being put out.
+      const steam = graph.noise('steam', specOf('white', 0.85, undefined, 2), 1, true);
       if (steam) steam.connect(high);
-      const thin = graph.noise('thin', specOf('pink', 0.7, undefined, 1), 1.3, false);
+      const thin = graph.noise('thin', specOf('pink', 0.7, undefined, 1), 1.3, true);
       if (thin) thin.connect(shine);
+      const seconds = Math.min(2.6, Math.max(0.35, graph.args.durationSec || 0.8));
       high.frequency.setValueAtTime(graph.jittered(2400, 0.04), at + LEAD);
-      high.frequency.exponentialRampToValueAtTime(graph.jittered(900, 0.04), at + 0.8);
-      return Math.max(graph.punch(env.gain, at, peak, 0.01, 0.7), at + 0.82);
+      high.frequency.exponentialRampToValueAtTime(graph.jittered(900, 0.04), at + seconds);
+      return Math.max(graph.punch(env.gain, at, peak, 0.01, seconds * 0.9), at + seconds + 0.02);
     },
   },
   ash: {
     seconds: 0.14,
     build: (graph, into, peak, at) => {
+      // Ash is dust, and dust hisses: the low body alone sounded like a hand on carpet, and
+      // the crumble only reads as ash because of the few kilohertz on top of it.
       const grit = graph.filter('grit', 'lowpass', graph.jittered(760, 0.25), 0.9);
+      const shine = graph.filter('shine', 'bandpass', graph.jittered(5200, 0.22), 0.8);
       const env = graph.gain('env', SILENT);
       grit.connect(env);
+      shine.connect(env);
       env.connect(into);
       const dust = graph.noise(
         'dust',
@@ -425,9 +433,18 @@ const ONE_SHOTS: Record<AudioVoiceId, OneShotRecipe> = {
         false,
       );
       if (dust) dust.connect(grit);
-      return Math.max(graph.punch(env.gain, at, peak, 0.002, 0.1), at + 0.14);
+      const top = graph.noise(
+        'dust.top',
+        specOf('grain', 0.1, 0.5 + graph.args.velocity * 0.4, 1),
+        1,
+        false,
+      );
+      if (top) top.connect(shine);
+      return Math.max(graph.punch(env.gain, at, peak, 0.002, 0.045), at + 0.14);
     },
   },
+  // The weather buffers loop: a gust is asked for 2.4 s of swell and a shower for 3 s, and a
+  // one-second buffer with `loop` off left the envelope open over silence (§25).
   wind: {
     seconds: 1.2,
     build: (graph, into, peak, at) => {
@@ -437,9 +454,9 @@ const ONE_SHOTS: Record<AudioVoiceId, OneShotRecipe> = {
       band.connect(env);
       low.connect(env);
       env.connect(into);
-      const gust = graph.noise('gust', specOf('pink', 1.3, undefined, 2), 1, false);
+      const gust = graph.noise('gust', specOf('pink', 1.3, undefined, 2), 1, true);
       if (gust) gust.connect(band);
-      const hush = graph.noise('hush', specOf('brown', 1.2, undefined, 1), 1, false);
+      const hush = graph.noise('hush', specOf('brown', 1.2, undefined, 1), 1, true);
       if (hush) hush.connect(low);
       graph.lfo('gust', 0.42, 180, band.frequency);
       return Math.max(
@@ -457,9 +474,9 @@ const ONE_SHOTS: Record<AudioVoiceId, OneShotRecipe> = {
       high.connect(env);
       patter.connect(env);
       env.connect(into);
-      const sheet = graph.noise('sheet', specOf('white', 0.95, undefined, 2), 1, false);
+      const sheet = graph.noise('sheet', specOf('white', 0.95, undefined, 2), 1, true);
       if (sheet) sheet.connect(high);
-      const drops = graph.noise('drops', specOf('grain', 0.9, 0.7, 2), 0.9, false);
+      const drops = graph.noise('drops', specOf('grain', 0.9, 0.7, 2), 0.9, true);
       if (drops) drops.connect(patter);
       return Math.max(
         graph.swell(env.gain, at, peak, Math.max(0.3, graph.args.durationSec)),
@@ -474,7 +491,7 @@ const ONE_SHOTS: Record<AudioVoiceId, OneShotRecipe> = {
       const env = graph.gain('env', SILENT);
       low.connect(env);
       env.connect(into);
-      const air = graph.noise('air', specOf('brown', 0.8, undefined, 1), 1, false);
+      const air = graph.noise('air', specOf('brown', 0.8, undefined, 1), 1, true);
       if (air) air.connect(low);
       return Math.max(
         graph.swell(env.gain, at, peak, Math.max(0.3, graph.args.durationSec * 0.6)),

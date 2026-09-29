@@ -35,14 +35,17 @@ describe('discrete cues (§26)', () => {
     expect(cueNodes(failed, 'flame')).toBeGreaterThan(0);
     expect(failed.engine.cueForEvent(sessionEvent('LIGHT_FAIL'))).toEqual(['sputter']);
 
-    // It catching is its own click, quieter than the wheel flick and apart in time (§26).
+    // The catch is the crackle of the `ember` burst the core emits at the same moment, so the
+    // session event must not answer with a second click of its own (§26).
     const caught = once(sessionEvent('LIGHT'));
-    expect(cueNodes(caught, 'click')).toBeGreaterThan(0);
-    expect(caught.engine.cueForEvent(sessionEvent('LIGHT'))).toEqual(['click']);
+    expect(caught.engine.cueForEvent(sessionEvent('LIGHT'))).toEqual([]);
+    expect(cueNodes(caught, 'click')).toBe(0);
+    const crackle = once(burstEvent('ember', 3, 0.8));
+    expect(cueNodes(crackle, 'crackle') + cueNodes(crackle, 'ember')).toBeGreaterThan(0);
+    // The wheel flick is still the loudest thing in the lighting window.
     const store = createProfileStore(PROFILES);
-    const catchPlan = planCues(sessionEvent('LIGHT'), makeState(), store)[0];
     const flickPlan = planCues(burstEvent('lighter', 3), makeState(), store)[0];
-    // The catch is quieter than the wheel flick that preceded it: an accent, not a second hit.
+    const catchPlan = planCues(burstEvent('ember', 4, 0.8), makeState(), store)[0];
     expect(catchPlan?.velocity ?? 1).toBeLessThan(flickPlan?.velocity ?? 0);
   });
 

@@ -65,7 +65,9 @@ const CUE_BUS: Record<AudioCueId, AudioBusId> = {
   click: 'cue',
   sputter: 'cue',
   ignite: 'cue',
-  'draw-detail': 'bed',
+  // On the bed bus it summed with the draw bed itself, so inhaling was twice as loud as
+  // the breath that follows it.
+  'draw-detail': 'cue',
   release: 'cue',
   ash: 'cue',
   hiss: 'cue',
@@ -163,14 +165,17 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
     this.lastState = state;
     this.guard(() => {
       this.followUp();
-      if (!this.running) return;
+      if (!this.running) {
+        // The tap that unlocks the context is also the event that should be heard. `resume()`
+        // is async, so keep the last few and play them the moment the context is really up.
+        if (this.pending.length < MAX_PENDING_EVENTS) this.pending.push({ event, state });
+        return;
+      }
       // Refresh the continuous half first: a cue's loudness is judged against what is
       // already sounding, not against whatever the previous frame saw.
       this.updateContinuous(state);
-      const cues = planCues(event, state, this.store, {
-        ambientScale: clamp01(this.settings.ambientVolume),
-      });
-      for (const cue of cues) this.fireCue(cue);
+      this.drainPending();
+      this.planAndFire(event, state);
     });
   }
 
@@ -297,9 +302,27 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
       this.running = true;
       this.applySettings(false);
       if (this.lastState) this.updateContinuous(this.lastState);
+      this.drainPending();
       return;
     }
     this.running = running;
+  }
+
+  /** Events that arrived while the context was still suspended, oldest first. */
+  private pending: { event: EngineEvent; state: AudioStateSlice }[] = [];
+
+  private drainPending(): void {
+    if (this.pending.length === 0) return;
+    const queued = this.pending;
+    this.pending = [];
+    for (const item of queued) this.planAndFire(item.event, item.state);
+  }
+
+  private planAndFire(event: EngineEvent, state: AudioStateSlice): void {
+    const cues = planCues(event, state, this.store, {
+      ambientScale: clamp01(this.settings.ambientVolume),
+    });
+    for (const cue of cues) this.fireCue(cue);
   }
 
   private guard(work: () => void): void {
@@ -474,6 +497,9 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
  * — no constructor, a blocked factory, a context that dies on construction — the caller gets
  * `createSilentAudioEngine()` and the game continues without a word (§63).
  */
+/** A handful of events survives the gap between the unlocking tap and the context running. */
+const MAX_PENDING_EVENTS = 3;
+
 export function createAudioEngine(options: AudioEngineOptions = {}): AudioEngine {
   const acquired = acquireContext(options.context, options.contextFactory);
   if (!acquired.context) return createSilentAudioEngine(options.settings);

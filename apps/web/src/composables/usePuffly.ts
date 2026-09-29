@@ -423,9 +423,16 @@ export function createPuffly(): Puffly {
       keyboard.detach();
     });
 
+    // Capture phase on the window, before the game's own pointer handler: the tap that unlocks
+    // the audio context is the first sound the player is owed, and a handler bound after the
+    // adapter's runs one step too late to matter (§26).
     const unlockAudio = (): void => audio?.unlock();
-    canvas.addEventListener('pointerdown', unlockAudio);
-    stop.push(() => canvas.removeEventListener('pointerdown', unlockAudio));
+    window.addEventListener('pointerdown', unlockAudio, { capture: true });
+    window.addEventListener('keydown', unlockAudio, { capture: true });
+    stop.push(() => {
+      window.removeEventListener('pointerdown', unlockAudio, { capture: true });
+      window.removeEventListener('keydown', unlockAudio, { capture: true });
+    });
 
     const onVisibility = (): void => {
       if (!audio) return;

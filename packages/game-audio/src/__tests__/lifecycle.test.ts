@@ -42,6 +42,24 @@ describe('suspend / resume / dispose', () => {
     expect(h.ctx.sources.length).toBeGreaterThan(sourcesBefore);
   });
 
+  it('hears the tap that unlocked the context (§26)', () => {
+    // The autoplay policy starts the context suspended, and `resume()` is async: the very first
+    // click of the session used to be swallowed whole, which is the first thing a player hears.
+    const ctx = new FakeAudioContext({ startState: 'suspended' });
+    const engine = createAudioEngine({ context: ctx, settings: makeSettings() });
+    const state = makeState({ lit: true, brightness: 0.8, cigaretteState: 'BURNING' });
+
+    engine.handle(burstEvent('exhale', 7), state);
+    engine.handle(burstEvent('ash', 8), state);
+    expect(ctx.sources.filter((source) => source.name.startsWith('cue.'))).toHaveLength(0);
+
+    ctx.resume();
+    engine.sync(state);
+    expect(ctx.sources.filter((source) => source.name.startsWith('cue.')).length).toBeGreaterThan(
+      0,
+    );
+  });
+
   it('re-arms the beds from the last state it saw when the page comes back', () => {
     const h = createHarness();
     const held = makeState({ puffActive: true, intensity: 0.7, lit: true, brightness: 0.6 });

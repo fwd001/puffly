@@ -42,7 +42,8 @@ export const CUE_MIN_GAP_MS: Record<AudioCueId, number> = {
   click: 70,
   sputter: 120,
   ignite: 140,
-  'draw-detail': 110,
+  // Six to eight of these a second, each with a half-second tail, buried the exhale.
+  'draw-detail': 320,
   release: 90,
   ash: 80,
   hiss: 260,
@@ -109,7 +110,9 @@ const WORLD_CUE: Record<string, AudioCueId | null> = {
  * or a world occurrence, and firing twice would be the mechanical button §26 forbids.
  */
 const SESSION_CUE: Record<string, AudioCueId | null> = {
-  [SessionEventType.LIGHT]: 'click',
+  // Nothing: the same instant already emitted an `ember` burst, which is the crackle of the
+  // cherry taking. A click on top of it was two sounds for one event (§26).
+  [SessionEventType.LIGHT]: null,
   [SessionEventType.LIGHT_FAIL]: 'sputter',
   [SessionEventType.UNLOCK]: 'chime',
   [SessionEventType.SESSION_TARGET]: 'chime',

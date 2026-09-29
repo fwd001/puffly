@@ -185,10 +185,14 @@ function fillGrains(
 /**
  * A handful of detuned partials with a soft attack: enough inharmonic information that
  * a filter + envelope turns it into glass, metal or stone without any sample file.
+ *
+ * The partials sit at 1-2.4 kHz and above because that is where a struck thing actually
+ * rings. A lower base made a buffer no band-passed transient could hear, and the lighter's
+ * click came out as a bare sine blip with no metal in it.
  */
 function fillRing(data: Float32Array, rng: Rng, sampleRate: number, channel: number): void {
   const partials = 5;
-  const base = rng.range(0.06, 0.22);
+  const base = rng.range(2.5, 6);
   const ratios: number[] = [];
   for (let p = 0; p < partials; p += 1) ratios.push(base * (1 + p * rng.range(0.62, 0.93)));
   const skew = channel === 0 ? 1 : -1;
