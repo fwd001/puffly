@@ -13,6 +13,10 @@
   --chrome-bg: color-mix(in oklab, var(--deep-charcoal) 82%, transparent);
   --chrome-line: color-mix(in oklab, var(--warm-gray) 45%, transparent);
   --tap-target: 44px;
+  /* The bar is padding + one target + padding, plus whatever the device reserves at the bottom.
+     Sheets lift by exactly this much so they never sit on top of the buttons that opened them. */
+  --chrome-height: calc(var(--tap-target) + 20px);
+  --sheet-lift: calc(var(--chrome-height) + env(safe-area-inset-bottom));
   --text-scale: 1;
   --radius: 14px;
   --ease-out: cubic-bezier(0.16, 0.84, 0.3, 1);
@@ -65,6 +69,9 @@ body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+  /* A long press must not raise the iOS callout ("save image / look up"), which is the browser
+     answering a gesture the scene owns. `contextmenu` and friends are refused in JS. */
+  -webkit-touch-callout: none;
   touch-action: none;
 }
 
@@ -136,6 +143,7 @@ body {
   position: absolute;
   left: 0;
   right: 0;
+  z-index: 2;
   display: flex;
   justify-content: center;
   gap: calc(8px * var(--text-scale));
@@ -169,15 +177,17 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  max-height: 76%;
+  /* Above the bar, not over it: a sheet that reached the bottom of the screen covered all three
+     chrome buttons, and on a phone the middle one went dead once it was open. */
+  bottom: var(--sheet-lift);
+  max-height: calc(76% - var(--sheet-lift));
   overflow-y: auto;
-  padding: calc(16px * var(--text-scale)) calc(18px * var(--text-scale))
-    calc(20px + env(safe-area-inset-bottom));
+  z-index: 1;
+  padding: calc(16px * var(--text-scale)) calc(18px * var(--text-scale)) 20px;
   background: color-mix(in oklab, var(--deep-charcoal) 92%, black);
   border-top: 1px solid var(--chrome-line);
   border-radius: 22px 22px 0 0;
-  transform: translateY(100%);
+  transform: translateY(calc(100% + var(--sheet-lift)));
   opacity: 0;
   transition:
     transform 380ms var(--ease-out),
@@ -392,7 +402,7 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
   .sheet {
     left: auto;
     width: min(58%, 520px);
-    max-height: 100%;
+    max-height: calc(100% - var(--sheet-lift));
     border-radius: 22px 0 0 22px;
     border-top: none;
     border-left: 1px solid var(--chrome-line);

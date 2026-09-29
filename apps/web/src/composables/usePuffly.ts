@@ -44,6 +44,7 @@ import { createPersistence, type Persistence } from '../services/persistence';
 import {
   createKeyboardAdapter,
   createPointerAdapter,
+  createSurfaceGuard,
   targetForAffordance,
 } from './useInputAdapters';
 
@@ -416,11 +417,14 @@ export function createPuffly(): Puffly {
     const keyboard = createKeyboardAdapter(window, game, () =>
       targetForAffordance(game.getState()),
     );
+    const guard = createSurfaceGuard();
     pointer.attach();
     keyboard.attach();
+    guard.attach();
     stop.push(() => {
       pointer.detach();
       keyboard.detach();
+      guard.detach();
     });
 
     // Capture phase on the window, before the game's own pointer handler: the tap that unlocks

@@ -13,6 +13,9 @@ makes. Nothing to read, nothing to sign up for, nothing leaves the device.
 | ![Landscape phone](docs/images/phone-landscape-smoke.jpg)                        | ![Settings](docs/images/desktop-settings.jpg)                           |
 | 844×390: the props spread apart instead of crowding everything into a column.    | Icons, sliders, toggles. The words live in `aria-label`, not on screen. |
 
+**Play it now: <https://fwd001.github.io/puffly/>** — the same build `main` publishes on every
+push, installable to a phone home screen and usable offline afterwards.
+
 The full product and engineering contract is [`docs/SPEC.md`](docs/SPEC.md); the reasoning behind
 the shape of the code is [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). This file is the
 operator's page.
@@ -139,6 +142,15 @@ To ship somewhere else, build with your own prefix:
 ```bash
 PUBLIC_BASE=/any/prefix/ npm run build
 ```
+
+|               |                                            |
+| ------------- | ------------------------------------------ |
+| Live site     | <https://fwd001.github.io/puffly/>         |
+| Workflow runs | <https://github.com/fwd001/puffly/actions> |
+| Repository    | <https://github.com/fwd001/puffly>         |
+
+A 404 at the live address after a push means Pages is not set to **GitHub Actions** as its
+source for this repository — the deploy job cannot change that setting itself.
 
 ## Product boundaries
 

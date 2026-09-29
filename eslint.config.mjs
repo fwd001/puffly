@@ -151,6 +151,8 @@ export default tseslint.config(
         document: 'readonly',
         window: 'readonly',
         PointerEvent: 'readonly',
+        MouseEvent: 'readonly',
+        Event: 'readonly',
         getComputedStyle: 'readonly',
       },
     },

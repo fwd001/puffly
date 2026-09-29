@@ -75,8 +75,33 @@ async function openPhone({ width, height, dpr }) {
   return { context, page, errors };
 }
 
-/** Lit pixels in a band of the canvas: smoke has to change them, nothing else does. */
-const airLit = (page) =>
+/** Which stage of the break the scene is in, read the way a screen reader hears it. */
+const sceneState = (page) =>
+  page.evaluate(() => document.querySelector('canvas')?.getAttribute('aria-label') ?? '');
+
+/**
+ * Wait for the scene to reach one of these stages.
+ *
+ * A wheel lighter takes over a second to catch, and that length is a design number, not a
+ * constant of this test — a fixed sleep here passed by luck and failed by 200 ms.
+ */
+async function waitScene(page, pattern, withinMs = 4000) {
+  const deadline = Date.now() + withinMs;
+  for (;;) {
+    const state = await sceneState(page);
+    if (pattern.test(state)) return state;
+    if (Date.now() >= deadline) return '';
+    await page.waitForTimeout(120);
+  }
+}
+
+/**
+ * A coarse luminance map of the air above the table.
+ *
+ * What gets compared is *which pixels changed*, not how bright the frame is: a room's own key
+ * light fills the same band with bright pixels, and counting those proved nothing about smoke.
+ */
+const airSample = (page) =>
   page.evaluate(() => {
     const canvas = document.querySelector('canvas');
     const scale = canvas.width / canvas.clientWidth;
@@ -84,14 +109,33 @@ const airLit = (page) =>
     const box = canvas.getBoundingClientRect();
     const image = ctx.getImageData(
       0,
-      box.height * 0.25 * scale,
+      Math.round(box.height * 0.25 * scale),
       canvas.width,
-      box.height * 0.35 * scale,
+      Math.round(box.height * 0.35 * scale),
     );
-    let lit = 0;
-    for (let i = 0; i < image.data.length; i += 4) if (image.data[i] > 58) lit += 1;
-    return lit;
+    const step = 4;
+    const lum = [];
+    for (let row = 0; row < image.height; row += step) {
+      for (let col = 0; col < image.width; col += step) {
+        const i = (row * image.width + col) * 4;
+        lum.push(0.299 * image.data[i] + 0.587 * image.data[i + 1] + 0.114 * image.data[i + 2]);
+      }
+    }
+    return lum;
   });
+
+/** How much of the band a breath actually rewrote. */
+function breathDelta(before, after) {
+  let moved = 0;
+  let rise = 0;
+  const count = Math.min(before.length, after.length);
+  for (let i = 0; i < count; i += 1) {
+    const delta = after[i] - before[i];
+    if (delta > 12) moved += 1;
+    rise += delta;
+  }
+  return { movedRatio: count ? moved / count : 0, meanRise: count ? rise / count : 0 };
+}
 
 const stagePoint = (page, nx, ny) =>
   page.evaluate(
@@ -126,7 +170,7 @@ const stagePoint = (page, nx, ny) =>
   check('a coarse pointer gets 54px targets', target === '54px', target);
 
   // Sampled before anything is lit: an idle room has drift and dust, but no breath in it.
-  const before = await airLit(page);
+  const before = await airSample(page);
 
   const layout = LAYOUTS.tall;
   const rod = await stagePoint(page, ...layout.rod);
@@ -134,11 +178,10 @@ const stagePoint = (page, nx, ny) =>
   await page.waitForTimeout(300);
   const lighter = await stagePoint(page, ...layout.lighter);
   await page.touchscreen.tap(lighter.x, lighter.y);
-  await page.waitForTimeout(1000);
-  check(
-    'two taps start the break on their own',
-    await page.evaluate(() => document.querySelector('.clock-wrap')?.dataset.visible === 'true'),
-  );
+  // The clock's visibility is not the evidence: §10 dims the chrome, including the clock, once
+  // the player is inside the moment. The state machine is what a break starting means.
+  const litState = await waitScene(page, /burning|puffing|resting|ash_ready|near_end/);
+  check('two taps start the break on their own', litState !== '', litState);
 
   const held = await stagePoint(page, ...layout.held);
   for (let round = 0; round < 2; round += 1) {
@@ -175,11 +218,12 @@ const stagePoint = (page, nx, ny) =>
     );
     await page.waitForTimeout(600);
   }
-  const after = await airLit(page);
+  const after = await airSample(page);
+  const breath = breathDelta(before, after);
   check(
-    'a drawn breath is visible in the air',
-    after > before * 1.2,
-    `${before} → ${after} lit px`,
+    'a drawn breath rewrites the air above the table',
+    breath.movedRatio > 0.05 && breath.meanRise > 1,
+    `${(breath.movedRatio * 100).toFixed(1)}% of the band changed, mean rise ${breath.meanRise.toFixed(1)}`,
   );
   check(
     'the rod is still in hand, not in the tray',
@@ -200,6 +244,77 @@ const stagePoint = (page, nx, ny) =>
   await page.waitForTimeout(300);
   const zoomAfter = await page.evaluate(() => window.visualViewport?.scale ?? 1);
   check('double-tap does not zoom the scene', Math.abs(zoomAfter - zoomBefore) < 0.01);
+
+  // An open sheet must leave the bar that opened it reachable. The bottom-anchored panel used to
+  // paint over all three chrome buttons, so on a phone the middle one went dead once it was open.
+  await page.locator('.chrome button[aria-label="collection"]').tap();
+  await page.waitForTimeout(500);
+  const covered = await page.evaluate(() =>
+    ['break', 'collection', 'settings']
+      .filter((label) => {
+        const btn = document.querySelector(`.chrome button[aria-label="${label}"]`);
+        const r = btn.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        // The button's own glyph span is a hit on the button; anything else is something on top.
+        return !btn.contains(hit);
+      })
+      .map((label) => `${label} covered`),
+  );
+  check(
+    'a chrome button stays tappable under an open sheet',
+    covered.length === 0,
+    covered.join(', '),
+  );
+
+  await page.locator('.chrome button[aria-label="settings"]').tap();
+  await page.waitForTimeout(500);
+  const switched = await page.evaluate(() =>
+    [...document.querySelectorAll('.sheet[data-open="true"]')].map((el) =>
+      el.getAttribute('aria-label'),
+    ),
+  );
+  check(
+    'the bar switches from one sheet to another',
+    switched.join(',') === 'Settings',
+    switched.join(','),
+  );
+
+  // The browser's own long-press menu is another app appearing over the scene (§66: the canvas
+  // owns the surface). The iOS callout is asserted in the unit suite instead: Chromium drops
+  // `-webkit-touch-callout` at parse time, so nothing observable here could prove it.
+  const defaults = await page.evaluate(() => {
+    const seen = [];
+    const onMenu = (event) => seen.push(event.defaultPrevented);
+    document.addEventListener('contextmenu', onMenu);
+    const canvas = document.querySelector('canvas');
+    const box = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: box.width / 2,
+        clientY: box.height / 2,
+      }),
+    );
+    document.removeEventListener('contextmenu', onMenu);
+
+    let dragKept = false;
+    const onDrag = (event) => (dragKept = event.defaultPrevented);
+    document.addEventListener('dragstart', onDrag);
+    canvas.dispatchEvent(new Event('dragstart', { bubbles: true, cancelable: true }));
+    document.removeEventListener('dragstart', onDrag);
+
+    return {
+      menuFired: seen.length,
+      menuPrevented: seen.filter((value) => value === true).length,
+      dragPrevented: dragKept,
+    };
+  });
+  check(
+    'the native context menu, callout and drag defaults are refused',
+    defaults.menuFired === 1 && defaults.menuPrevented === 1 && defaults.dragPrevented === true,
+    JSON.stringify(defaults),
+  );
 
   await page.locator('.chrome button[aria-label="settings"]').tap();
   await page.waitForTimeout(500);
@@ -244,10 +359,10 @@ const stagePoint = (page, nx, ny) =>
   await page.touchscreen.tap(rod.x, rod.y);
   await page.waitForTimeout(300);
   await page.touchscreen.tap(lighter.x, lighter.y);
-  await page.waitForTimeout(1200);
   check(
     'landscape: a break lights with two taps',
-    await page.evaluate(() => document.querySelector('.clock-wrap')?.dataset.visible === 'true'),
+    (await waitScene(page, /burning/)) !== '',
+    await sceneState(page),
   );
 
   await page.locator('.chrome button[aria-label="settings"]').tap();

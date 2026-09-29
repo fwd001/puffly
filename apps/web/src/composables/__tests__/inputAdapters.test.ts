@@ -13,6 +13,7 @@ import type { GameEngine, GameInput } from '@puffly/game-core';
 import {
   createKeyboardAdapter,
   createPointerAdapter,
+  createSurfaceGuard,
   targetForAffordance,
 } from '../useInputAdapters';
 
@@ -252,4 +253,22 @@ describe('affordance targeting (§66)', () => {
     expect(targetForAffordance(state('none', 'IDLE'))).toBe('cigarette');
     expect(targetForAffordance(state('none', 'DISCARDED'))).toBe('cigarette');
   });
+});
+
+describe('the surface refuses the browser’s own gestures (§66)', () => {
+  for (const type of ['contextmenu', 'dragstart', 'selectstart']) {
+    it(`${type} is prevented while the guard is attached`, () => {
+      const guard = createSurfaceGuard(document);
+      guard.attach();
+      const held = new Event(type, { bubbles: true, cancelable: true });
+      document.body.dispatchEvent(held);
+      expect(held.defaultPrevented).toBe(true);
+
+      // The refusal is the guard's, not a permanent change to the page: detached, the default stands.
+      guard.detach();
+      const free = new Event(type, { bubbles: true, cancelable: true });
+      document.body.dispatchEvent(free);
+      expect(free.defaultPrevented).toBe(false);
+    });
+  }
 });

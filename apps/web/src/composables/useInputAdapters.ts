@@ -20,6 +20,31 @@ export interface InputAdapter {
   detach(): void;
 }
 
+/** The browser gestures that compete with the scene: menus, drags and selection handles. */
+const REFUSED_EVENTS = ['contextmenu', 'dragstart', 'selectstart'] as const;
+
+/**
+ * A game surface owns its gestures (SPEC.md §66): a right-click, a long press, a dragged
+ * canvas or a selection handle is the browser answering instead of the scene. Refusing them
+ * here keeps the whole app one surface, and keeps the refusal out of every component.
+ *
+ * The iOS text callout is the CSS half of the same rule — see `-webkit-touch-callout` in
+ * `styles/global.css`.
+ */
+export function createSurfaceGuard(target: EventTarget = document): InputAdapter {
+  const refuse = (event: Event): void => {
+    event.preventDefault();
+  };
+  return {
+    attach() {
+      for (const type of REFUSED_EVENTS) target.addEventListener(type, refuse);
+    },
+    detach() {
+      for (const type of REFUSED_EVENTS) target.removeEventListener(type, refuse);
+    },
+  };
+}
+
 interface PressState {
   id: number;
   startedAtMs: number;
