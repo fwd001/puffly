@@ -77,7 +77,7 @@ import type {
 import type { GameInput, InputTarget } from './types/input';
 import type { Progress } from './types/progress';
 import type { CigaretteStateId, GameState, SceneStyle } from './types/state';
-import type { Session } from './types/session';
+import type { OpenBreak, Session } from './types/session';
 
 /** What every adapter is allowed to read (SPEC.md §48). */
 export type GameStateView = DeepReadonly<GameState>;
@@ -123,6 +123,17 @@ export interface GameEngine {
   acknowledgeUnlocks(): void;
   /** Completed fixed steps — what replay aligns inputs to (§71). */
   steps(): number;
+  /**
+   * The break in progress as far as it can be known: which rod, how much of it is left, when
+   * the cherry caught. A locked phone still has a loop to catch up; an app the operating
+   * system killed has nothing left but what was written here. SPEC.md §81 (4).
+   */
+  openBreakSnapshot(): OpenBreak | null;
+  /**
+   * Come back to a break written down before the app died, with the burn advanced to where
+   * the wall clock says it should be — including burnt out. SPEC.md §81 (4).
+   */
+  restoreOpenBreak(record: OpenBreak, nowWallClockMs: number): GameStateView;
   /**
    * The growth record the shell persists. Game Core owns this object so there is exactly
    * one copy of counters like `puffs` — the shell mirrors it into storage, it does not
@@ -268,6 +279,7 @@ export function createEngine(options: EngineOptions): GameEngine {
     smokeStyle,
     progress,
     session: null,
+    litAtWallMs: null,
     listeners: new Set(),
     timers: createTimers(0),
     drag: {
@@ -873,6 +885,76 @@ export function createEngine(options: EngineOptions): GameEngine {
     },
     sessionId() {
       return rt.session?.id ?? null;
+    },
+    openBreakSnapshot() {
+      const log = rt.session;
+      if (!log) return null;
+      const cigarette = rt.state.cigarette;
+      return {
+        id: log.id,
+        seed: log.seed,
+        cigaretteId: rt.cigarette.id,
+        environmentId: rt.environment.id,
+        lighterId: rt.lighter.id,
+        ashtrayId: rt.ashtray.id,
+        startedAt: log.startedAt,
+        targetMs: log.targetMs,
+        litAtWallMs: rt.litAtWallMs ?? log.startedAt,
+        rodRemaining: cigarette.rodRemaining,
+        ashLength: cigarette.ash.length,
+        emberLit: cigarette.ember.lit,
+        events: log.events.map((event) => ({ ...event })),
+        triggers: [...log.triggers],
+        ...(log.cravingBefore === undefined ? {} : { cravingBefore: log.cravingBefore }),
+        ...(log.cravingAfter === undefined ? {} : { cravingAfter: log.cravingAfter }),
+        savedAtWallMs: rt.state.wallClockMs,
+      };
+    },
+    restoreOpenBreak(record, nowWallClockMs) {
+      // The wall clock is the authority on how much of the rod is left: the burn is a clock,
+      // and this is the only place a gap that no frame ever saw is handed back.
+      const sinceLitMs = Math.max(0, nowWallClockMs - record.litAtWallMs);
+      const burnMs = rt.cigarette.burnDuration.max || 1;
+      const remaining = clamp01(record.rodRemaining - sinceLitMs / burnMs);
+
+      if (rt.session === null) {
+        // `openSession` mints its own id and stamp; the record's are what the shell already
+        // showed the player, so they win.
+        const log = openSession(rt, record.targetMs);
+        log.id = record.id;
+        log.startedAt = record.startedAt;
+        log.triggers.push(...record.triggers.filter((tag) => !log.triggers.includes(tag)));
+        if (record.cravingBefore !== undefined) log.cravingBefore = record.cravingBefore;
+        if (record.cravingAfter !== undefined) log.cravingAfter = record.cravingAfter;
+      }
+
+      const cigarette = rt.state.cigarette;
+      cigarette.rodRemaining = Math.max(remaining, 0.0001);
+      cigarette.lengthRemaining = cigarette.rodRemaining;
+      cigarette.ash.length = Math.max(0, record.ashLength);
+      refreshPose(cigarette.pose, cigarette.rodRemaining, cigarette.ash.length);
+      rt.state.anchors = computeAnchors(cigarette.pose, cigarette.ash.length, rt.layout);
+      rt.litAtWallMs = record.litAtWallMs;
+      // `ui.sessionActive` is written by the tick; a restore that never ticks has to say so.
+      rt.state.ui.sessionActive = true;
+      rt.state.wallClockMs = nowWallClockMs;
+      rt.wallStartMs = nowWallClockMs - rt.state.nowMs;
+
+      // The state machine only walks legal edges, so a restored rod is walked back into the
+      // fire rather than written straight over it.
+      setState(rt, 'PICKED_UP');
+      setState(rt, 'LIGHTING');
+      setState(rt, 'BURNING');
+      if (record.emberLit && remaining > 0.0005) {
+        cigarette.ember.lit = true;
+        cigarette.ember.brightness = Math.max(cigarette.ember.brightness, 0.5);
+      } else {
+        // It burnt out while nobody was watching: let the burn tick put it out properly, so the
+        // record ends the same way a watched break does.
+        beginExtinguish(true);
+        for (let i = 0; i < Math.ceil(TIMING.extinguishMs / STEP_MS) + 2; i++) step();
+      }
+      return rt.state;
     },
     setCraving(level: number, phase: 'before' | 'after') {
       recordCraving(rt, level, phase);

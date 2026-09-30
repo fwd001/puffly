@@ -95,6 +95,8 @@ export interface EngineRuntime {
   smokeStyle: SmokeStyleContent;
   progress: Progress;
   session: SessionLog | null;
+  /** Wall clock of the moment the cherry caught, or null before it is lit. */
+  litAtWallMs: number | null;
   listeners: Set<EngineListener>;
   timers: Timers;
   drag: DragState;

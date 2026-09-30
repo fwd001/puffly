@@ -37,6 +37,40 @@ export interface Session {
   completed: boolean;
 }
 
+/**
+ * A break that is still running, written down so the app can be killed and come back to it.
+ *
+ * Deliberately *not* a replay. The cherry catches before §31's break begins, so the inputs that
+ * picked the rod up are not part of the recording, and a replay from them cannot rebuild a
+ * burning cigarette. What is honest here is the burn position itself — how much rod is left, how
+ * much ash, when the cherry caught — restored, and the simulation carries on from there.
+ */
+export interface OpenBreak {
+  /** The id this break will be recorded under when it ends. */
+  id: string;
+  seed: number;
+  cigaretteId: string;
+  environmentId: string;
+  lighterId: string;
+  ashtrayId: string;
+  /** Wall clock, matching `Session.startedAt`. */
+  startedAt: number;
+  targetMs: number;
+  /** Wall clock at the moment the cherry caught: the burn is measured from here. */
+  litAtWallMs: number;
+  /** 0..1 of the rod still unburnt, and the length of the ash column, when this was written. */
+  rodRemaining: number;
+  ashLength: number;
+  emberLit: boolean;
+  /** What the player had already done, so the finished record is not a lie. */
+  events: SessionEvent[];
+  triggers: string[];
+  cravingBefore?: number;
+  cravingAfter?: number;
+  /** Wall clock of the last write, so a stale record can be recognised as one. */
+  savedAtWallMs: number;
+}
+
 /** §36's visual tags — icon-only, so they need no translation (§5). */
 export const TriggerTag = {
   COFFEE: 'coffee',

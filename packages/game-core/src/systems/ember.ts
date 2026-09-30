@@ -101,6 +101,8 @@ export function tickEmber(rt: EngineRuntime, dtMs: number): void {
 
 /** Ignition is the one place the ember is lit before the state says it is (§11 LIGHTING). */
 export function ignite(rt: EngineRuntime): void {
+  // The one moment worth stamping: a break resumed hours later is measured from here.
+  rt.litAtWallMs = rt.state.wallClockMs;
   const ember = rt.state.cigarette.ember;
   ember.brightness = Math.max(ember.brightness, 0.55);
   ember.flare = 0.8;
