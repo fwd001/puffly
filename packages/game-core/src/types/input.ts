@@ -6,7 +6,12 @@
  * browser event (SPEC.md §48: `Canvas click -> Game Core` only through the adapter).
  */
 
-export type InputType = 'tap' | 'hold' | 'release' | 'drag' | 'swipe';
+/**
+ * `pinch` is the two-finger close on the cherry (§9 of the mobile brief). It is a type
+ * rather than a `hold` with a flag because it arrives from two pointers and means
+ * something no single finger means: put it out.
+ */
+export type InputType = 'tap' | 'hold' | 'release' | 'drag' | 'swipe' | 'pinch';
 
 export interface GameInput {
   type: InputType;

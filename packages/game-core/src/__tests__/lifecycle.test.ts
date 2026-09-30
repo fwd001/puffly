@@ -297,3 +297,112 @@ describe('the break, end to end (§8, §11)', () => {
     expect(h.state().ui.affordance).toBe('flick');
   });
 });
+
+describe('the hand is the interface (§66, "touch the world")', () => {
+  /** The direction the released breath takes, for a draw let go while the hand drifts `dx`. */
+  function exhaleDirection(dx: number): number {
+    const h = harness({ seed: 77 });
+    lit(h);
+    const body = h.state().anchors.body;
+    h.pointerDown(body.x, body.y);
+    h.run(420);
+    h.dragTo(body.x + dx * 0.5, body.y);
+    h.dragTo(body.x + dx, body.y);
+    h.pointerUp(body.x + dx, body.y);
+    const exhaled = h.bursts.filter(
+      (event) => event.kind === 'burst' && event.burst.kind === 'exhale',
+    );
+    const last = exhaled[exhaled.length - 1];
+    if (last === undefined || last.kind !== 'burst') throw new Error('nothing was exhaled');
+    return last.burst.directionDeg;
+  }
+
+  it('the way the hand travels when it lets go lays the smoke that way (§7 of the brief)', () => {
+    const straight = exhaleDirection(0);
+    // Capped at 24 degrees each way: the world answers the gesture, it is not steered by it.
+    expect(exhaleDirection(0.05)).toBeGreaterThan(straight + 8);
+    expect(exhaleDirection(-0.05)).toBeLessThan(straight - 8);
+    expect(exhaleDirection(0.05) - exhaleDirection(-0.05)).toBeLessThan(52);
+  });
+
+  it('two fingers closing on a lit cherry puts it out, and over nothing they do not', () => {
+    const h = harness();
+    lit(h);
+    const pinch = (x: number, y: number) => {
+      h.engine.send({ type: 'pinch', x, y, timestamp: h.state().nowMs, source: 'touch' });
+      h.flush();
+    };
+
+    // A close in empty air is two fingers, nothing more.
+    pinch(0.5, 0.2);
+    expect(h.state().cigarette.ember.lit).toBe(true);
+
+    // Closed on the cherry it is the same request as pressing the rod into the tray (§19).
+    const ember = h.state().anchors.ember;
+    pinch(ember.x, ember.y);
+    h.run(900);
+    expect(h.state().cigarette.ember.lit).toBe(false);
+    expect(h.state().cigarette.state).toBe('EXTINGUISHED');
+  });
+
+  it('a swipe down over nothing puts the interface away and leaves the break burning', () => {
+    const h = harness();
+    lit(h);
+    h.run(100);
+    expect(h.state().ui.controlsVisible).toBe(true);
+
+    h.engine.send({
+      type: 'swipe',
+      x: 0.5,
+      y: 0.2,
+      timestamp: h.state().nowMs,
+      source: 'touch',
+      velocity: { vx: 0, vy: 1.2 },
+    });
+    h.flush();
+    expect(h.state().ui.chromeFolded).toBe(true);
+    expect(h.state().ui.controlsVisible).toBe(false);
+
+    // The fold is the interface, not the cigarette: the rod goes on being a rod.
+    const before = h.state().cigarette.rodRemaining;
+    h.run(1200);
+    expect(h.state().cigarette.rodRemaining).toBeLessThan(before);
+    expect(h.state().cigarette.ember.lit).toBe(true);
+    expect(h.state().ui.controlsVisible).toBe(false);
+
+    // Touching a thing is the only way back — not a timer.
+    h.tap('cigarette');
+    expect(h.state().ui.chromeFolded).toBe(false);
+    expect(h.state().ui.controlsVisible).toBe(true);
+  });
+
+  it('the fold does not swallow the gestures that were already there', () => {
+    const h = harness();
+    lit(h);
+    h.run(100);
+
+    // Sideways over nothing: a hand moving, not a hand dismissing.
+    h.engine.send({
+      type: 'swipe',
+      x: 0.5,
+      y: 0.2,
+      timestamp: h.state().nowMs,
+      source: 'touch',
+      velocity: { vx: 1.2, vy: 0.1 },
+    });
+    h.flush();
+    expect(h.state().ui.chromeFolded).toBe(false);
+
+    // Down over the tray: that is a gesture aimed at a thing, and the thing answers.
+    h.engine.send({
+      type: 'swipe',
+      x: h.state().anchors.ashtray.x,
+      y: h.state().anchors.ashtray.y,
+      timestamp: h.state().nowMs,
+      source: 'touch',
+      velocity: { vx: 0, vy: 1.2 },
+    });
+    h.flush();
+    expect(h.state().ui.chromeFolded).toBe(false);
+  });
+});

@@ -45,6 +45,14 @@ export function createSurfaceGuard(target: EventTarget = document): InputAdapter
   };
 }
 
+/**
+ * A pinch is two fingers arriving apart and closing. The starting distance has to be wide
+ * enough that resting a thumb on the glass is not one, and the close has to be most of the
+ * way in before it counts.
+ */
+const PINCH_MIN_SPREAD_PX = 48;
+const PINCH_CLOSE_RATIO = 0.62;
+
 interface PressState {
   id: number;
   startedAtMs: number;
@@ -88,8 +96,24 @@ export function createPointerAdapter(
   },
 ): InputAdapter {
   let press: PressState | null = null;
+  /**
+   * Fingers currently down, by pointer id. Consulted for one thing only: recognising the
+   * close of two fingers on the cherry (§9 of the mobile brief). A single finger is
+   * already `press` above, and nothing else in the game cares how many hands there are.
+   */
+  const fingers = new Map<number, { x: number; y: number }>();
+  /** The distance the two fingers started at; 0 once a pinch has fired or lifted. */
+  let spreadAt = 0;
 
   const send = (input: GameInput) => engine.send(input);
+
+  /**
+   * A finger is not a cursor and the core widens hit targets for one (§66) — so the
+   * adapter has to say which it is. Reporting every touch as a mouse quietly cost a phone
+   * its wider targets on every drag.
+   */
+  const sourceOf = (event: PointerEvent): 'touch' | 'mouse' =>
+    event.pointerType === 'mouse' ? 'mouse' : 'touch';
 
   const onDown = (event: PointerEvent): void => {
     if (event.button !== undefined && event.button > 0) return;
@@ -99,6 +123,16 @@ export function createPointerAdapter(
       canvas.getBoundingClientRect(),
       readViewport(),
     );
+    fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (fingers.size === 2) {
+      const [first, second] = [...fingers.values()];
+      const start =
+        first !== undefined && second !== undefined
+          ? Math.hypot(first.x - second.x, first.y - second.y)
+          : 0;
+      // Two digits already touching are not a deliberate close on anything.
+      spreadAt = start > PINCH_MIN_SPREAD_PX ? start : 0;
+    }
     press = {
       id: event.pointerId,
       startedAtMs: performance.now(),
@@ -117,13 +151,40 @@ export function createPointerAdapter(
           x: clampUnit(press.last.x),
           y: clampUnit(press.last.y),
           timestamp: engine.getState().nowMs,
-          source: event.pointerType === 'touch' ? 'touch' : 'mouse',
+          source: sourceOf(event),
         });
       }
     }, TIMING.tapMaxMs);
   };
 
   const onMove = (event: PointerEvent): void => {
+    const live = fingers.get(event.pointerId);
+    if (live) {
+      live.x = event.clientX;
+      live.y = event.clientY;
+    }
+    if (spreadAt > 0 && fingers.size >= 2) {
+      const [first, second] = [...fingers.values()];
+      if (first !== undefined && second !== undefined) {
+        const spread = Math.hypot(first.x - second.x, first.y - second.y);
+        if (spread < spreadAt * PINCH_CLOSE_RATIO) {
+          const middle = toStagePoint(
+            (first.x + second.x) / 2,
+            (first.y + second.y) / 2,
+            canvas.getBoundingClientRect(),
+            readViewport(),
+          );
+          spreadAt = 0;
+          send({
+            type: 'pinch',
+            x: clampUnit(middle.x),
+            y: clampUnit(middle.y),
+            timestamp: engine.getState().nowMs,
+            source: sourceOf(event),
+          });
+        }
+      }
+    }
     if (!press || press.id !== event.pointerId) return;
     const point = toStagePoint(
       event.clientX,
@@ -141,7 +202,7 @@ export function createPointerAdapter(
         x: clampUnit(point.x),
         y: clampUnit(point.y),
         timestamp: engine.getState().nowMs,
-        source: 'mouse',
+        source: sourceOf(event),
       });
     }
     if (press.holdSent) {
@@ -151,7 +212,7 @@ export function createPointerAdapter(
         x: clampUnit(point.x),
         y: clampUnit(point.y),
         timestamp: engine.getState().nowMs,
-        source: 'mouse',
+        source: sourceOf(event),
       });
     }
     press.last = point;
@@ -190,7 +251,7 @@ export function createPointerAdapter(
         x: clampUnit(point.x),
         y: clampUnit(point.y),
         timestamp: engine.getState().nowMs,
-        source: 'mouse',
+        source: sourceOf(event),
         velocity,
       });
     } else {
@@ -199,11 +260,13 @@ export function createPointerAdapter(
         x: clampUnit(point.x),
         y: clampUnit(point.y),
         timestamp: engine.getState().nowMs,
-        source: 'mouse',
+        source: sourceOf(event),
       });
     }
 
     canvas.releasePointerCapture?.(event.pointerId);
+    fingers.delete(event.pointerId);
+    if (fingers.size < 2) spreadAt = 0;
     press = null;
   };
 
@@ -214,8 +277,10 @@ export function createPointerAdapter(
       x: clampUnit(press.last.x),
       y: clampUnit(press.last.y),
       timestamp: engine.getState().nowMs,
-      source: 'mouse',
+      source: sourceOf(event),
     });
+    fingers.delete(event.pointerId);
+    spreadAt = 0;
     press = null;
   };
 
@@ -231,6 +296,8 @@ export function createPointerAdapter(
       canvas.removeEventListener('pointermove', onMove);
       canvas.removeEventListener('pointerup', onUp);
       canvas.removeEventListener('pointercancel', onCancel);
+      fingers.clear();
+      spreadAt = 0;
       press = null;
     },
   };

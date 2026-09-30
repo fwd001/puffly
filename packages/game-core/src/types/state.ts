@@ -195,6 +195,12 @@ export interface UiHints {
   lastInputMs: number;
   idleMs: number;
   controlsVisible: boolean;
+  /**
+   * The player asked for the interface away — a swipe down over nothing. The scene keeps living
+   * and the rod keeps burning; only the chrome, the sheets and the hint word fold. The next touch
+   * on a thing brings them back (§10: the fade is the player's, not a timer's).
+   */
+  chromeFolded: boolean;
   sessionActive: boolean;
   sessionRemainingMs: number;
   sessionTargetMs: number;

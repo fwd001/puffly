@@ -291,6 +291,7 @@ export function createUiHints(nowMs: number, targetMs: number): UiHints {
     lastInputMs: 0,
     idleMs: nowMs,
     controlsVisible: true,
+    chromeFolded: false,
     sessionActive: false,
     sessionRemainingMs: targetMs,
     sessionTargetMs: targetMs,

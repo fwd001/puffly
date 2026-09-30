@@ -226,6 +226,20 @@ const stageWords = (page) =>
 const cueChannel = (page) =>
   page.evaluate(() => document.querySelector('.stage')?.dataset.cues ?? 'missing');
 
+/**
+ * Wait for the channel to change hands. The browser resolving an audio context is not something
+ * a fixed sleep can promise a deadline for — on a loaded machine it took this check 700 ms and
+ * then it did not — so the condition is polled and the last value is what gets reported.
+ */
+async function waitChannel(page, want, withinMs = 5000) {
+  const deadline = Date.now() + withinMs;
+  for (;;) {
+    const now = await cueChannel(page);
+    if (now === want || Date.now() >= deadline) return now;
+    await page.waitForTimeout(120);
+  }
+}
+
 // -------------------------------------------------------------------- portrait
 {
   const { page, errors, context } = await openPhone({ width: 393, height: 852, dpr: 3 });
@@ -605,41 +619,37 @@ const cueChannel = (page) =>
 // ------------------------------------------------------------------ with no sound
 {
   // §63: sound is allowed to be absent, and the game is not allowed to go quiet with it. The
-  // renderer's own suite proves what happens once it is told nothing can be heard — a louder,
+  // renderer's own suite proves what it draws once it is told nothing can be heard — a louder,
   // longer-lived version of the same mark. This is the other half, and it needs a real browser:
   // that the shell notices, through a real autoplay policy and a real mute switch.
   //
-  // Each half gets its own context, because each needs a page that has not been touched yet.
-  const loud = await openPhone({ width: 393, height: 852, dpr: 3 });
-  const beforeGesture = await cueChannel(loud.page);
-  const rod = await stagePoint(loud.page, ...LAYOUTS.tall.rod);
-  await loud.page.touchscreen.tap(rod.x, rod.y);
-  await loud.page.waitForTimeout(700);
-  const afterGesture = await cueChannel(loud.page);
-  const errors = [...loud.errors];
-  await loud.context.close();
+  // One page, four readings. Chromium caps how many audio contexts a process may hold, so a
+  // second context here was starving the first and reporting "the browser never allows sound".
+  const { page, errors, context } = await openPhone({ width: 393, height: 852, dpr: 3 });
+  const untouched = await cueChannel(page);
 
-  const quiet = await openPhone({ width: 393, height: 852, dpr: 3 });
-  await quiet.page.locator('.chrome button[aria-label="settings"]').tap();
-  await quiet.page.waitForTimeout(450);
-  await quiet.page.locator('.sheet[data-open="true"] button[aria-label="mute"]').tap();
-  await quiet.page.locator('.sheet[data-open="true"] button[aria-label="close"]').tap();
-  await quiet.page.waitForTimeout(450);
-  const mutedRod = await stagePoint(quiet.page, ...LAYOUTS.tall.rod);
-  await quiet.page.touchscreen.tap(mutedRod.x, mutedRod.y);
-  await quiet.page.waitForTimeout(700);
-  const whileMuted = await cueChannel(quiet.page);
-  errors.push(...quiet.errors);
-  await quiet.context.close();
+  const rod = await stagePoint(page, ...LAYOUTS.tall.rod);
+  await page.touchscreen.tap(rod.x, rod.y);
+  const afterGesture = await waitChannel(page, 'audio');
+
+  await page.locator('.chrome button[aria-label="settings"]').tap();
+  await page.waitForTimeout(450);
+  const mute = page.locator('.sheet[data-open="true"] button[aria-label="mute"]');
+  await mute.tap();
+  const muted = await waitChannel(page, 'visual');
+  await mute.tap();
+  const unmuted = await waitChannel(page, 'audio');
+  await page.locator('.sheet[data-open="true"] button[aria-label="close"]').tap();
 
   check(
-    'the picture carries the cues until sound is allowed, and whenever the player mutes',
-    beforeGesture === 'visual' && afterGesture === 'audio' && whileMuted === 'visual',
-    `untouched=${beforeGesture}, after the first tap=${afterGesture}, muted=${whileMuted} — the ` +
-      'middle one is the browser granting an AudioContext at all, so a browser that never does ' +
-      'fails this check rather than passing it quietly',
+    'the picture carries the cues until the browser allows sound, and whenever the player mutes',
+    untouched === 'visual' && afterGesture === 'audio' && muted === 'visual' && unmuted === 'audio',
+    `untouched=${untouched}, after the first tap=${afterGesture}, muted=${muted}, ` +
+      'unmuted again=' +
+      unmuted,
   );
   check('silent: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
 }
 
 await browser.close();

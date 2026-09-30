@@ -19,13 +19,20 @@ export interface TrayFeedback {
   load: number;
   /** 0..1 decaying impulse, replayed every time ash lands. */
   wobble: number;
+  /**
+   * 0..1 while the rod is being carried somewhere. The tray answers by lighting its own rim, so
+   * the destination says "here" without a control appearing over the scene. The tray itself is
+   * always in the scene — ash falls into it whether or not anyone is dragging — so what appears
+   * is the invitation, never the object.
+   */
+  invited: number;
 }
 
 export function drawAshtray(
   ctx: CanvasRenderingContext2D,
   state: GameStateView,
   viewport: Viewport,
-  feedback: TrayFeedback = { load: 0, wobble: 0 },
+  feedback: TrayFeedback = { load: 0, wobble: 0, invited: 0 },
 ): void {
   const style = state.style.ashtray;
   const centre = viewport.px(state.stage.layout.ashtray);
@@ -65,11 +72,25 @@ export function drawAshtray(
   }
 
   // Rim highlight: the only place a tray shows its material.
+  const invite = clamp01(feedback.invited);
   ctx.beginPath();
   ctx.ellipse(0, 0, radius, radius * 0.42, 0, Math.PI * 1.05, Math.PI * 1.95);
   ctx.lineWidth = Math.max(1, radius * 0.06);
-  ctx.strokeStyle = rgbToCss(style.rim, clamp01(0.25 + style.reflect + light * 0.3));
+  ctx.strokeStyle = rgbToCss(
+    mixRgb(style.rim, [255, 214, 150], invite * 0.7),
+    clamp01(0.25 + style.reflect + light * 0.3 + invite * 0.45),
+  );
   ctx.stroke();
+
+  // Carrying the rod to it: a warm halo just outside the rim, the one thing a still object can
+  // do to say "here" without becoming a button.
+  if (invite > 0.02) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, radius * 1.16, radius * 0.54, 0, 0, Math.PI * 2);
+    ctx.lineWidth = Math.max(1, radius * 0.05);
+    ctx.strokeStyle = rgbToCss([255, 196, 128], invite * 0.5);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 

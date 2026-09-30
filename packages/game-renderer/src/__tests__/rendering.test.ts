@@ -469,17 +469,46 @@ describe('scene feedback (§19, §20, §60)', () => {
     expect(effects.active(900)).toHaveLength(0);
   });
 
+  it('the tray lights its rim while the rod is being carried to it', () => {
+    // Through the renderer rather than the parameter: what is claimed is that a drag in the
+    // state becomes an invitation on the object, not that a caller can pass a number in.
+    const strokesWhile = (dragged: boolean): number => {
+      const fake = createFakeCanvas();
+      const renderer = createCanvasRenderer({
+        ctx: fake.ctx,
+        width: 900,
+        height: 1200,
+        dpr: 1,
+        sprites: { size: 16, soft: () => fakeSprite(16), clear: () => undefined },
+      });
+      const view = snapshotView();
+      const mutable = view as unknown as { cigarette: { pose: { dragged: boolean } } };
+      for (let frame = 0; frame < 12; frame += 1) {
+        mutable.cigarette.pose.dragged = dragged;
+        renderer.render(view, 50);
+      }
+      const strokes = fake.count('stroke');
+      renderer.dispose();
+      return strokes;
+    };
+
+    // Held still, the tray is one rim stroke a frame. Carried to, it draws the halo as well.
+    expect(strokesWhile(false)).toBeLessThan(strokesWhile(true));
+  });
+
   it('the tray visibly fills with the ash that fell (§20)', () => {
     const view = snapshotView();
     const empty = createFakeCanvas();
     drawAshtray(empty.ctx, view, createViewport({ width: 800, height: 1200, dpr: 1 }), {
       load: 0,
       wobble: 0,
+      invited: 0,
     });
     const full = createFakeCanvas();
     drawAshtray(full.ctx, view, createViewport({ width: 800, height: 1200, dpr: 1 }), {
       load: 1,
       wobble: 1,
+      invited: 0,
     });
     // Two extra ellipses is the mound; the wobble shows up as a rotate the empty tray never does.
     expect(full.count('ellipse') - empty.count('ellipse')).toBe(2);

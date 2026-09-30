@@ -28,6 +28,9 @@ interface PointerRig {
   down(x?: number, y?: number): void;
   move(x: number, y: number): void;
   up(x?: number, y?: number): void;
+  downAt(x: number, y: number, id: number, type?: string): void;
+  moveAt(x: number, y: number, id: number, type?: string): void;
+  upAt(x: number, y: number, id: number): void;
   cancel(): void;
   dispose(): void;
 }
@@ -56,9 +59,9 @@ function pointerRig(nowMs = 1000): PointerRig {
   const adapter = createPointerAdapter(canvas, engine, VIEWPORT);
   adapter.attach();
 
-  const fire = (type: string, x: number, y: number, pointerId = 1): void => {
+  const fire = (type: string, x: number, y: number, pointerId = 1, pointerType = 'touch'): void => {
     const event = new Event(type) as Event & Record<string, unknown>;
-    Object.assign(event, { pointerId, button: 0, pointerType: 'touch', clientX: x, clientY: y });
+    Object.assign(event, { pointerId, button: 0, pointerType, clientX: x, clientY: y });
     handlers.get(type)?.(event);
   };
 
@@ -67,6 +70,9 @@ function pointerRig(nowMs = 1000): PointerRig {
     down: (x = 200, y = 300) => fire('pointerdown', x, y),
     move: (x, y) => fire('pointermove', x, y),
     up: (x = 200, y = 300) => fire('pointerup', x, y),
+    downAt: (x, y, id, pointerType = 'touch') => fire('pointerdown', x, y, id, pointerType),
+    moveAt: (x, y, id, pointerType = 'touch') => fire('pointermove', x, y, id, pointerType),
+    upAt: (x, y, id) => fire('pointerup', x, y, id),
     cancel: () => fire('pointercancel', 200, 300),
     dispose: () => adapter.detach(),
   };
@@ -86,6 +92,53 @@ afterEach(() => {
 });
 
 describe('pointer → GameInput (§49)', () => {
+  it('a finger drag is reported as a finger, so it keeps its wider target (§66)', () => {
+    const rig = pointerRig();
+    rig.downAt(100, 300, 1);
+    rig.moveAt(150, 320, 1);
+    expect(rig.sent.map((input) => input.source)).toEqual(['touch', 'touch']);
+    rig.dispose();
+  });
+
+  it('two fingers closing send one pinch, aimed between them', () => {
+    const rig = pointerRig();
+    rig.downAt(180, 280, 1);
+    rig.downAt(220, 320, 2);
+    rig.moveAt(196, 296, 2);
+    const pinches = rig.sent.filter((input) => input.type === 'pinch');
+    expect(pinches).toHaveLength(1);
+    expect(pinches[0]?.x).toBeCloseTo(0.47, 2);
+    expect(pinches[0]?.y).toBeCloseTo(0.48, 2);
+    // One gesture, one pinch: it does not fire again on every pixel of the close.
+    rig.moveAt(190, 290, 2);
+    expect(rig.sent.filter((input) => input.type === 'pinch')).toHaveLength(1);
+    rig.dispose();
+  });
+
+  it('two fingers that do not close are not a pinch', () => {
+    const rig = pointerRig();
+    rig.downAt(150, 300, 1);
+    rig.downAt(250, 300, 2);
+    rig.moveAt(270, 300, 2);
+    expect(rig.sent.filter((input) => input.type === 'pinch')).toHaveLength(0);
+    rig.dispose();
+  });
+
+  it('a thumb resting beside a finger is not a pinch, and lifting disarms the close', () => {
+    const rig = pointerRig();
+    rig.downAt(150, 300, 1);
+    rig.downAt(160, 305, 2);
+    rig.moveAt(152, 301, 2);
+    expect(rig.sent.filter((input) => input.type === 'pinch')).toHaveLength(0);
+
+    // Lift the stray finger. A real close afterwards still counts: disarming is not a lockout.
+    rig.upAt(160, 305, 2);
+    rig.downAt(260, 300, 3);
+    rig.moveAt(200, 300, 3);
+    expect(rig.sent.filter((input) => input.type === 'pinch')).toHaveLength(1);
+    rig.dispose();
+  });
+
   it('a quick press is exactly one tap, and never also a hold', () => {
     const rig = pointerRig();
     rig.down();

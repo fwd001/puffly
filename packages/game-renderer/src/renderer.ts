@@ -215,6 +215,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
   /** Ash that has landed, as the tray sees it: a mound, and a rock when it arrives. */
   let trayLoad = 0;
   let trayWobble = 0;
+  let trayInvite = 0;
   let lastDropped = -1;
   /** The frame the renderer last drew; a discrete event is placed against it. */
   let lastView: GameStateView | null = null;
@@ -412,6 +413,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       lastDropped = dropped;
       trayLoad = clamp01(dropped / TRAY_LOAD_FRAGMENTS);
       trayWobble = Math.max(0, trayWobble - frame / 620);
+      // The invitation eases in and out rather than snapping, so a drag that simply stops
+      // does not leave the tray lit like a switch left on.
+      trayInvite +=
+        ((state.cigarette.pose.dragged ? 1 : 0) - trayInvite) * Math.min(1, frame / 140);
 
       ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
       ctx.clearRect(0, 0, viewport.cssWidth, viewport.cssHeight);
@@ -420,7 +425,11 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       drawGrain(ctx, state, grainTile, settings.reducedMotion);
       drawDust(ctx, state, viewport, settings.reducedMotion);
       drawSmoke(state, false);
-      drawAshtray(ctx, state, viewport, { load: trayLoad, wobble: trayWobble });
+      drawAshtray(ctx, state, viewport, {
+        load: trayLoad,
+        wobble: trayWobble,
+        invited: trayInvite,
+      });
       drawPack(ctx, state, viewport);
       drawLighter(ctx, state, viewport);
       drawCigarette(ctx, state, viewport, settings.contrast);

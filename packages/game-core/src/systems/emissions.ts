@@ -7,7 +7,7 @@
  * seed alone (§71).
  */
 
-import { clamp01, mixRgb, type Rgb } from '@puffly/shared';
+import { clamp, clamp01, mixRgb, type Rgb } from '@puffly/shared';
 import { SMOKE } from '../constants';
 import type { Burst, BurstKind } from '../types/events';
 import type { SmokeCharacter } from '../types/content';
@@ -173,6 +173,18 @@ export function makeBurst(rt: EngineRuntime, options: BurstOptions): Burst {
 
 const tipAngle = (rt: EngineRuntime): number => rt.state.cigarette.pose.angleDeg - 90;
 
+/**
+ * The hand that just let go says where the breath goes: release travelling right lays the plume
+ * right. Capped hard, because this is a nudge and not a joystick — the world has to answer the
+ * gesture without becoming something the player steers (§66).
+ */
+const RELEASE_STEER_DEG = 24;
+
+function releaseSteer(rt: EngineRuntime): number {
+  if (!rt.drag.pressed) return 0;
+  return clamp(rt.drag.velocity.x * 20, -RELEASE_STEER_DEG, RELEASE_STEER_DEG);
+}
+
 /** A wisp escaping the cherry while the draw is held (§14). */
 export function puffBurst(rt: EngineRuntime): Burst {
   const smoke = rt.cigarette.smokeProfile;
@@ -204,7 +216,7 @@ export function exhaleBurst(
     kind: 'exhale',
     origin: rt.state.cigarette.pose.tip,
     count: 34 + Math.round(86 * intensity),
-    directionDeg: tipAngle(rt) + 8,
+    directionDeg: tipAngle(rt) + 8 + releaseSteer(rt),
     spreadDeg: 66,
     speed: [0.02, 0.09 + 0.1 * intensity],
     radius: [0.014, 0.052],

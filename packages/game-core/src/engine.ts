@@ -479,6 +479,17 @@ export function createEngine(options: EngineOptions): GameEngine {
     rt.drag.pressTarget = null;
   };
 
+  /**
+   * Two fingers closing on the cherry is the same request as pressing it into the tray
+   * (§19) — so it goes to the same place, and the same stages accept it. Over nothing, or
+   * before anything is lit, it is two fingers and nothing more.
+   */
+  const handlePinch = (target: InputTarget | null): void => {
+    if (target === null || target === 'stage') return;
+    if (!isLit(rt.state.cigarette.state)) return;
+    beginExtinguish(true);
+  };
+
   const handleSwipe = (target: InputTarget | null, velocity: Point): void => {
     const speed = Math.hypot(velocity.x, velocity.y);
 
@@ -491,6 +502,11 @@ export function createEngine(options: EngineOptions): GameEngine {
     rt.drag.pressTarget = null;
 
     if (speed <= 0) return;
+
+    // A swipe down over nothing at all is the player putting the interface away, not the
+    // cigarette away: the scene keeps burning behind it (§10).
+    if (target === 'stage' && velocity.y > 0.45 && velocity.y > Math.abs(velocity.x))
+      rt.state.ui.chromeFolded = true;
 
     if (target === 'ash') {
       if (speed > 0.1) flickAsh(rt);
@@ -511,6 +527,9 @@ export function createEngine(options: EngineOptions): GameEngine {
   const applyInput = (input: GameInput): void => {
     rt.state.ui.lastInputMs = input.timestamp;
     rt.everTouched = true;
+    // Touching a thing is the only way back: the fold is lifted by pointing at something,
+    // not by waiting for a timer.
+    if (input.target !== undefined && input.target !== 'stage') rt.state.ui.chromeFolded = false;
     rt.session?.inputs.push(input);
 
     switch (input.type) {
@@ -529,6 +548,9 @@ export function createEngine(options: EngineOptions): GameEngine {
         break;
       case 'release':
         handleRelease({ x: input.x, y: input.y }, hitToleranceFor(input.source));
+        break;
+      case 'pinch':
+        handlePinch(input.target ?? null);
         break;
       case 'swipe':
         handleSwipe(input.target ?? null, {
@@ -715,7 +737,8 @@ export function createEngine(options: EngineOptions): GameEngine {
     const ui = rt.state.ui;
     ui.idleMs = rt.state.nowMs - ui.lastInputMs;
     ui.controlsVisible =
-      !rt.everTouched || ui.idleMs < TIMING.controlsIdleMs || rt.state.cigarette.puff.active;
+      (!rt.everTouched || ui.idleMs < TIMING.controlsIdleMs || rt.state.cigarette.puff.active) &&
+      !ui.chromeFolded;
     ui.sessionActive = rt.session !== null;
     ui.sessionTargetMs = rt.session?.targetMs ?? rt.settings.sessionTargetMs;
     ui.affordance = affordanceFor(rt.state.cigarette.state);
