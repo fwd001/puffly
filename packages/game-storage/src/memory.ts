@@ -10,7 +10,7 @@
  * copied on the way in and on the way out, exactly like the IndexedDB adapter.
  */
 
-import type { Progress, Session, Settings, UserProfile } from '@puffly/game-core';
+import type { OpenBreak, Progress, Session, Settings, UserProfile } from '@puffly/game-core';
 import {
   StorageError,
   applySessionFilter,
@@ -48,6 +48,7 @@ export function createMemoryStorage(seed: MemorySeed = {}): MemoryStorage {
     seed.profile === null || seed.profile === undefined ? null : cloneProfile(seed.profile);
   let settings =
     seed.settings === null || seed.settings === undefined ? null : cloneSettings(seed.settings);
+  let openBreak: OpenBreak | null = null;
   let progress =
     seed.progress === null || seed.progress === undefined ? null : cloneProgress(seed.progress);
   const sessions = new Map<string, Session>();
@@ -98,6 +99,16 @@ export function createMemoryStorage(seed: MemorySeed = {}): MemoryStorage {
       progress = cloneProgress(next);
     },
 
+    async loadOpenBreak() {
+      return openBreak;
+    },
+    async saveOpenBreak(record: OpenBreak) {
+      openBreak = { ...record };
+    },
+    async clearOpenBreak() {
+      openBreak = null;
+    },
+
     async listSessions(filter?: SessionFilter) {
       // Oldest first inside the map, newest first out: the same order the IndexedDB
       // adapter produces from its `startedAt` index, so §34 cannot tell them apart (§72).
@@ -119,6 +130,7 @@ export function createMemoryStorage(seed: MemorySeed = {}): MemoryStorage {
       profile = null;
       settings = null;
       progress = null;
+      openBreak = null;
       sessions.clear();
     },
   };

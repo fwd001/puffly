@@ -143,6 +143,12 @@ physical object on a table, and it answers to being touched the way the object w
 You never have to finish a rod. Walk away mid-break and the session closes itself quietly after
 about 90 seconds of stillness; nothing is scored, nothing is lost.
 
+Putting the phone in a pocket is not walking away, and it does not end the break either. The
+moment the cherry catches, the burn is tied to the system clock, so when the page comes back the
+rod has burnt to wherever that clock says it should be — and a break that would have finished
+while the phone was away comes back finished and counted, rather than waiting for someone to
+notice it.
+
 **The three icons**
 
 - `◍` this break: how long it has run, what you did in it, and the craving note you can leave

@@ -9,6 +9,7 @@
 import {
   createDefaultSettings,
   SAVE_SCHEMA_VERSION,
+  type OpenBreak,
   type Progress,
   type SaveFile,
   type Session,
@@ -41,6 +42,13 @@ export interface Persistence {
   saveSettings(settings: Settings): Promise<void>;
   saveProgress(progress: Progress): Promise<void>;
   putSession(session: Session): Promise<void>;
+  /**
+   * The break that was running when the app last went away. Transient by nature: it is not part
+   * of §52's export, because a finished record of it is already in the session log.
+   */
+  loadOpenBreak(): Promise<OpenBreak | null>;
+  saveOpenBreak(record: OpenBreak): Promise<void>;
+  clearOpenBreak(): Promise<void>;
   download(): Promise<string>;
   restore(json: string): Promise<{ ok: boolean; errors: string[] }>;
   isDegraded(): boolean;
@@ -116,6 +124,9 @@ export function createPersistence(): Persistence {
     saveSettings: (settings) => storage.saveSettings(settings),
     saveProgress: (progress) => storage.saveProgress(progress),
     putSession: (session) => storage.putSession(session),
+    loadOpenBreak: () => storage.loadOpenBreak(),
+    saveOpenBreak: (record) => storage.saveOpenBreak(record),
+    clearOpenBreak: () => storage.clearOpenBreak(),
     async download() {
       const [profile, settings, progress, sessions] = await Promise.all([
         storage.loadProfile(),

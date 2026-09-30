@@ -61,6 +61,10 @@ const IDLE_CLOSE_MS = 90_000;
  * enough that a tab reopened a week later catches up in milliseconds instead of minutes.
  */
 const CATCH_UP_MIN_MS = 500;
+/** How long an interrupted break is still worth resuming: longer than any rod's life. */
+const INTERRUPTED_MAX_AGE_MS = 30 * 60_000;
+/** The record is rewritten at most this often while a break runs. */
+const BREAK_WRITE_MS = 1500;
 const CATCH_UP_MAX_MS = 8 * 60_000;
 /** Keep the canvas from costing more than it can show. */
 const MAX_DPR = 3;
@@ -284,6 +288,22 @@ export function createPuffly(): Puffly {
     unlocked.value = { ...state.collection.unlocked };
   };
 
+  let lastBreakWriteMs = 0;
+  /**
+   * Write the running break down as it happens. The visible tab has the live simulation;
+   * this is only for the case where the operating system takes the page away, which never
+   * announces itself. §81 (4).
+   */
+  const persistBreak = (force = false): void => {
+    if (!engine || !persistence) return;
+    const now = Date.now();
+    if (!force && now - lastBreakWriteMs < BREAK_WRITE_MS) return;
+    const record = engine.openBreakSnapshot();
+    if (record === null) return;
+    lastBreakWriteMs = now;
+    void persistence.saveOpenBreak(record).catch(() => undefined);
+  };
+
   const persistProgress = (): void => {
     if (!engine || !persistence) return;
     void persistence.saveProgress(engine.progressSnapshot());
@@ -303,6 +323,7 @@ export function createPuffly(): Puffly {
         storageDegraded.value = true;
       });
     persistProgress();
+    void persistence.clearOpenBreak().catch(() => undefined);
     recompute();
     refreshSummary();
   };
@@ -313,6 +334,7 @@ export function createPuffly(): Puffly {
     if (audio && state) audio.handle(event, state);
     if (event.kind !== 'session' || !engine || !state) return;
 
+    if (event.event.type === SessionEventType.LIGHT) persistBreak(true);
     if (event.event.type === SessionEventType.LIGHT && !state.ui.sessionActive) {
       // A break begins the moment something is lit — nothing asks the player first (§31).
       engine.startSession();
@@ -347,6 +369,7 @@ export function createPuffly(): Puffly {
     if (summaryAccumulator >= SUMMARY_INTERVAL_MS) {
       summaryAccumulator = 0;
       refreshSummary();
+      if (engine?.getState().ui.sessionActive) persistBreak();
       const state = engine.getState();
       const quiet = state.ui.idleMs > IDLE_CLOSE_MS && !state.cigarette.ember.lit;
       if (state.ui.sessionActive && quiet) closeSession();
@@ -400,6 +423,27 @@ export function createPuffly(): Puffly {
     });
     engine = game;
     sessions = loaded.sessions;
+
+    // A break the operating system interrupted, rather than the player leaving it: come
+    // back to the rod that was burning, at the position the wall clock says it reached.
+    // §81 (4).
+    const interrupted = await persistence.loadOpenBreak().catch(() => null);
+    if (interrupted !== null) {
+      const ageMs = Date.now() - interrupted.savedAtWallMs;
+      const stillChosen =
+        interrupted.cigaretteId === selection.cigarette &&
+        interrupted.environmentId === selection.environment &&
+        interrupted.lighterId === selection.lighter &&
+        interrupted.ashtrayId === selection.ashtray;
+      if (ageMs >= 0 && ageMs <= INTERRUPTED_MAX_AGE_MS && stillChosen) {
+        game.restoreOpenBreak(interrupted, Date.now());
+        lastBreakWriteMs = Date.now();
+      } else {
+        // Stale, or the player has since chosen something else: the rod on the table is
+        // the honest state, and the record goes with it.
+        void persistence.clearOpenBreak().catch(() => undefined);
+      }
+    }
 
     const context = canvas.getContext('2d');
     if (context) {
@@ -460,6 +504,8 @@ export function createPuffly(): Puffly {
     const onVisibility = (): void => {
       if (document.hidden) {
         simulatedWhileHiddenMs = 0;
+        // The last write before the page might never come back.
+        persistBreak(true);
         hiddenAtMs = Date.now();
         // Whatever the finger was doing is over: a hold left hanging would otherwise draw the
         // rod down for as long as the tab stayed asleep.

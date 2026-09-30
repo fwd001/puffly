@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Progress, Session, Settings, UserProfile } from '@puffly/game-core';
+import type { OpenBreak, Progress, Session, Settings, UserProfile } from '@puffly/game-core';
 import { StorageError, type SessionFilter, type StorageAdapter } from '../adapter';
 import {
   createFallbackStorage,
@@ -26,6 +26,7 @@ interface FakeState {
   settings: Settings | null;
   progress: Progress | null;
   sessions: Map<string, Session>;
+  openBreak?: OpenBreak | null;
 }
 
 function fakeStorage(state: FakeState): StorageAdapter {
@@ -53,8 +54,12 @@ function fakeStorage(state: FakeState): StorageAdapter {
     putSession: (session) =>
       guard('putSession', () => void state.sessions.set(session.id, session)),
     deleteSession: (id) => guard('deleteSession', () => void state.sessions.delete(id)),
+    loadOpenBreak: () => guard('loadOpenBreak', () => state.openBreak ?? null),
+    saveOpenBreak: (record) => guard('saveOpenBreak', () => void (state.openBreak = record)),
+    clearOpenBreak: () => guard('clearOpenBreak', () => void (state.openBreak = null)),
     clear: () =>
       guard('clear', () => {
+        state.openBreak = null;
         state.profile = null;
         state.settings = null;
         state.progress = null;

@@ -110,6 +110,15 @@ one, including `SESSION_START`/`SESSION_END`, which replay re-issues at the same
 `rendering.test.ts` adds the visual half of the same promise: the same `Burst` seed expands into the
 same particle layout, so a reproduced bug looks like the bug.
 
+A break the app never got to watch is the one place the wall clock is allowed to overrule the
+simulation. `openBreakSnapshot()` writes down the burn position and the moment the cherry caught;
+the next boot hands that record back and `restoreOpenBreak(record, now)` spends
+`now - litAtWallMs` on the rod (§81 4). It is a restore, not a replay: nothing that happened during
+the unseen gap is invented, so the resumed session's `inputs` hold only what the player did after the
+page came back. The clock is put back by the same arithmetic, which is why a resumed break shows the
+minute it is really in instead of a fresh `03:00`, and why a break that would have ended in a pocket
+comes back ended.
+
 ## Performance
 
 SPEC.md §54 and §81 (6/9) are why the renderer is structured the way it is:
@@ -153,8 +162,9 @@ and `StorageAdapter` (`game-storage`).
 
 ## Verification layers
 
-Each layer proves something the one below it cannot, and each is run by `npm test` or by
-`.github/workflows/ci.yml`:
+Each layer proves something the one below it cannot. Layers 1-4 run on every push and pull request
+through `.github/workflows/ci.yml`; layer 5 needs a real browser, so it is run by hand against
+whatever URL you point it at:
 
 1. **Per-package unit tests** — the state machine, the systems, the particle pool, the cue planner.
 2. **`tests/architecture.test.ts`** — the dependency rule, with positive controls so a guard cannot
@@ -165,7 +175,9 @@ Each layer proves something the one below it cannot, and each is run by `npm tes
    base path is invisible to every layer above and is a blank page in production.
 5. **`tests/smoke/touch-device.mjs`** — a real browser on an emulated phone, portrait and landscape:
    a break completed with taps, targets that fit a finger, no double-tap zoom, no words on the main
-   screen, and a drawn breath that measurably changes the pixels.
+   screen, a drawn breath that measurably changes the pixels, and the two ways the operating system
+   takes a phone away: frames that stop (it wakes to a rod that kept burning) and a page that is
+   reloaded (it comes back to the same break, at the minute the clock says).
 
 ## Deliberately not built
 

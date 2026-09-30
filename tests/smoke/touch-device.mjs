@@ -75,6 +75,13 @@ async function openPhone({ width, height, dpr }) {
   return { context, page, errors };
 }
 
+/** The two facts a break is made of: what state it is in, and what its clock says. */
+const scene = (page) =>
+  page.evaluate(() => ({
+    state: document.querySelector('canvas')?.getAttribute('aria-label') ?? '',
+    clock: document.querySelector('.clock-wrap .digits')?.textContent?.trim() ?? '',
+  }));
+
 /** Which stage of the break the scene is in, read the way a screen reader hears it. */
 const sceneState = (page) =>
   page.evaluate(() => document.querySelector('canvas')?.getAttribute('aria-label') ?? '');
@@ -285,9 +292,14 @@ const stagePoint = (page, nx, ny) =>
     (words.match(/[A-Za-z\u4e00-\u9fff]{2,}/g) ?? []).length === 0,
   );
 
+  // Double-tapping the *air* is what a player does while looking for something to touch. It must
+  // not zoom the scene. Not the rod's place on the table: the tray's own drawn radius reaches
+  // that far, so a tap there belongs to the tray and puts the break out — which would leave
+  // nothing live for the reload check below.
+  const air = await stagePoint(page, 0.5, 0.3);
   const zoomBefore = await page.evaluate(() => window.visualViewport?.scale ?? 1);
-  await page.touchscreen.tap(rod.x, rod.y);
-  await page.touchscreen.tap(rod.x, rod.y);
+  await page.touchscreen.tap(air.x, air.y);
+  await page.touchscreen.tap(air.x, air.y);
   await page.waitForTimeout(300);
   const zoomAfter = await page.evaluate(() => window.visualViewport?.scale ?? 1);
   check('double-tap does not zoom the scene', Math.abs(zoomAfter - zoomBefore) < 0.01);
@@ -324,6 +336,24 @@ const stagePoint = (page, nx, ny) =>
     'the bar switches from one sheet to another',
     switched.join(',') === 'Settings',
     switched.join(','),
+  );
+
+  // The operating system takes the page away without asking: a reload has to come back to the
+  // same break, not start a new one. §81 (4). The clock is the evidence a screenshot cannot fake:
+  // a fresh break reads the untouched target, a resumed one is still counting down from where
+  // the written record left off (it is rewritten every 1.5 s, so a small rewind is the design).
+  const beforeReload = await clockSeconds();
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(1200);
+  const afterReload = await scene(page);
+  const afterSeconds = await clockSeconds();
+  check(
+    'a reload comes back to the same break',
+    /burning|puffing|resting|ash_ready|near_end/.test(afterReload.state) &&
+      afterSeconds > 0 &&
+      afterSeconds <= beforeReload + 3 &&
+      afterSeconds >= beforeReload - 30,
+    `${afterReload.state} at ${afterSeconds}s, was ${beforeReload}s before the reload`,
   );
 
   // The browser's own long-press menu is another app appearing over the scene (§66: the canvas

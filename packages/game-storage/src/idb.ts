@@ -9,8 +9,9 @@
  * promise with a `StorageError` code so §63's fallback can take over.
  */
 
-import type { Progress, Session, Settings, UserProfile } from '@puffly/game-core';
+import type { OpenBreak, Progress, Session, Settings, UserProfile } from '@puffly/game-core';
 import {
+  OPEN_BREAK_ID,
   RECORD_KEY,
   StorageError,
   applySessionFilter,
@@ -29,6 +30,12 @@ export const META_STORE = 'meta';
 /** §34/§54: the log is read newest-first, so the only index worth having is the clock. */
 export const SESSION_STARTED_AT_INDEX = 'startedAt';
 export const SCHEMA_META_ID = 'schema';
+
+/** The `meta` row for an interrupted break: the store's key, then the record itself. */
+interface OpenBreakRow {
+  id: typeof OPEN_BREAK_ID;
+  record: OpenBreak;
+}
 
 export interface IdbMigration {
   /** The schema version this migration produces. */
@@ -335,6 +342,35 @@ export function createIdbStorage(options: IdbStorageOptions = {}): IdbStorage {
       await write(PROGRESS_STORE, cloneProgress(progress), RECORD_KEY);
     },
 
+    async loadOpenBreak(): Promise<OpenBreak | null> {
+      const connection = await database();
+      // A database opened before `meta` existed has nowhere to keep it; "no interrupted
+      // break" is the honest answer rather than a failed open.
+      if (!connection.objectStoreNames.contains(META_STORE)) return null;
+      const transaction = connection.transaction(META_STORE, 'readonly');
+      const value = await requestResult<OpenBreakRow | undefined>(
+        transaction.objectStore(META_STORE).get(OPEN_BREAK_ID),
+        'transaction-failed',
+      );
+      return value?.record ?? null;
+    },
+
+    async saveOpenBreak(record: OpenBreak): Promise<void> {
+      const connection = await database();
+      if (!connection.objectStoreNames.contains(META_STORE))
+        throw new StorageError('unavailable', 'this database has no room for an open break');
+      // Wrapped, not spread: `meta` is keyed by `id`, and the break has an id of its own.
+      await write(META_STORE, { id: OPEN_BREAK_ID, record } satisfies OpenBreakRow);
+    },
+
+    async clearOpenBreak(): Promise<void> {
+      const connection = await database();
+      if (!connection.objectStoreNames.contains(META_STORE)) return;
+      const transaction = connection.transaction(META_STORE, 'readwrite');
+      transaction.objectStore(META_STORE).delete(OPEN_BREAK_ID);
+      await transactionSettled(transaction);
+    },
+
     async listSessions(filter?: SessionFilter): Promise<Session[]> {
       const connection = await database();
       const since =
@@ -406,8 +442,15 @@ export function createIdbStorage(options: IdbStorageOptions = {}): IdbStorage {
     async clear(): Promise<void> {
       const connection = await database();
       const stores = [PROFILE_STORE, SETTINGS_STORE, PROGRESS_STORE, SESSIONS_STORE];
+      // A transaction can only touch the stores it was opened with, and `meta` also carries
+      // the schema marker: the interrupted break is deleted from it, never the whole store.
+      const hasMeta = connection.objectStoreNames.contains(META_STORE);
+      if (hasMeta) stores.push(META_STORE);
       const transaction = connection.transaction(stores, 'readwrite');
-      for (const name of stores) transaction.objectStore(name).clear();
+      for (const name of stores) {
+        if (name !== META_STORE) transaction.objectStore(name).clear();
+      }
+      if (hasMeta) transaction.objectStore(META_STORE).delete(OPEN_BREAK_ID);
       await transactionSettled(transaction);
     },
 

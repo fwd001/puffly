@@ -6,6 +6,7 @@
 import {
   SessionEventType,
   createDefaultSettings,
+  type OpenBreak,
   type Progress,
   type SaveFile,
   type Session,
@@ -182,6 +183,27 @@ export function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
 
 export function makeSettings(nowMs = at(5, 9, 0)): Settings {
   return { ...createDefaultSettings(nowMs), utcOffsetMinutes: 0, volume: 0.4 };
+}
+
+export function makeOpenBreak(overrides: Partial<OpenBreak> = {}): OpenBreak {
+  return {
+    id: 'ses-open',
+    seed: 4242,
+    cigaretteId: 'classic',
+    environmentId: 'balcony',
+    lighterId: 'wheel',
+    ashtrayId: 'stone',
+    startedAt: at(5, 21, 4),
+    targetMs: 180_000,
+    litAtWallMs: at(5, 21, 4),
+    rodRemaining: 0.62,
+    ashLength: 0.014,
+    emberLit: true,
+    events: [],
+    triggers: ['work'],
+    savedAtWallMs: at(5, 21, 40),
+    ...overrides,
+  };
 }
 
 export function makeProgress(overrides: Partial<Progress> = {}): Progress {

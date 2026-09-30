@@ -7,7 +7,7 @@
  * `StorageError` so `createFallbackStorage` can decide what to do about it.
  */
 
-import type { Progress, Session, Settings, UserProfile } from '@puffly/game-core';
+import type { OpenBreak, Progress, Session, Settings, UserProfile } from '@puffly/game-core';
 
 /** §51's optional narrowing for the session log. */
 export interface SessionFilter {
@@ -29,6 +29,13 @@ export interface StorageAdapter {
   listSessions(filter?: SessionFilter): Promise<Session[]>;
   putSession(session: Session): Promise<void>;
   deleteSession(id: string): Promise<void>;
+  /**
+   * The break that is running right now, so an app the operating system kills can come back
+   * to the rod it was burning. Optional by nature: absent means no break was interrupted.
+   */
+  loadOpenBreak(): Promise<OpenBreak | null>;
+  saveOpenBreak(record: OpenBreak): Promise<void>;
+  clearOpenBreak(): Promise<void>;
   /** Wipes everything: this is the "delete my data" path §52 implies. */
   clear(): Promise<void>;
 }
@@ -69,6 +76,9 @@ export function storageFailureCode(value: unknown): StorageErrorCode {
 
 /** The single-record keys used by every adapter. Sessions are keyed by their own `id`. */
 export const RECORD_KEY = 'current' as const;
+
+/** The `meta` row the interrupted break lives in: a key, not a schema change. */
+export const OPEN_BREAK_ID = 'openBreak' as const;
 
 /** Shared filter behaviour so IndexedDB, memory and the fallback agree (§72). */
 export function applySessionFilter(

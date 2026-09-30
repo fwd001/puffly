@@ -9,7 +9,7 @@
  * once it answers again: "并提供恢复".
  */
 
-import type { Progress, Session, Settings, UserProfile } from '@puffly/game-core';
+import type { OpenBreak, Progress, Session, Settings, UserProfile } from '@puffly/game-core';
 import {
   StorageError,
   storageFailureCode,
@@ -218,6 +218,33 @@ export function createFallbackStorage(
       else await mirror(() => fallback.saveProgress(progress));
     },
 
+    async loadOpenBreak() {
+      return (
+        await attempt(
+          'loadOpenBreak',
+          () => primary.loadOpenBreak(),
+          () => fallback.loadOpenBreak(),
+        )
+      ).value;
+    },
+
+    async saveOpenBreak(record: OpenBreak) {
+      const outcome = await attempt(
+        'saveOpenBreak',
+        () => primary.saveOpenBreak(record),
+        () => fallback.saveOpenBreak(record),
+      );
+      if (!outcome.usedFallback) await mirror(() => fallback.saveOpenBreak(record));
+    },
+
+    async clearOpenBreak() {
+      await attempt(
+        'clearOpenBreak',
+        () => primary.clearOpenBreak(),
+        () => fallback.clearOpenBreak(),
+      );
+    },
+
     async listSessions(filter?: SessionFilter) {
       const outcome = await attempt(
         'listSessions',
@@ -344,6 +371,9 @@ export function createUnavailableStorage(
     saveSettings: unavailable,
     loadProgress: unavailable,
     saveProgress: unavailable,
+    loadOpenBreak: unavailable,
+    saveOpenBreak: unavailable,
+    clearOpenBreak: unavailable,
     listSessions: unavailable,
     putSession: unavailable,
     deleteSession: unavailable,
