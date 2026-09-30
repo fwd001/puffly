@@ -923,6 +923,11 @@ export function createEngine(options: EngineOptions): GameEngine {
         const log = openSession(rt, record.targetMs);
         log.id = record.id;
         log.startedAt = record.startedAt;
+        // The §31 countdown runs on simulated time and this engine never saw the seconds that
+        // passed. Handing them back is what makes the resumed clock the one the player left, and
+        // what makes the logged duration the time they actually spent — a negative origin is
+        // literally true here: the break began before this engine's time zero.
+        log.startedAtEngineMs = rt.state.nowMs - Math.max(0, nowWallClockMs - record.startedAt);
         log.triggers.push(...record.triggers.filter((tag) => !log.triggers.includes(tag)));
         if (record.cravingBefore !== undefined) log.cravingBefore = record.cravingBefore;
         if (record.cravingAfter !== undefined) log.cravingAfter = record.cravingAfter;

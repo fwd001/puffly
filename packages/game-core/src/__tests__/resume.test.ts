@@ -10,6 +10,8 @@ import { describe, expect, it } from 'vitest';
 import {
   createDefaultSettings,
   createEngine,
+  STEP_MS,
+  type GameEngine,
   type GameStateView,
   type OpenBreak,
 } from '@puffly/game-core';
@@ -30,18 +32,22 @@ function breakOf(heldMs: number) {
   return { h, record };
 }
 
-function intoFreshEngine(record: OpenBreak, nowWallClockMs: number): GameStateView {
-  const engine = createEngine({
+/** A second app start: the same content and the same moment, but no memory of the break. */
+function engineFor(record: OpenBreak, wallClockMs: number): GameEngine {
+  return createEngine({
     content: FIXTURE,
     seed: record.seed,
-    wallClockMs: nowWallClockMs,
+    wallClockMs,
     settings: createDefaultSettings(),
     cigaretteId: record.cigaretteId,
     environmentId: record.environmentId,
     lighterId: record.lighterId,
     ashtrayId: record.ashtrayId,
   });
-  return engine.restoreOpenBreak(record, nowWallClockMs);
+}
+
+function intoFreshEngine(record: OpenBreak, nowWallClockMs: number): GameStateView {
+  return engineFor(record, nowWallClockMs).restoreOpenBreak(record, nowWallClockMs);
 }
 
 describe('an unfinished break survives the app being killed (§81 (4))', () => {
@@ -96,22 +102,45 @@ describe('an unfinished break survives the app being killed (§81 (4))', () => {
 
   it('keeps the record honest: the resumed break closes as the same session', () => {
     const { record } = breakOf(600);
-    const engine = createEngine({
-      content: FIXTURE,
-      seed: record.seed,
-      wallClockMs: record.litAtWallMs,
-      settings: createDefaultSettings(),
-      cigaretteId: record.cigaretteId,
-      environmentId: record.environmentId,
-      lighterId: record.lighterId,
-      ashtrayId: record.ashtrayId,
-    });
+    const engine = engineFor(record, record.litAtWallMs);
     engine.restoreOpenBreak(record, record.litAtWallMs + 900);
     expect(engine.sessionId()).toBe(record.id);
     const session = engine.endSession();
     expect(session?.id).toBe(record.id);
     expect(session?.startedAt).toBe(record.startedAt);
     expect(session?.cigaretteId).toBe('test-rod');
+  });
+
+  it('resumes the countdown at the minute the break was really in', () => {
+    const { record } = breakOf(600);
+    const gap = 1500;
+    const now = record.litAtWallMs + gap;
+    const engine = engineFor(record, record.litAtWallMs);
+    engine.restoreOpenBreak(record, now);
+    const stepsBefore = engine.steps();
+    engine.advance(120);
+    // The clock owes the whole absence, not only the part somebody watched: a resume that
+    // restarts the countdown is showing a break that never happened.
+    const owed = now - record.startedAt;
+    expect(owed).toBeGreaterThan(1000);
+    const remaining = engine.getState().ui.sessionRemainingMs;
+    expect(remaining).toBeLessThan(record.targetMs - 1000);
+    expect(remaining).toBeCloseTo(
+      record.targetMs - owed - (engine.steps() - stepsBefore) * STEP_MS,
+      1,
+    );
+  });
+
+  it('a break that outlived its own target while away comes back finished', () => {
+    const { record } = breakOf(300);
+    const awayMs = record.targetMs * 2;
+    const engine = engineFor(record, record.litAtWallMs);
+    engine.restoreOpenBreak(record, record.litAtWallMs + awayMs);
+    const session = engine.endSession();
+    expect(session?.completed).toBe(true);
+    // The logged wall span covers the absence, not just the part somebody watched.
+    const loggedMs = session === null ? 0 : (session.endedAt ?? 0) - session.startedAt;
+    expect(loggedMs).toBeGreaterThanOrEqual(awayMs);
   });
 
   it('a record whose rod was never lit comes back unlit', () => {
