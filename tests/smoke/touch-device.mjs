@@ -1,12 +1,14 @@
 /**
- * Touch evidence on real phone shapes — SPEC.md §66, §81 (4).
+ * Pointer evidence on the shapes the product ships on — SPEC.md §66, §81 (4).
  *
  * The unit suite can prove that a tap resolves to the right anchor; it cannot prove that a
- * break is playable with a finger on a 393 px screen. This drives an actual browser, portrait
- * and landscape, and asserts the things a screenshot cannot lie about: that the canvas fills
- * the device, that a coarse pointer gets finger-sized targets, that double-tapping does not
- * zoom the scene, that the main screen still contains no words, and that a drawn breath is
- * actually visible in the air.
+ * break is playable with a finger on a 393 px screen, or with a mouse in a maximised browser
+ * window where the hit tolerance is not widened. This drives an actual browser through phone
+ * portrait, phone landscape and a desktop window, and asserts the things a screenshot cannot
+ * lie about: that the canvas fills the device, that a coarse pointer gets finger-sized targets,
+ * that double-tapping does not zoom the scene, that the main screen still contains no words,
+ * that a drawn breath is actually visible in the air, and that a break survives the page being
+ * taken away.
  *
  *   node tests/smoke/touch-device.mjs http://localhost:5175/
  *
@@ -74,6 +76,56 @@ async function openPhone({ width, height, dpr }) {
   await page.waitForTimeout(900);
   return { context, page, errors };
 }
+
+/** A maximised browser window: no coarse pointer, so no widened hit tolerance either. */
+async function openWindow({ width, height }) {
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(String(error)));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  await page.goto(URL_ARG, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(900);
+  return { context, page, errors };
+}
+
+/**
+ * Whether the browser's own gestures still own the surface: the long-press menu, the image
+ * callout, dragging a selection out of the canvas. The iOS callout is asserted in the unit
+ * suite instead: Chromium drops `-webkit-touch-callout` at parse time, so nothing observable
+ * here could prove it.
+ */
+const nativeDefaults = (page) =>
+  page.evaluate(() => {
+    const seen = [];
+    const onMenu = (event) => seen.push(event.defaultPrevented);
+    document.addEventListener('contextmenu', onMenu);
+    const canvas = document.querySelector('canvas');
+    const box = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: box.width / 2,
+        clientY: box.height / 2,
+      }),
+    );
+    document.removeEventListener('contextmenu', onMenu);
+
+    let dragKept = false;
+    const onDrag = (event) => (dragKept = event.defaultPrevented);
+    document.addEventListener('dragstart', onDrag);
+    canvas.dispatchEvent(new Event('dragstart', { bubbles: true, cancelable: true }));
+    document.removeEventListener('dragstart', onDrag);
+
+    return {
+      menuFired: seen.length,
+      menuPrevented: seen.filter((value) => value === true).length,
+      dragPrevented: dragKept,
+    };
+  });
 
 /** The two facts a break is made of: what state it is in, and what its clock says. */
 const scene = (page) =>
@@ -356,37 +408,7 @@ const stagePoint = (page, nx, ny) =>
     `${afterReload.state} at ${afterSeconds}s, was ${beforeReload}s before the reload`,
   );
 
-  // The browser's own long-press menu is another app appearing over the scene (§66: the canvas
-  // owns the surface). The iOS callout is asserted in the unit suite instead: Chromium drops
-  // `-webkit-touch-callout` at parse time, so nothing observable here could prove it.
-  const defaults = await page.evaluate(() => {
-    const seen = [];
-    const onMenu = (event) => seen.push(event.defaultPrevented);
-    document.addEventListener('contextmenu', onMenu);
-    const canvas = document.querySelector('canvas');
-    const box = canvas.getBoundingClientRect();
-    canvas.dispatchEvent(
-      new MouseEvent('contextmenu', {
-        bubbles: true,
-        cancelable: true,
-        clientX: box.width / 2,
-        clientY: box.height / 2,
-      }),
-    );
-    document.removeEventListener('contextmenu', onMenu);
-
-    let dragKept = false;
-    const onDrag = (event) => (dragKept = event.defaultPrevented);
-    document.addEventListener('dragstart', onDrag);
-    canvas.dispatchEvent(new Event('dragstart', { bubbles: true, cancelable: true }));
-    document.removeEventListener('dragstart', onDrag);
-
-    return {
-      menuFired: seen.length,
-      menuPrevented: seen.filter((value) => value === true).length,
-      dragPrevented: dragKept,
-    };
-  });
+  const defaults = await nativeDefaults(page);
   check(
     'the native context menu, callout and drag defaults are refused',
     defaults.menuFired === 1 && defaults.menuPrevented === 1 && defaults.dragPrevented === true,
@@ -454,6 +476,78 @@ const stagePoint = (page, nx, ny) =>
     JSON.stringify(sheet),
   );
   check('landscape: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+}
+
+// ---------------------------------------------------------------- desktop window
+{
+  // A mouse is not a fat finger: the core widens every hit radius for a coarse pointer and for
+  // nothing else, so this pass is the only place the un-widened desktop geometry is aimed at.
+  // 1280x800 stays under the stage box's 1.9 clamp, which is what makes the canvas fractions
+  // below land where the props are drawn.
+  const { page, errors, context } = await openWindow({ width: 1280, height: 800 });
+  const stageAspect = await page.evaluate(() => {
+    const box = document.querySelector('canvas').getBoundingClientRect();
+    return Math.round((box.width / box.height) * 100) / 100;
+  });
+  check(
+    'desktop: the window is one stage box, not a letterboxed band',
+    stageAspect <= 1.9,
+    `${stageAspect}:1`,
+  );
+
+  const layout = LAYOUTS.wide;
+  // 0.26 along a 0.34-unit rod lying at its 6° rest angle. That is past the body radius around
+  // the midpoint and short of the cherry's own radius, so the only thing which can answer here
+  // is the rod — which is exactly what a hit test measuring the midpoint alone cannot do.
+  const LIE = { x: Math.cos((6 * Math.PI) / 180), y: Math.sin((6 * Math.PI) / 180) };
+  const farEnd = await stagePoint(page, layout.rod[0] + 0.26 * LIE.x, layout.rod[1] + 0.26 * LIE.y);
+  await page.mouse.click(farEnd.x, farEnd.y);
+  await page.waitForTimeout(300);
+  const pickedUp = await sceneState(page);
+  check(
+    'desktop: a click on the far end of the rod picks it up',
+    pickedUp.includes('held'),
+    pickedUp,
+  );
+
+  const lighter = await stagePoint(page, ...layout.lighter);
+  // A cheap wheel lighter sometimes fails to catch — that is the design (§13), and a sound.
+  // Lighting is therefore "keep trying", not "one tap and pray".
+  let lit = '';
+  for (let attempt = 0; attempt < 3 && lit === ''; attempt += 1) {
+    await page.mouse.click(lighter.x, lighter.y);
+    lit = await waitScene(page, /burning|puffing|resting|ash_ready|near_end/);
+  }
+  check('desktop: the lighter catches a mouse click', lit !== '', lit);
+
+  const held = await stagePoint(page, ...layout.held);
+  await page.mouse.move(held.x, held.y);
+  await page.mouse.down();
+  await page.waitForTimeout(700);
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const drew = await sceneState(page);
+  check('desktop: holding the mouse draws', /burning|puffing|resting/.test(drew), drew);
+
+  const refused = await nativeDefaults(page);
+  check(
+    'desktop: right-clicking the scene is refused',
+    refused.menuFired === 1 && refused.menuPrevented === 1 && refused.dragPrevented,
+    JSON.stringify(refused),
+  );
+
+  await page.locator('.chrome button[aria-label="settings"]').click();
+  await page.waitForTimeout(450);
+  const opened = await page.evaluate(
+    () => document.querySelector('.sheet[data-open="true"]')?.getAttribute('aria-label') ?? '',
+  );
+  check(
+    'desktop: the bar answers a mouse click',
+    opened === 'Settings',
+    opened || 'nothing opened',
+  );
+  check('desktop: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 }
 

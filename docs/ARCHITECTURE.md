@@ -173,11 +173,13 @@ whatever URL you point it at:
    renderer, and then the statistics that reach the screen are checked against the log (§70).
 4. **`tests/smoke/served-build.sh`** — the built artefact served the way Pages will serve it. A wrong
    base path is invisible to every layer above and is a blank page in production.
-5. **`tests/smoke/touch-device.mjs`** — a real browser on an emulated phone, portrait and landscape:
-   a break completed with taps, targets that fit a finger, no double-tap zoom, no words on the main
-   screen, a drawn breath that measurably changes the pixels, and the two ways the operating system
-   takes a phone away: frames that stop (it wakes to a rod that kept burning) and a page that is
-   reloaded (it comes back to the same break, at the minute the clock says).
+5. **`tests/smoke/touch-device.mjs`** — a real browser, on the shapes the product ships on: phone
+   portrait, phone landscape, and a desktop window driven with a mouse (the only pass where the hit
+   radii are not widened for a finger, so it is the only one that can see a rod whose far half has
+   gone untappable). A break completed with pointers, targets that fit a finger, no double-tap zoom,
+   no words on the main screen, a drawn breath that measurably changes the pixels, and the two ways
+   the operating system takes a phone away: frames that stop (it wakes to a rod that kept burning)
+   and a page that is reloaded (it comes back to the same break, at the minute the clock says).
 
 ## Deliberately not built
 

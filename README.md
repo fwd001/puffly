@@ -166,7 +166,7 @@ A new unlock is marked by the icon itself lighting up — no dialog, no text.
 | `npm test`                                              | The simulation and its state machine, replay determinism, statistics derived from the log, the boundaries above |
 | `npm run typecheck`                                     | Every workspace, including the Vue shell                                                                        |
 | `npm run build` then `bash tests/smoke/served-build.sh` | The built app is servable from its subpath: entry script, manifest and service worker all answer                |
-| `node tests/smoke/touch-device.mjs <url>`               | A whole break performed with taps on an emulated phone, portrait and landscape                                  |
+| `node tests/smoke/touch-device.mjs <url>`               | A whole break performed with taps on an emulated phone and with a mouse in a desktop window                     |
 
 The served-build check exists because a wrong base path passes every unit test and shows up in
 production as a blank page. It was verified to fail loudly, not just to pass: _index.html loads
