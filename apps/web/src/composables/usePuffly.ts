@@ -52,6 +52,16 @@ import {
 const SUMMARY_INTERVAL_MS = 200;
 /** A break is over when nothing is burning and the player has gone quiet this long. */
 const IDLE_CLOSE_MS = 90_000;
+/**
+ * How much of a hidden tab's elapsed time is handed back to the simulation.
+ *
+ * A phone that sleeps with a lit rod must wake to a rod that kept burning: the simulation is a
+ * function of time, not of animation frames, and browsers stop calling `requestAnimationFrame`
+ * in a background tab. The cap is generous enough to burn a whole rod (about 190 s) and small
+ * enough that a tab reopened a week later catches up in milliseconds instead of minutes.
+ */
+const CATCH_UP_MIN_MS = 500;
+const CATCH_UP_MAX_MS = 8 * 60_000;
 /** Keep the canvas from costing more than it can show. */
 const MAX_DPR = 3;
 /** A phone at 3x is 3.4 million pixels of smoke per frame; it cannot show the difference. */
@@ -185,6 +195,12 @@ export function createPuffly(): Puffly {
   let stop: (() => void)[] = [];
   let raf = 0;
   let lastFrameMs = 0;
+  /**
+   * Wall time the frame loop already accounted for while the page was hidden. A desktop tab that
+   * is merely throttled keeps calling `requestAnimationFrame` at 1 Hz, and those frames are real
+   * simulation — subtracting them is what stops a catch-up counting the same second twice.
+   */
+  let simulatedWhileHiddenMs = 0;
   let summaryAccumulator = 0;
   let saveTimer: number | undefined;
 
@@ -315,8 +331,10 @@ export function createPuffly(): Puffly {
 
   const frame = (nowMs: number): void => {
     if (!engine) return;
-    const dt = lastFrameMs === 0 ? 1000 / 60 : Math.min(Math.max(nowMs - lastFrameMs, 0), 250);
+    const raw = lastFrameMs === 0 ? 1000 / 60 : Math.max(nowMs - lastFrameMs, 0);
+    const dt = Math.min(raw, 250);
     lastFrameMs = nowMs;
+    if (document.hidden) simulatedWhileHiddenMs += raw;
 
     watchFrames(dt);
     engine.tick(dt);
@@ -438,15 +456,34 @@ export function createPuffly(): Puffly {
       window.removeEventListener('keydown', unlockAudio, { capture: true });
     });
 
+    let hiddenAtMs = 0;
     const onVisibility = (): void => {
-      if (!audio) return;
       if (document.hidden) {
-        audio.suspend();
+        simulatedWhileHiddenMs = 0;
+        hiddenAtMs = Date.now();
+        // Whatever the finger was doing is over: a hold left hanging would otherwise draw the
+        // rod down for as long as the tab stayed asleep.
+        game.send({
+          type: 'release',
+          x: 0,
+          y: 0,
+          timestamp: game.getState().nowMs,
+          source: 'keyboard',
+        });
+        audio?.suspend();
         const state = game.getState();
         if (state.ui.sessionActive && !state.cigarette.ember.lit) closeSession();
-      } else {
-        audio.resume();
-        lastFrameMs = 0;
+        return;
+      }
+
+      audio?.resume();
+      lastFrameMs = 0;
+      const asleepMs = hiddenAtMs > 0 ? Date.now() - hiddenAtMs - simulatedWhileHiddenMs : 0;
+      hiddenAtMs = 0;
+      simulatedWhileHiddenMs = 0;
+      if (asleepMs >= CATCH_UP_MIN_MS) {
+        game.advance(Math.min(asleepMs, CATCH_UP_MAX_MS));
+        refreshSummary();
       }
     };
     document.addEventListener('visibilitychange', onVisibility);

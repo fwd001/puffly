@@ -182,6 +182,53 @@ const stagePoint = (page, nx, ny) =>
   // the player is inside the moment. The state machine is what a break starting means.
   const litState = await waitScene(page, /burning|puffing|resting|ash_ready|near_end/);
   check('two taps start the break on their own', litState !== '', litState);
+  // A phone that sleeps with a lit rod must wake to a rod that kept burning: the simulation is a
+  // function of time, not of animation frames, and browsers stop painting a hidden page.
+  const ASLEEP_MS = 4000;
+  const clockSeconds = () =>
+    page.evaluate(() => {
+      const text = document.querySelector('.clock-wrap .digits')?.textContent ?? '0:00';
+      const [m, sec] = text.split(':').map(Number);
+      return m * 60 + (Number.isFinite(sec) ? sec : 0);
+    });
+  const beforeSleep = await clockSeconds();
+  // A real background tab stops being painted. Overriding `document.hidden` alone does not stop
+  // it here — the page is still visible to the compositor — so the frames are parked in a queue
+  // and released afterwards, which is what a phone returning to the foreground looks like.
+  await page.evaluate(() => {
+    const realRaf = window.requestAnimationFrame.bind(window);
+    const queue = [];
+    window.__wake = (ms) => {
+      window.requestAnimationFrame = realRaf;
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'visible',
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      const now = performance.now() + ms;
+      for (const cb of queue.splice(0)) cb(now);
+    };
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+    window.requestAnimationFrame = (cb) => {
+      queue.push(cb);
+      return queue.length;
+    };
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.waitForTimeout(ASLEEP_MS);
+  await page.evaluate((ms) => window.__wake(ms), ASLEEP_MS);
+  await page.waitForTimeout(600);
+  const counted = beforeSleep - (await clockSeconds());
+  check(
+    'the break keeps burning while the phone sleeps',
+    counted >= (ASLEEP_MS - 1500) / 1000 && counted <= ASLEEP_MS / 1000 + 3,
+    `${counted}s counted for a ${ASLEEP_MS / 1000}s sleep (clock ${beforeSleep}s -> ${beforeSleep - counted}s)`,
+  );
 
   const held = await stagePoint(page, ...layout.held);
   for (let round = 0; round < 2; round += 1) {
