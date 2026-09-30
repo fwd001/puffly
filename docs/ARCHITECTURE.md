@@ -119,6 +119,20 @@ page came back. The clock is put back by the same arithmetic, which is why a res
 minute it is really in instead of a fresh `03:00`, and why a break that would have ended in a pocket
 comes back ended.
 
+## Where the interface ends and the scene begins
+
+The stage owns everything a player touches; the shell owns only a mark at the bottom that exists
+for a few seconds after a touch, and the three words behind it (`this break`, `the shelf`,
+`settings`). Two rules keep that split from rotting back into an app:
+
+- **the core decides visibility, once.** `ui.controlsVisible` folds together "has the player ever
+  touched anything", "how long since they did", "are they mid-draw" and "did they just swipe the
+  interface away". The shell renders a boolean; it never invents its own fade, so a desktop pet
+  gets the same behaviour for free (§10);
+- **the scene's numbers live inside the scene's sheets.** The break's clock is a row in `this
+  break`, not an overlay, and the stage mirrors it as `data-break` for the same reason the cue
+  channel is mirrored as `data-cues`: a fact nothing can read is a fact nothing can check.
+
 ## Performance
 
 SPEC.md §54 and §81 (6/9) are why the renderer is structured the way it is:
@@ -177,10 +191,11 @@ whatever URL you point it at:
    portrait, phone landscape, and a desktop window driven with a mouse (the only pass where the hit
    radii are not widened for a finger, so it is the only one that can see a rod whose far half has
    gone untappable). A break completed with pointers, targets that fit a finger, no double-tap zoom,
-   no prose on the stage — at most the one gesture word, and the word is checked to change with the
-   affordance and to disappear when settings say so — a drawn breath that measurably changes the
-   pixels, and the two ways the operating system takes a phone away: frames that stop (it wakes to a
-   rod that kept burning) and a page that is reloaded (it comes back to the same break, at the
+   no prose and no digits on the stage — at most the one gesture word, which is checked to change
+   with the affordance and to disappear when settings say so — a drawn breath that measurably
+   changes the pixels, the interface folding under a swipe down over nothing while the rod keeps
+   burning, and the two ways the operating system takes a phone away: frames that stop (it wakes to
+   a rod that kept burning) and a page that is reloaded (it comes back to the same break, at the
    minute the clock says).
 
 ## Deliberately not built

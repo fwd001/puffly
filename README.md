@@ -56,7 +56,7 @@ never disagree (`engine.setStageAspect`, called on every resize).
 
 ## What changes how it feels
 
-All of it is behind the gear icon, none of it is required:
+Every row is a word and a control, reached from `···` → `settings`. None of it is required:
 
 - **Quality** `◌ auto · •• ✦` — `auto` is not a guess. The shell measures its own frame times and
   walks the particle budget `high → balanced → light`, stepping down twice as eagerly as it climbs
@@ -103,22 +103,25 @@ There is no help screen. There is one word, and only when the scene is already p
 something. Everything below is discoverable by pointing at it; this list exists only for people
 maintaining the code.
 
-| You do                           | You see                                                        |
-| -------------------------------- | -------------------------------------------------------------- |
-| tap the cigarette                | it lifts into the hand                                         |
-| tap the lighter                  | flame, then the cherry catches                                 |
-| hold on the rod                  | draw: ember brightens, smoke thickens, sound rises             |
-| release                          | the drawn smoke expands out                                    |
-| watch the ash column grow        | it bends, then asks to be flicked                              |
-| tap or flick the ash             | it falls under gravity and rotation, and the tray fills up     |
-| press it into the tray           | flare → burst → hiss → thin smoke → dark                       |
-| drag it over the tray and let go | smothered first, then discarded; a fresh rod turns up          |
-| stop touching anything           | chrome fades out, the scene keeps living (wind, light, flares) |
+| You do                           | You see                                                          |
+| -------------------------------- | ---------------------------------------------------------------- |
+| tap the cigarette                | it lifts into the hand                                           |
+| tap the lighter                  | flame, then the cherry catches                                   |
+| hold on the rod                  | draw: ember brightens, smoke thickens, sound rises               |
+| release, while still moving      | the drawn smoke expands out _that way_                           |
+| watch the ash column grow        | it bends, then asks to be flicked                                |
+| tap or flick the ash             | it falls under gravity and rotation, and the tray fills up       |
+| press it into the tray           | flare → burst → hiss → thin smoke → dark                         |
+| close two fingers on the cherry  | the same thing, by a different hand                              |
+| drag it over the tray and let go | its rim warms as you approach; smothered, discarded, a fresh rod |
+| swipe down over nothing at all   | the interface folds away and the rod keeps burning               |
+| stop touching anything           | the mark fades out, the scene keeps living (wind, light, flares) |
 
 ## How to play it
 
-Nothing on the screen is a button except the three icons at the bottom. Everything else is a
-physical object on a table, and it answers to being touched the way the object would.
+At rest there is nothing on the screen but the table. One mark appears at the bottom in the
+seconds after you touch something, and it goes away when you stop. Everything else is a physical
+object, and it answers to being touched the way the object would — the gesture _is_ the control.
 
 **The four things you can touch**
 
@@ -160,15 +163,19 @@ rod has burnt to wherever that clock says it should be — and a break that woul
 while the phone was away comes back finished and counted, rather than waiting for someone to
 notice it.
 
-**The three icons**
+**The one mark, and the three words behind it**
 
-- `◍` this break: how long it has run, what you did in it, and the craving note you can leave
-  before or after.
-- `✦` the shelf: every rod, room, lighter and tray you have, with the ones you have not yet
-  unlocked shown dimmed. Choosing one changes how the smoke looks, moves and sounds.
-- `⚙` the settings on the [What changes how it feels](#what-changes-how-it-feels) list.
+`···` opens a menu: `this break`, `the shelf`, `settings`. Those three words are the only reading
+a player has to do to use the app, and they are in the menu rather than on the scene because an
+icon cannot say which of the three it is.
 
-A new unlock is marked by the icon itself lighting up — no dialog, no text.
+- `this break` — how long it has run (the clock lives here now, not on the stage), what you did in
+  it, the craving note, and the journey.
+- `the shelf` — every rod, room, lighter and tray you have, with the ones you have not yet unlocked
+  shown dimmed. Choosing one changes how the smoke looks, moves and sounds.
+- `settings` — the rows on the [What changes how it feels](#what-changes-how-it-feels) list.
+
+A new unlock is marked by a dot on the `···` itself — no dialog, no text.
 
 ## How it is verified
 

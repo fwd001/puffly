@@ -1,48 +1,32 @@
 <script setup lang="ts">
 /**
- * The whole chrome: three icons, hidden until the player is awake, and one of them pulses
- * to match what Game Core thinks the player is about to do (§10, §28, §44). No labels.
+ * The whole chrome: one mark, hidden until the player is awake, that opens the menu (§10, §44).
+ *
+ * It used to be three icons always on screen — break, shelf, settings — which made the scene a
+ * page with a toolbar. Now the stage is the only thing at rest, and the way out of it appears in
+ * the seconds after you touch something and then goes away.
  */
 defineProps<{
   visible: boolean;
-  affordance: string;
-  open: 'none' | 'settings' | 'session' | 'collection';
+  /** Unread unlocks: the only reason the mark ever asks for attention. */
   fresh: number;
+  open: boolean;
 }>();
 
-const emit = defineEmits<{ open: ['settings' | 'session' | 'collection'] }>();
+const emit = defineEmits<{ open: [] }>();
 </script>
 
 <template>
   <nav class="chrome" :data-visible="visible" aria-label="Puffly">
     <button
-      class="icon-button"
-      :class="{ dim: !visible }"
-      :aria-pressed="open === 'session'"
-      aria-label="break"
-      @click="emit('open', 'session')"
+      class="icon-button menu"
+      :aria-pressed="open"
+      aria-label="menu"
+      :disabled="!visible"
+      @click="emit('open')"
     >
-      <span class="mark">◍</span>
-    </button>
-
-    <button
-      class="icon-button"
-      :class="{ pulse: affordance !== 'none' && affordance !== 'pick' && visible }"
-      :aria-pressed="open === 'collection'"
-      aria-label="collection"
-      @click="emit('open', 'collection')"
-    >
-      <span class="mark">✦</span>
+      <span class="mark" aria-hidden="true">···</span>
       <span v-if="fresh > 0" class="badge" aria-hidden="true" />
-    </button>
-
-    <button
-      class="icon-button"
-      :aria-pressed="open === 'settings'"
-      aria-label="settings"
-      @click="emit('open', 'settings')"
-    >
-      <span class="mark">⚙</span>
     </button>
   </nav>
 </template>
@@ -54,15 +38,12 @@ const emit = defineEmits<{ open: ['settings' | 'session' | 'collection'] }>();
   left: 0;
   right: 0;
   justify-content: center;
+  z-index: 2;
 }
 
 .mark {
   line-height: 1;
-}
-
-.pulse .mark {
-  animation: nudge 2400ms var(--ease-out) infinite;
-  color: var(--ember-core);
+  letter-spacing: 0.12em;
 }
 
 .badge {
@@ -75,21 +56,9 @@ const emit = defineEmits<{ open: ['settings' | 'session' | 'collection'] }>();
   background: var(--ember-orange);
 }
 
-@keyframes nudge {
-  0%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.7;
-  }
-  50% {
-    transform: translateY(-2px);
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pulse .mark {
-    animation: none;
-  }
+/* The mark is not tappable while the chrome is faded, and it never looks like it is. */
+.menu:disabled {
+  opacity: 0;
+  pointer-events: none;
 }
 </style>

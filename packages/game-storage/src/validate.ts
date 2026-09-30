@@ -577,7 +577,6 @@ export function readSettings(
   const textScale = requireRange(record, 'textScale', 0.5, 3, path, errors);
   const quality = requireOneOf(record, 'quality', QUALITY_MODES, path, errors);
   const sessionTargetMs = requireRange(record, 'sessionTargetMs', 0, 60 * 60_000, path, errors);
-  const showClock = requireBoolean(record, 'showClock', path, errors);
   // ±14 hours covers every civil offset on the planet (§71).
   const utcOffsetMinutes = requireRange(
     record,
@@ -600,7 +599,6 @@ export function readSettings(
     textScale === null ||
     quality === null ||
     sessionTargetMs === null ||
-    showClock === null ||
     utcOffsetMinutes === null ||
     haptics === null
   ) {
@@ -616,7 +614,6 @@ export function readSettings(
     textScale,
     quality,
     sessionTargetMs,
-    showClock,
     hints,
     utcOffsetMinutes,
     haptics,

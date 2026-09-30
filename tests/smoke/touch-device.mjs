@@ -240,6 +240,18 @@ async function waitChannel(page, want, withinMs = 5000) {
   }
 }
 
+/** The one way into anything: the mark at the bottom, then the word it opens. */
+async function openSheet(page, word, mouse = false) {
+  const mark = page.locator('.chrome button[aria-label="menu"]');
+  if (mouse) await mark.click();
+  else await mark.tap();
+  await page.waitForTimeout(420);
+  const entry = page.locator('.sheet--menu .entry', { hasText: word });
+  if (mouse) await entry.click();
+  else await entry.tap();
+  await page.waitForTimeout(460);
+}
+
 // -------------------------------------------------------------------- portrait
 {
   const { page, errors, context } = await openPhone({ width: 393, height: 852, dpr: 3 });
@@ -296,7 +308,9 @@ async function waitChannel(page, want, withinMs = 5000) {
   const ASLEEP_MS = 4000;
   const clockSeconds = () =>
     page.evaluate(() => {
-      const text = document.querySelector('.clock-wrap .digits')?.textContent ?? '0:00';
+      // The stage shows no digits; the break's clock is mirrored on it as an attribute, which is
+      // what makes "did the sleep count as time" checkable without opening a sheet to look.
+      const text = document.querySelector('.stage')?.getAttribute('data-break') ?? '0:00';
       const [m, sec] = text.split(':').map(Number);
       return m * 60 + (Number.isFinite(sec) ? sec : 0);
     });
@@ -411,37 +425,42 @@ async function waitChannel(page, want, withinMs = 5000) {
 
   // An open sheet must leave the bar that opened it reachable. The bottom-anchored panel used to
   // paint over all three chrome buttons, so on a phone the middle one went dead once it was open.
-  await page.locator('.chrome button[aria-label="collection"]').tap();
-  await page.waitForTimeout(500);
+  await openSheet(page, 'the shelf');
   const covered = await page.evaluate(() =>
-    ['break', 'collection', 'settings']
-      .filter((label) => {
-        const btn = document.querySelector(`.chrome button[aria-label="${label}"]`);
-        const r = btn.getBoundingClientRect();
-        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-        // The button's own glyph span is a hit on the button; anything else is something on top.
-        return !btn.contains(hit);
-      })
-      .map((label) => `${label} covered`),
+    [
+      '.chrome button[aria-label="menu"]',
+      '.sheet[data-open="true"] button[aria-label="close"]',
+    ].filter((selector) => {
+      const btn = document.querySelector(selector);
+      const r = btn.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      // The button's own glyph span is a hit on the button; anything else is something on top.
+      return !btn.contains(hit);
+    }),
   );
-  check(
-    'a chrome button stays tappable under an open sheet',
-    covered.length === 0,
-    covered.join(', '),
-  );
+  check('the mark and the sheet stay tappable together', covered.length === 0, covered.join(', '));
 
-  await page.locator('.chrome button[aria-label="settings"]').tap();
-  await page.waitForTimeout(500);
+  await openSheet(page, 'settings');
   const switched = await page.evaluate(() =>
     [...document.querySelectorAll('.sheet[data-open="true"]')].map((el) =>
       el.getAttribute('aria-label'),
     ),
   );
   check(
-    'the bar switches from one sheet to another',
+    'the menu replaces the sheet that was open, and names itself in words',
     switched.join(',') === 'Settings',
     switched.join(','),
   );
+
+  // §18: the stage carries no numbers. The break's clock lives inside the sheet now.
+  const onStage = await page.evaluate(
+    () =>
+      [...document.querySelectorAll('.stage > *:not(.sheet):not(.chrome)')]
+        .map((el) => el.textContent ?? '')
+        .join(' ')
+        .match(/\\d/g)?.length ?? 0,
+  );
+  check('nothing on the stage is a number', onStage === 0, `${onStage} digits`);
 
   // §64: the word is a setting, not a fixture. Off has to mean off on the stage too, not just
   // in the sheet, and turning it off must not leave any other text behind.
@@ -480,8 +499,7 @@ async function waitChannel(page, want, withinMs = 5000) {
     JSON.stringify(defaults),
   );
 
-  await page.locator('.chrome button[aria-label="settings"]').tap();
-  await page.waitForTimeout(500);
+  await openSheet(page, 'settings');
   const small = await page.evaluate(() =>
     [
       ...document.querySelectorAll(
@@ -493,6 +511,42 @@ async function waitChannel(page, want, withinMs = 5000) {
       .map((r) => `${Math.round(r.width)}x${Math.round(r.height)}`),
   );
   check('every control on the sheet takes a finger', small.length === 0, small.join(', '));
+  // §11: the interface follows the hand. A swipe down over nothing puts it away — the sheets,
+  // the mark and the word — while the rod goes on burning behind them.
+  await page.evaluate(() => {
+    const canvas = document.querySelector('canvas');
+    const box = canvas.getBoundingClientRect();
+    const at = (y) => ({
+      clientX: box.left + box.width * 0.5,
+      clientY: box.top + box.height * y,
+      pointerId: 7,
+      pointerType: 'touch',
+      isPrimary: true,
+      bubbles: true,
+    });
+    // Well above the held rod, so the swipe resolves to nothing at all: that is the whole
+    // difference between "put the interface away" and "put the cigarette out".
+    canvas.dispatchEvent(new PointerEvent('pointerdown', at(0.05)));
+    canvas.dispatchEvent(new PointerEvent('pointermove', at(0.14)));
+    canvas.dispatchEvent(new PointerEvent('pointermove', at(0.22)));
+    canvas.dispatchEvent(new PointerEvent('pointerup', at(0.24)));
+  });
+  await page.waitForTimeout(700);
+  const folded = await page.evaluate(() => ({
+    chrome: document.querySelector('.chrome')?.dataset.visible ?? '?',
+    hint: !!document.querySelector('.hint'),
+    sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
+    state: document.querySelector('canvas')?.getAttribute('aria-label') ?? '',
+  }));
+  check(
+    'a swipe down over nothing puts the interface away and leaves the break burning',
+    folded.chrome === 'false' &&
+      !folded.hint &&
+      folded.sheets === 0 &&
+      /burning/.test(folded.state),
+    JSON.stringify(folded),
+  );
+
   check('portrait: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 }
@@ -529,8 +583,7 @@ async function waitChannel(page, want, withinMs = 5000) {
     await sceneState(page),
   );
 
-  await page.locator('.chrome button[aria-label="settings"]').tap();
-  await page.waitForTimeout(500);
+  await openSheet(page, 'settings');
   const sheet = await page.evaluate(() => {
     const r = document.querySelector('.sheet[data-open="true"]')?.getBoundingClientRect();
     return r ? { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.x) } : null;
@@ -602,8 +655,7 @@ async function waitChannel(page, want, withinMs = 5000) {
     JSON.stringify(refused),
   );
 
-  await page.locator('.chrome button[aria-label="settings"]').click();
-  await page.waitForTimeout(450);
+  await openSheet(page, 'settings', true);
   const opened = await page.evaluate(
     () => document.querySelector('.sheet[data-open="true"]')?.getAttribute('aria-label') ?? '',
   );
@@ -632,12 +684,16 @@ async function waitChannel(page, want, withinMs = 5000) {
   await page.touchscreen.tap(rod.x, rod.y);
   const afterGesture = await waitChannel(page, 'audio');
 
-  await page.locator('.chrome button[aria-label="settings"]').tap();
-  await page.waitForTimeout(450);
-  const mute = page.locator('.sheet[data-open="true"] button[aria-label="mute"]');
-  await mute.tap();
-  const muted = await waitChannel(page, 'visual');
-  await mute.tap();
+  await openSheet(page, 'settings');
+  const sound = page.locator('.sheet[data-open="true"] button[aria-label="sound level"]');
+  // Three steps — enough, a little, none — walked until the picture takes over, rather than a
+  // fixed number of taps that assumes where the cycle started.
+  let muted = await cueChannel(page);
+  for (let step = 0; step < 3 && muted !== 'visual'; step += 1) {
+    await sound.tap();
+    muted = await waitChannel(page, 'visual', 1200);
+  }
+  await sound.tap();
   const unmuted = await waitChannel(page, 'audio');
   await page.locator('.sheet[data-open="true"] button[aria-label="close"]').tap();
 

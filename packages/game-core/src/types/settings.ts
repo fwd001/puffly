@@ -18,7 +18,6 @@ export interface Settings {
   quality: QualityMode;
   /** Minutes, §31's `◷ 03:00`. */
   sessionTargetMs: number;
-  showClock: boolean;
   /**
    * §28: whether the object the scene is nudging also gets one plain word naming the gesture
    * ("tap", "hold", "flick", "press", "drop"). On by default — a word is cheaper than a
@@ -62,7 +61,6 @@ export function createDefaultSettings(utcOffsetMinutes = 0): Settings {
     textScale: 1,
     quality: 'auto',
     sessionTargetMs: DEFAULT_SESSION_TARGET_MS,
-    showClock: true,
     hints: true,
     utcOffsetMinutes,
     haptics: false,

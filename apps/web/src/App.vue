@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { createPuffly } from './composables/usePuffly';
-import SessionClock from './components/SessionClock.vue';
 import ChromeBar from './components/ChromeBar.vue';
+import MenuSheet from './components/MenuSheet.vue';
 import SettingsSheet from './components/SettingsSheet.vue';
 import SessionSheet from './components/SessionSheet.vue';
 import CollectionSheet from './components/CollectionSheet.vue';
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const game = createPuffly();
-const sheet = ref<'none' | 'settings' | 'session' | 'collection'>('none');
+type SheetName = 'none' | 'menu' | 'break' | 'shelf' | 'settings';
+const sheet = ref<SheetName>('none');
+
+// A swipe down folds the interface, and a sheet left open is the loudest part of it.
+watch(
+  () => game.summary.value.state?.ui.chromeFolded ?? false,
+  (folded) => {
+    if (folded) sheet.value = 'none';
+  },
+);
 
 const summary = computed(() => game.summary.value);
 
@@ -42,13 +51,13 @@ onMounted(() => {
   if (canvas.value) void game.attach(canvas.value);
 });
 
-function openSheet(next: typeof sheet.value): void {
+function openSheet(next: SheetName): void {
   sheet.value = sheet.value === next ? 'none' : next;
 }
 </script>
 
 <template>
-  <main class="stage" :data-cues="summary.cueChannel">
+  <main class="stage" :data-cues="summary.cueChannel" :data-break="summary.clock">
     <canvas ref="canvas" tabindex="0" :aria-label="announced" />
 
     <p
@@ -60,23 +69,17 @@ function openSheet(next: typeof sheet.value): void {
       {{ summary.hint?.word }}
     </p>
 
-    <SessionClock
-      :clock="summary.clock"
-      :active="summary.sessionActive && game.settings.value.showClock"
-      :fading="!summary.controlsVisible"
-      :reached="summary.targetReached"
-    />
-
     <ChromeBar
       :visible="summary.controlsVisible || sheet !== 'none'"
-      :affordance="summary.affordance"
-      :open="sheet"
+      :open="sheet === 'menu'"
       :fresh="summary.fresh.length"
-      @open="openSheet"
+      @open="openSheet('menu')"
     />
 
-    <SessionSheet :open="sheet === 'session'" :game="game" @close="sheet = 'none'" />
-    <CollectionSheet :open="sheet === 'collection'" :game="game" @close="sheet = 'none'" />
+    <MenuSheet :open="sheet === 'menu'" @close="sheet = 'none'" @open="openSheet" />
+
+    <SessionSheet :open="sheet === 'break'" :game="game" @close="sheet = 'none'" />
+    <CollectionSheet :open="sheet === 'shelf'" :game="game" @close="sheet = 'none'" />
     <SettingsSheet :open="sheet === 'settings'" :game="game" @close="sheet = 'none'" />
   </main>
 </template>

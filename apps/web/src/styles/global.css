@@ -281,17 +281,6 @@ body {
   }
 }
 
-.clock {
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.08em;
-  opacity: 0.72;
-  transition: opacity 700ms var(--ease-out);
-}
-
-.clock.hidden {
-  opacity: 0;
-}
-
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
@@ -367,8 +356,7 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
   .chrome,
   .sheet,
   .swatch,
-  .icon-button,
-  .clock {
+  .icon-button {
     transition-duration: 1ms;
   }
 

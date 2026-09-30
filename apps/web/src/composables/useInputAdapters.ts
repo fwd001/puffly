@@ -141,7 +141,13 @@ export function createPointerAdapter(
       holdSent: false,
       moved: false,
     };
-    canvas.setPointerCapture?.(event.pointerId);
+    // A capture the browser refuses (an id it no longer considers active) is not a reason to
+    // lose the press: without it the pointer still reports its moves.
+    try {
+      canvas.setPointerCapture?.(event.pointerId);
+    } catch {
+      /* uncaptured, and still playing */
+    }
     // Long-press threshold: past it, the press *is* a hold and the app reacts while held.
     window.setTimeout(() => {
       if (press && press.id === event.pointerId && !press.holdSent) {
@@ -264,7 +270,11 @@ export function createPointerAdapter(
       });
     }
 
-    canvas.releasePointerCapture?.(event.pointerId);
+    try {
+      canvas.releasePointerCapture?.(event.pointerId);
+    } catch {
+      /* nothing to give back */
+    }
     fingers.delete(event.pointerId);
     if (fingers.size < 2) spreadAt = 0;
     press = null;

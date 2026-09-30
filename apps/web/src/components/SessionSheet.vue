@@ -75,7 +75,10 @@ watch(
 <template>
   <section ref="root" class="sheet" :data-open="open" aria-label="Break">
     <header class="row">
-      <span class="count big">{{ today?.puffs ?? summary.puffs }}</span>
+      <!-- The break's own clock lives in here now: the stage shows no numbers, and the time a
+           player has spent is still worth seeing when they go looking for it (§31). -->
+      <span class="count big" :class="{ reached: summary.targetReached }">{{ summary.clock }}</span>
+      <span class="count">{{ today?.puffs ?? summary.puffs }}</span>
       <span class="count">☀ {{ today?.daylightHours ?? 0 }}h</span>
       <span class="count">🌙 {{ today?.nightHours ?? 0 }}h</span>
       <span class="count">🔥 {{ summary.puffs }}</span>
@@ -156,6 +159,11 @@ watch(
 </template>
 
 <style scoped>
+/* The break's own clock, which used to sit on the stage: amber once the target is reached. */
+.count.reached {
+  color: var(--ember-core);
+}
+
 .row {
   display: flex;
   align-items: center;
