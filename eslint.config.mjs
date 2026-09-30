@@ -154,6 +154,7 @@ export default tseslint.config(
         MouseEvent: 'readonly',
         Event: 'readonly',
         getComputedStyle: 'readonly',
+        performance: 'readonly',
       },
     },
   },
