@@ -70,6 +70,7 @@ export function cloneSettings(settings: Settings): Settings {
     quality: settings.quality,
     sessionTargetMs: settings.sessionTargetMs,
     showClock: settings.showClock,
+    hints: settings.hints,
     utcOffsetMinutes: settings.utcOffsetMinutes,
     haptics: settings.haptics,
   };

@@ -9,6 +9,7 @@ import {
   resolveTarget,
   stageBoxFor,
   stageDistance,
+  touchReach,
   type StageAnchors,
 } from '@puffly/game-core';
 import { FIXTURE } from './fixture';
@@ -138,21 +139,34 @@ describe('stage shape decides where things live (§55)', () => {
     ).not.toBe('cigarette');
   });
 
-  it('a widened tray target does not steal the rod lying next to it (§66)', () => {
-    // On a phone the tray's touch radius reaches over the rod lying beside it. The finger is
-    // on the rod, so the rod answers — otherwise every pick-up near the tray is a discard.
-    const h = harness();
-    h.engine.setStageAspect(0.46);
-    const state = h.state();
-    const body = state.anchors.body;
-    expect(
-      stageDistance(body, state.anchors.ashtray, 0.46) <
-        Math.max(state.anchors.ashtrayRadius, 0.135) * 1.6,
-    ).toBe(true);
-    expect(resolveTarget(body, state.anchors, state.cigarette.ash.length, 0.46, 1.6)).toBe(
-      'cigarette',
-    );
-    expect(resolveTarget(state.anchors.ashtray, state.anchors, 0, 0.46, 1.6)).toBe('ashtray');
+  it('the tray and a rod lying on the table keep their own ground (§66)', () => {
+    // Not a tie-break: the two targets must not overlap at all. When they did, a tap meant for
+    // the rod answered as "put it out", and a player has no way to explain that to themselves —
+    // it reads as the game resetting. Checked in every layout, on a finger's own tolerance.
+    for (const aspect of [0.46, 1, 1.9]) {
+      const h = harness();
+      h.engine.setStageAspect(aspect);
+      const state = h.state();
+      const trayReach = touchReach(state.anchors.ashtrayRadius, 1.6);
+      expect(
+        stageDistance(state.anchors.body, state.anchors.ashtray, aspect),
+        `aspect ${aspect}: the tray reaches the rod lying beside it`,
+      ).toBeGreaterThan(trayReach);
+      expect(resolveTarget(state.anchors.body, state.anchors, 0, aspect, 1.6)).toBe('cigarette');
+      expect(resolveTarget(state.anchors.ashtray, state.anchors, 0, aspect, 1.6)).toBe('ashtray');
+    }
+  });
+
+  it('a finger budget stops growing once the target is wide (§66)', () => {
+    // Small things get the whole multiplier; wide ones stop at one finger's slop, whichever of
+    // the two is the smaller reach. Without the cap the tray — already the widest object on the
+    // table — covered 0.216 units, which on a 393 px phone is a circle almost as wide as it is.
+    expect(touchReach(0.02, 1.6)).toBeCloseTo(0.032, 6); // multiplier wins
+    expect(touchReach(0.066, 1.6)).toBeCloseTo(0.1056, 6); // the crossover
+    expect(touchReach(0.085, 1.6)).toBeCloseTo(0.125, 6); // the cherry: pad wins
+    expect(touchReach(0.135, 1.6)).toBeCloseTo(0.175, 6); // the tray: pad wins
+    // A cursor is not a finger: nothing grows at all.
+    expect(touchReach(0.085, 1)).toBe(0.085);
   });
 
   it('a finger gets a bigger target than a cursor (§66)', () => {

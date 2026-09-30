@@ -20,7 +20,7 @@ import {
 import { ANGLES, HIT, LAYOUT, STEP_MS, TIMING } from './constants';
 import { CIGARETTE_LENGTH, type Point } from './types/geometry';
 import { computeAnchors, inputPoint, isInside, resolveTarget } from './anchors';
-import { hitToleranceFor, layoutFor } from './stage';
+import { hitToleranceFor, layoutFor, touchReach } from './stage';
 import { createContentLookup, type ContentLookup } from './content/lookup';
 import { emit, markRevision, record, setState } from './emit';
 import { deriveAmbientState, isLit } from './stateMachine';
@@ -280,6 +280,7 @@ export function createEngine(options: EngineOptions): GameEngine {
     progress,
     session: null,
     litAtWallMs: null,
+    everTouched: false,
     listeners: new Set(),
     timers: createTimers(0),
     drag: {
@@ -463,7 +464,7 @@ export function createEngine(options: EngineOptions): GameEngine {
       const over = isInside(
         rt.drag.pointer ?? at,
         rt.state.anchors.ashtray,
-        Math.max(rt.layout.ashtrayRadius, HIT.ashtray) * tolerance,
+        touchReach(Math.max(rt.layout.ashtrayRadius, HIT.ashtray), tolerance),
         rt.stageAspect,
       );
       rt.drag.pressed = false;
@@ -509,6 +510,7 @@ export function createEngine(options: EngineOptions): GameEngine {
 
   const applyInput = (input: GameInput): void => {
     rt.state.ui.lastInputMs = input.timestamp;
+    rt.everTouched = true;
     rt.session?.inputs.push(input);
 
     switch (input.type) {
@@ -701,7 +703,9 @@ export function createEngine(options: EngineOptions): GameEngine {
         return 'discard';
       case 'IDLE':
       case 'DISCARDED':
-        return 'none';
+        // A rod lying on the table is not "nothing suggested": picking it up is the whole of
+        // what comes next, and the scene has to say so like it says everything else (§28).
+        return 'pick';
       default:
         return 'puff';
     }
@@ -710,7 +714,8 @@ export function createEngine(options: EngineOptions): GameEngine {
   const tickUi = (): void => {
     const ui = rt.state.ui;
     ui.idleMs = rt.state.nowMs - ui.lastInputMs;
-    ui.controlsVisible = ui.idleMs < TIMING.controlsIdleMs || rt.state.cigarette.puff.active;
+    ui.controlsVisible =
+      !rt.everTouched || ui.idleMs < TIMING.controlsIdleMs || rt.state.cigarette.puff.active;
     ui.sessionActive = rt.session !== null;
     ui.sessionTargetMs = rt.session?.targetMs ?? rt.settings.sessionTargetMs;
     ui.affordance = affordanceFor(rt.state.cigarette.state);

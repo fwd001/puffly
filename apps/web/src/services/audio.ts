@@ -19,6 +19,13 @@ export interface AudioBridge {
   resume(): void;
   dispose(): void;
   available(): boolean;
+  /**
+   * Whether anything will actually be *heard*: Web Audio exists, the browser has let the context
+   * run, and the master is up (mute lands there, §63). False is not an error state — autoplay
+   * policy keeps it false until the first tap — but it is the state where the picture has to say
+   * what the mix would have said.
+   */
+  audible(): boolean;
 }
 
 export function createAudioBridge(content: ContentLookup, settings: Settings): AudioBridge {
@@ -70,6 +77,13 @@ export function createAudioBridge(content: ContentLookup, settings: Settings): A
     available() {
       try {
         return engine.isAvailable();
+      } catch {
+        return false;
+      }
+    },
+    audible() {
+      try {
+        return engine.isAvailable() && engine.isReady() && engine.masterLevel() > 0.001;
       } catch {
         return false;
       }

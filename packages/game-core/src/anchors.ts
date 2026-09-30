@@ -8,7 +8,7 @@
 
 import { HIT } from './constants';
 import { offset, type Point } from './types/geometry';
-import { stageDistance, stageDistanceToSegment } from './stage';
+import { stageDistance, stageDistanceToSegment, touchReach } from './stage';
 import type { StageLayout } from './stage';
 import type { GameInput, InputTarget } from './types/input';
 import type { CigarettePose, StageAnchors } from './types/state';
@@ -102,7 +102,7 @@ export function resolveTarget(
     const distance = candidate.span
       ? stageDistanceToSegment(at, candidate.span[0], candidate.span[1], aspect)
       : stageDistance(at, candidate.at, aspect);
-    if (distance > candidate.radius * tolerance) continue;
+    if (distance > touchReach(candidate.radius, tolerance)) continue;
     const rank = stageDistance(at, candidate.at, aspect);
     if (best === null || rank < best.distance) best = { target: candidate.target, distance: rank };
   }
@@ -110,16 +110,34 @@ export function resolveTarget(
 }
 
 /**
+ * Where a named target lives on the stage, or `null` for the ones with no anchor of their
+ * own. The keyboard aims through this, and so does anything else that has to point at
+ * whatever the engine just suggested (§65, §66).
+ */
+export function anchorForTarget(anchors: StageAnchors, target: InputTarget): Point | null {
+  switch (target) {
+    case 'cigarette':
+      return anchors.body;
+    case 'ember':
+      return anchors.ember;
+    case 'ash':
+      return anchors.ash;
+    case 'lighter':
+      return anchors.lighter;
+    case 'ashtray':
+      return anchors.ashtray;
+    case 'stage':
+      return null;
+  }
+}
+
+/**
  * Where an input really points. Keyboard/shortcut inputs name an anchor instead of a
  * pixel, which is what lets them reach the same target a touch user gets (§65, §66).
  */
 export function inputPoint(input: GameInput, anchors: StageAnchors): Point {
-  if (input.target === 'cigarette') return anchors.body;
-  if (input.target === 'ember') return anchors.ember;
-  if (input.target === 'ash') return anchors.ash;
-  if (input.target === 'lighter') return anchors.lighter;
-  if (input.target === 'ashtray') return anchors.ashtray;
-  return { x: input.x, y: input.y };
+  const anchor = input.target === undefined ? null : anchorForTarget(anchors, input.target);
+  return anchor ?? { x: input.x, y: input.y };
 }
 
 export function isInside(point: Point, centre: Point, radius: number, aspect = 1): boolean {

@@ -55,7 +55,7 @@ try {
 
 /** Where the tall (portrait) and wide (landscape) prop tables put things, in stage units. */
 const LAYOUTS = {
-  tall: { rod: [0.5, 0.9], lighter: [0.12, 0.71], held: [0.5, 0.58], tray: [0.7, 0.855] },
+  tall: { rod: [0.26, 0.855], lighter: [0.13, 0.655], held: [0.5, 0.58], tray: [0.72, 0.78] },
   wide: { rod: [0.33, 0.86], lighter: [0.075, 0.66], held: [0.52, 0.5], tray: [0.815, 0.8] },
 };
 
@@ -205,6 +205,27 @@ const stagePoint = (page, nx, ny) =>
     [nx, ny],
   );
 
+/**
+ * The words a player can read on the stage. There is one of them, and it names the gesture the
+ * scene is already nudging (§28); everything else the game says is an `aria-label`.
+ */
+const stageWords = (page) =>
+  page.evaluate(() => {
+    const hint = (document.querySelector('.hint')?.textContent ?? '').trim().toLowerCase();
+    // The word is its own block, so it is its own line. Drop that line: whatever is left and
+    // looks like a word is prose, which the product is not allowed to have.
+    const rest = document.body.innerText
+      .split('\n')
+      .filter((line) => line.trim().toLowerCase() !== hint)
+      .join(' ');
+    const tokens = rest.match(/[A-Za-z\u4e00-\u9fff]{2,}/g)?.map((word) => word.toLowerCase());
+    return { hint, other: tokens ?? [] };
+  });
+
+/** Which channel the shell currently trusts to carry the cues (§63). */
+const cueChannel = (page) =>
+  page.evaluate(() => document.querySelector('.stage')?.dataset.cues ?? 'missing');
+
 // -------------------------------------------------------------------- portrait
 {
   const { page, errors, context } = await openPhone({ width: 393, height: 852, dpr: 3 });
@@ -231,10 +252,25 @@ const stagePoint = (page, nx, ny) =>
   // Sampled before anything is lit: an idle room has drift and dust, but no breath in it.
   const before = await airSample(page);
 
+  // The first thing a player meets: nothing has been touched, so the chrome may not fade, and the
+  // one word on the screen has to say what the glowing thing under the rod is for (§28).
+  const untouched = await stageWords(page);
+  check(
+    'an untouched table names the one thing to do',
+    untouched.hint === 'tap' && untouched.other.length === 0,
+    JSON.stringify(untouched),
+  );
+
   const layout = LAYOUTS.tall;
   const rod = await stagePoint(page, ...layout.rod);
   await page.touchscreen.tap(rod.x, rod.y);
   await page.waitForTimeout(300);
+  const inHand = await stageWords(page);
+  check(
+    'once it is in hand the word changes to the next gesture',
+    inHand.hint === 'light' && inHand.other.length === 0,
+    JSON.stringify(inHand),
+  );
   const lighter = await stagePoint(page, ...layout.lighter);
   await page.touchscreen.tap(lighter.x, lighter.y);
   // The clock's visibility is not the evidence: §10 dims the chrome, including the clock, once
@@ -338,10 +374,13 @@ const stagePoint = (page, nx, ny) =>
     ).match(/burning|puffing|resting|ash_ready|near_end/) !== null,
   );
 
-  const words = await page.evaluate(() => document.body.innerText);
+  // The whole vocabulary the product owns (§28). Anything else on the screen is a bug.
+  const GESTURES = ['tap', 'light', 'hold', 'flick', 'press', 'drop'];
+  const words = await stageWords(page);
   check(
-    'the screen is still wordless',
-    (words.match(/[A-Za-z\u4e00-\u9fff]{2,}/g) ?? []).length === 0,
+    'the screen carries no prose, at most one gesture word',
+    words.other.length === 0 && (words.hint === '' || GESTURES.includes(words.hint)),
+    JSON.stringify(words),
   );
 
   // Double-tapping the *air* is what a player does while looking for something to touch. It must
@@ -388,6 +427,18 @@ const stagePoint = (page, nx, ny) =>
     'the bar switches from one sheet to another',
     switched.join(',') === 'Settings',
     switched.join(','),
+  );
+
+  // §64: the word is a setting, not a fixture. Off has to mean off on the stage too, not just
+  // in the sheet, and turning it off must not leave any other text behind.
+  await page.locator('.sheet[data-open="true"] button[aria-label="hint words"]').tap();
+  await page.locator('.sheet[data-open="true"] button[aria-label="close"]').tap();
+  await page.waitForTimeout(600);
+  const quiet = await stageWords(page);
+  check(
+    'the hint word is a setting that can be turned off',
+    quiet.hint === '' && quiet.other.length === 0,
+    JSON.stringify(quiet),
   );
 
   // The operating system takes the page away without asking: a reload has to come back to the
@@ -549,6 +600,46 @@ const stagePoint = (page, nx, ny) =>
   );
   check('desktop: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
+}
+
+// ------------------------------------------------------------------ with no sound
+{
+  // §63: sound is allowed to be absent, and the game is not allowed to go quiet with it. The
+  // renderer's own suite proves what happens once it is told nothing can be heard — a louder,
+  // longer-lived version of the same mark. This is the other half, and it needs a real browser:
+  // that the shell notices, through a real autoplay policy and a real mute switch.
+  //
+  // Each half gets its own context, because each needs a page that has not been touched yet.
+  const loud = await openPhone({ width: 393, height: 852, dpr: 3 });
+  const beforeGesture = await cueChannel(loud.page);
+  const rod = await stagePoint(loud.page, ...LAYOUTS.tall.rod);
+  await loud.page.touchscreen.tap(rod.x, rod.y);
+  await loud.page.waitForTimeout(700);
+  const afterGesture = await cueChannel(loud.page);
+  const errors = [...loud.errors];
+  await loud.context.close();
+
+  const quiet = await openPhone({ width: 393, height: 852, dpr: 3 });
+  await quiet.page.locator('.chrome button[aria-label="settings"]').tap();
+  await quiet.page.waitForTimeout(450);
+  await quiet.page.locator('.sheet[data-open="true"] button[aria-label="mute"]').tap();
+  await quiet.page.locator('.sheet[data-open="true"] button[aria-label="close"]').tap();
+  await quiet.page.waitForTimeout(450);
+  const mutedRod = await stagePoint(quiet.page, ...LAYOUTS.tall.rod);
+  await quiet.page.touchscreen.tap(mutedRod.x, mutedRod.y);
+  await quiet.page.waitForTimeout(700);
+  const whileMuted = await cueChannel(quiet.page);
+  errors.push(...quiet.errors);
+  await quiet.context.close();
+
+  check(
+    'the picture carries the cues until sound is allowed, and whenever the player mutes',
+    beforeGesture === 'visual' && afterGesture === 'audio' && whileMuted === 'visual',
+    `untouched=${beforeGesture}, after the first tap=${afterGesture}, muted=${whileMuted} — the ` +
+      'middle one is the browser granting an AudioContext at all, so a browser that never does ' +
+      'fails this check rather than passing it quietly',
+  );
+  check('silent: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
 }
 
 await browser.close();

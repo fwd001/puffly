@@ -271,6 +271,25 @@ function drawInterior(
   ctx.fillRect(0, edge, w, h - edge);
   ctx.fillStyle = rgbToCss(mixRgb(horizon, [255, 255, 255], 0.12), 0.5);
   ctx.fillRect(0, edge, w, Math.max(1, h * 0.004));
+
+  // The props live on the table, so the table has to be lit. The key light above falls on the
+  // wall and stops at the edge, which left the lower band a flat black rectangle with four
+  // small bright things in it — a screenshot of nothing, and the first thing a player sees.
+  const { layout } = state.stage;
+  const spot = {
+    x: (layout.table.x + layout.ashtray.x + layout.pack.x) / 3,
+    y: (layout.table.y + layout.ashtray.y + layout.pack.y) / 3,
+  };
+  const px = stage.x + spot.x * stage.width;
+  const py = stage.y + spot.y * stage.height;
+  const reach = Math.max(80, stage.width * 0.8);
+  const pool2 = ctx.createRadialGradient(px, py, 0, px, py, reach);
+  const strength = 0.26 + state.world.light.ambient * 0.34;
+  pool2.addColorStop(0, rgbToCss(mixRgb(silhouette, [255, 226, 186], 0.62), strength));
+  pool2.addColorStop(0.5, rgbToCss(mixRgb(silhouette, [255, 226, 186], 0.3), strength * 0.5));
+  pool2.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = pool2;
+  ctx.fillRect(0, edge, w, h - edge);
 }
 
 function drawBokeh(ctx: CanvasRenderingContext2D, state: GameStateView, viewport: Viewport): void {

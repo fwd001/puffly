@@ -64,14 +64,20 @@ const REGULAR: StageLayout = {
 const TALL: StageLayout = {
   id: 'tall',
   // A phone is narrow: everything hugs the lower half so the smoke has room to travel.
-  table: { x: 0.5, y: 0.9 },
-  pack: { x: 0.24, y: 0.855 },
-  lighter: { x: 0.12, y: 0.71 },
-  // Far enough left that a rod lying in it still fits on the screen.
-  ashtray: { x: 0.7, y: 0.855 },
+  //
+  // The rod lies to the *left* of the tray and the tray sits high enough to clear the bar at
+  // the bottom, because the two objects' hit areas may not overlap: when the rod lay under the
+  // tray, a tap meant for the rod put the break out, and the player had no way to learn that
+  // the grey ellipse was the thing they had just touched.
+  table: { x: 0.26, y: 0.855 },
+  pack: { x: 0.16, y: 0.795 },
+  // Up at the back of the table and clear of the pack: two props drawn on top of each other
+  // read as one object, and then nothing on the table is tappable that the player can see.
+  lighter: { x: 0.1, y: 0.62 },
+  ashtray: { x: 0.72, y: 0.78 },
   restPivot: { x: 0.5, y: 0.58 },
-  tableEdgeY: 0.76,
-  ashtrayRadius: 0.125,
+  tableEdgeY: 0.74,
+  ashtrayRadius: 0.095,
   heldDeg: -19,
 };
 
@@ -169,8 +175,22 @@ export function stageDistanceToSegment(
  */
 export const TOUCH_HIT_TOLERANCE = 1.6;
 
+/**
+ * …capped by an absolute pad, because a multiplier alone lets the widest thing on the table
+ * reach across the whole screen. The tray is 0.135 units across before any widening; times
+ * 1.6 it answered taps aimed at the rod lying next to it, and putting the break out looked
+ * like a mystery. Small targets still grow the full amount; large ones stop at a finger.
+ */
+export const TOUCH_HIT_PAD = 0.04;
+
 export function hitToleranceFor(
   source: 'touch' | 'pointer' | 'mouse' | 'keyboard' | 'shortcut' | undefined,
 ): number {
   return source === 'touch' ? TOUCH_HIT_TOLERANCE : 1;
+}
+
+/** How far a pointer of this kind may be off and still mean the object it touched. */
+export function touchReach(radius: number, tolerance: number): number {
+  if (tolerance <= 1) return radius;
+  return Math.min(radius * tolerance, radius + TOUCH_HIT_PAD);
 }

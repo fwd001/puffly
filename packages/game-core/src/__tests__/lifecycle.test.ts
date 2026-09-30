@@ -244,6 +244,21 @@ describe('the break, end to end (§8, §11)', () => {
     expect(h.state().ui.controlsVisible).toBe(true);
   });
 
+  it('chrome stays awake until the player has touched something at all (§10, §28)', () => {
+    // The fade exists so a break can be looked at. Before the first touch there is no break to
+    // look at — only a dark table with one small object on it — and fading the nudge away from
+    // that is how a player ends up never finding the rod.
+    const h = harness();
+    h.run(30_000);
+    expect(h.state().ui.controlsVisible).toBe(true);
+    expect(h.state().ui.idleMs).toBeGreaterThan(29_000);
+
+    // One touch is all it takes to hand the rule back to the timer.
+    h.tap('cigarette');
+    h.run(4000);
+    expect(h.state().ui.controlsVisible).toBe(false);
+  });
+
   it('a swipe ends whatever was in progress, so a gesture is never counted twice (§20)', () => {
     const h = harness();
     lit(h);
@@ -270,8 +285,11 @@ describe('the break, end to end (§8, §11)', () => {
     expect(h.state().cigarette.state).toBe('IDLE');
   });
 
-  it('suggests one next affordance, without words (§28)', () => {
+  it('suggests one next affordance at a time (§28)', () => {
     const h = harness();
+    // A rod lying on the table is a suggestion, not a blank: picking it up is what comes next,
+    // and `none` used to mean the scene had nothing to say at the one moment it had to.
+    expect(h.state().ui.affordance).toBe('pick');
     h.tap('cigarette');
     expect(h.state().ui.affordance).toBe('lighter');
     lit(h);

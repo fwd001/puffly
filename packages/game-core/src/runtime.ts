@@ -97,6 +97,12 @@ export interface EngineRuntime {
   session: SessionLog | null;
   /** Wall clock of the moment the cherry caught, or null before it is lit. */
   litAtWallMs: number | null;
+  /**
+   * Whether the player has pointed at anything since this engine was created. Before they have,
+   * the chrome stays awake: an untouched table is not a moment to be left in, and fading the
+   * nudge out of it is how a player ends up staring at a dark screen (§10, §28).
+   */
+  everTouched: boolean;
   listeners: Set<EngineListener>;
   timers: Timers;
   drag: DragState;
@@ -288,7 +294,9 @@ export function createUiHints(nowMs: number, targetMs: number): UiHints {
     sessionActive: false,
     sessionRemainingMs: targetMs,
     sessionTargetMs: targetMs,
-    affordance: 'none',
+    // The engine opens on a rod lying on the table, and that is already a suggestion: the first
+    // frame must not be the one moment the scene has nothing to say (§28).
+    affordance: 'pick',
   };
 }
 

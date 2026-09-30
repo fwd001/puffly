@@ -14,8 +14,10 @@ const sheet = ref<'none' | 'settings' | 'session' | 'collection'>('none');
 const summary = computed(() => game.summary.value);
 
 /**
- * Screen-reader text lives here and nowhere visible (SPEC.md §4, §64): a blind user hears
- * the state, a sighted user sees it.
+ * Screen-reader prose lives here and nowhere else (§4, §64): a blind user hears the state, a
+ * sighted user sees a scene. The one word a sighted player may read is the hint over the object
+ * the engine is nudging (§28) — a verb, never a sentence, and it is off for screen readers
+ * because the label below already says the same thing out loud.
  */
 const announced = computed(() => {
   const state = summary.value.state;
@@ -46,8 +48,17 @@ function openSheet(next: typeof sheet.value): void {
 </script>
 
 <template>
-  <main class="stage">
+  <main class="stage" :data-cues="summary.cueChannel">
     <canvas ref="canvas" tabindex="0" :aria-label="announced" />
+
+    <p
+      v-if="summary.hint !== null && sheet === 'none'"
+      class="hint"
+      aria-hidden="true"
+      :style="{ left: `${summary.hint?.x ?? 0}px`, top: `${summary.hint?.y ?? 0}px` }"
+    >
+      {{ summary.hint?.word }}
+    </p>
 
     <SessionClock
       :clock="summary.clock"
@@ -81,5 +92,39 @@ canvas {
   width: 100%;
   height: 100%;
   outline: none;
+}
+
+/*
+ * One word, naming the gesture the halo is asking for (§28). It is deliberately not a button
+ * and takes no taps: `pointer-events: none` keeps the object underneath it reachable, which is
+ * the whole point of putting the word on the scene rather than on the bar.
+ */
+.hint {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  color: var(--soft-white);
+  font-size: calc(11px * var(--text-scale));
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  opacity: 0.66;
+  pointer-events: none;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.85);
+  animation: hint-in 420ms var(--ease-out);
+  transition: opacity 260ms var(--ease-out);
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -42%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint {
+    animation: none;
+  }
 }
 </style>

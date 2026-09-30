@@ -50,6 +50,12 @@ export interface RendererSettings {
   quality: QualityMode;
   /** §64: raised smoke opacity and a lit rim on the rod, for a readable silhouette. */
   contrast: ContrastMode;
+  /**
+   * §63: nothing can be heard — muted, blocked, or no Web Audio at all. The discrete cues then
+   * have to be *seen*: the same accents the sounds accompany, larger and a little longer, so the
+   * scene says what the mix would have said instead of going quiet on one channel.
+   */
+  visualCues: boolean;
 }
 
 export interface CanvasRendererOptions {
@@ -86,11 +92,14 @@ function densityScaleFor(settings: RendererSettings): number {
   }
 }
 
+/** How much louder the picture gets when the sound is not there to speak. */
+const VISUAL_CUE_BOOST = 1.45;
+
 /**
  * Where a burst should leave a mark on the scene. Only the physical bursts do: the smoke
  * itself is the feedback for a puff, and drawing a ring around every wisp would be noise.
  */
-function effectFor(burst: Burst, atMs: number): SceneEffect | null {
+function accentFor(burst: Burst, atMs: number): SceneEffect | null {
   const tint: Rgb = [255, 196, 128];
   switch (burst.kind) {
     case 'extinguish':
@@ -137,9 +146,46 @@ function effectFor(burst: Burst, atMs: number): SceneEffect | null {
         reach: 0.05,
         tint: [214, 214, 220],
       };
+    case 'ember':
+      // The cherry catching has a sound of its own and never had a mark of its own: with the
+      // volume down it was the one moment of the break nobody could tell had happened.
+      return {
+        kind: 'ring',
+        x: burst.origin.x,
+        y: burst.origin.y,
+        bornMs: atMs,
+        ttlMs: 460,
+        strength: 0.55,
+        reach: 0.075,
+        tint: [255, 168, 74],
+      };
+    case 'lighter':
+      return {
+        kind: 'ring',
+        x: burst.origin.x,
+        y: burst.origin.y,
+        bornMs: atMs,
+        ttlMs: 300,
+        strength: 0.3,
+        reach: 0.05,
+        tint: [255, 224, 176],
+      };
     default:
       return null;
   }
+}
+
+function effectFor(burst: Burst, atMs: number, visualCues: boolean): SceneEffect | null {
+  const effect = accentFor(burst, atMs);
+  if (effect === null || !visualCues) return effect;
+  // The same accent, not a new language: bigger and a beat longer, so the eye is where the
+  // ear would have been.
+  return {
+    ...effect,
+    strength: Math.min(1, effect.strength * VISUAL_CUE_BOOST),
+    reach: effect.reach * VISUAL_CUE_BOOST,
+    ttlMs: effect.ttlMs * VISUAL_CUE_BOOST,
+  };
 }
 
 export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRenderer {
@@ -153,6 +199,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     reducedMotion: false,
     quality: 'auto',
     contrast: 'normal',
+    visualCues: false,
     ...options.settings,
   };
   const grainTile = options.grainTile ?? null;
@@ -454,7 +501,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       }
       if (event.kind !== 'burst') return;
       intakeBurst(event.burst, pool, { densityScale: densityScaleFor(settings) });
-      const effect = effectFor(event.burst, clockMs);
+      const effect = effectFor(event.burst, clockMs, settings.visualCues);
       if (effect && !settings.reducedMotion) effects.push(effect);
     },
     particleCount() {

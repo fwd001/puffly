@@ -27,7 +27,7 @@ const emit = defineEmits<{ open: ['settings' | 'session' | 'collection'] }>();
 
     <button
       class="icon-button"
-      :class="{ pulse: affordance !== 'none' && visible }"
+      :class="{ pulse: affordance !== 'none' && affordance !== 'pick' && visible }"
       :aria-pressed="open === 'collection'"
       aria-label="collection"
       @click="emit('open', 'collection')"

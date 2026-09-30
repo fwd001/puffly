@@ -64,8 +64,10 @@ All of it is behind the gear icon, none of it is required:
 - **Reduced motion** — fewer particles, no grain, no rain, no rings. The scene still lives.
 - **High contrast** — brighter smoke and a lit edge on the rod, for a readable silhouette in a dark
   room.
-- **Clock, text scale, break length, volume, ambient, mute** — and **haptics**, which only appears
-  on a device that has a motor to ask.
+- **Clock, hint words, text scale, break length, volume, ambient, mute** — and **haptics**, which
+  only appears on a device that has a motor to ask. Muting is not a degraded mode: when nothing can
+  be heard — muted, blocked by the browser's autoplay policy, or no Web Audio at all — the discrete
+  cues are drawn larger and a beat longer, so the picture says what the mix would have said.
 - **Rod, room, lighter, tray** — six rods, seven rooms, eight props, five smoke styles. Each rod
   has a plume character (column, haze, curls, pour, bloom), so a Mist pours down the table while an
   Ember blooms upward. Recount them with
@@ -97,8 +99,9 @@ docs/                         SPEC.md, ARCHITECTURE.md, images/
 
 ## How it plays
 
-There is no help screen and there is nothing to read. Everything below is discoverable by pointing
-at it; this list exists only for people maintaining the code.
+There is no help screen. There is one word, and only when the scene is already pointing at
+something. Everything below is discoverable by pointing at it; this list exists only for people
+maintaining the code.
 
 | You do                           | You see                                                        |
 | -------------------------------- | -------------------------------------------------------------- |
@@ -125,6 +128,14 @@ physical object on a table, and it answers to being touched the way the object w
 | The lighter    | a spark, then a flame that dies on its own              | keep the flame alive                                                    |
 | The ash column | flick it: ash falls into the tray                       | —                                                                       |
 | The ashtray    | put the cigarette out in it, or drop it in              | press the rod into the tray and hold: the harder and longer, the deader |
+
+**The one word you may see**
+
+While the chrome is awake, the object the game thinks you are about to use breathes with a faint
+halo, and the halo gets a name: `tap`, `light`, `hold`, `flick`, `press`, `drop`. That is the whole
+vocabulary — a verb, never a sentence, gone the moment you act, and switchable off in settings for
+people who would rather be shown nothing. The word is not a button and takes no taps: the object
+underneath it is what answers.
 
 **One break, start to finish**
 
@@ -173,8 +184,10 @@ production as a blank page. It was verified to fail loudly, not just to pass: _i
 `/puffly/assets/…`, which is not under `/wrong/`_.
 
 The touch check drives a real browser and asserts the things a screenshot cannot lie about: the
-canvas fills the viewport, a coarse pointer gets 54 px targets, double-tap does not zoom, the main
-screen stays free of words, and a drawn breath is visible in the air (lit pixels before and after).
+canvas fills the viewport, a coarse pointer gets 54 px targets, double-tap does not zoom, the stage
+carries no prose — at most the one gesture word — and a drawn breath is visible in the air (lit
+pixels before and after). It also checks the two ways the operating system takes a phone away:
+frames that stop, and a page that comes back.
 It resolves Playwright and a browser binary from `PUFFLY_PLAYWRIGHT` and `PUFFLY_CHROME`, and exits
 with a message rather than a false pass when either is missing.
 

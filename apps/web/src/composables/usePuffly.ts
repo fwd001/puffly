@@ -9,6 +9,7 @@
 import { onBeforeUnmount, ref, type Ref } from 'vue';
 import { formatClock } from '@puffly/shared';
 import {
+  anchorForTarget,
   createDefaultSettings,
   createEngine,
   SessionEventType,
@@ -97,12 +98,39 @@ function startingTier(): QualityMode {
   return cores <= 4 ? 'light' : 'balanced';
 }
 
+/**
+ * §28: the only words the product shows. One verb, naming the gesture the scene is already
+ * nudging — because a halo says *something* is next and a word says which finger movement.
+ */
+const HINT_WORDS: Record<string, string> = {
+  pick: 'tap',
+  lighter: 'light',
+  puff: 'hold',
+  flick: 'flick',
+  extinguish: 'press',
+  discard: 'drop',
+};
+
+/** Where a hint word sits: CSS pixels on the stage, above the thing it names. */
+export interface HintWord {
+  word: string;
+  x: number;
+  y: number;
+}
+
 export interface Summary {
   state: GameStateView | null;
   clock: string;
   sessionActive: boolean;
   controlsVisible: boolean;
   affordance: string;
+  hint: HintWord | null;
+  /**
+   * Which channel is carrying the cues right now (§63). Mirrored onto the stage as
+   * `data-cues`, because "did the shell notice the mute" is otherwise only inferable from
+   * pixels, and a flat pixel reading does not say which half went quiet.
+   */
+  cueChannel: 'audio' | 'visual';
   targetReached: boolean;
   fresh: string[];
   dayNumber: number;
@@ -160,6 +188,8 @@ export function createPuffly(): Puffly {
     sessionActive: false,
     controlsVisible: true,
     affordance: 'none',
+    hint: null,
+    cueChannel: 'visual',
     targetReached: false,
     fresh: [],
     dayNumber: 1,
@@ -269,6 +299,24 @@ export function createPuffly(): Puffly {
     journey.value = engine ? deriveJourney(sessions, engine.progressSnapshot()) : [];
   };
 
+  /**
+   * The one word the scene is allowed to say, sitting above the object it is about. It follows
+   * the same awake/asleep rule as the halo it labels, and settings can take it away (§28, §64).
+   */
+  const hintWord = (state: GameStateView): HintWord | null => {
+    const word = HINT_WORDS[state.ui.affordance];
+    if (word === undefined || !settings.value.hints || !state.ui.controlsVisible) return null;
+    const anchor = anchorForTarget(state.anchors, targetForAffordance(state));
+    if (anchor === null) return null;
+    const at = viewport.px(anchor);
+    const floor = viewport.cssHeight - (coarsePointer() ? 104 : 76);
+    return {
+      word,
+      x: at.x,
+      y: Math.max(30, Math.min(at.y - viewport.len(0.085), floor)),
+    };
+  };
+
   const refreshSummary = (): void => {
     if (!engine) return;
     const state = engine.getState();
@@ -278,6 +326,8 @@ export function createPuffly(): Puffly {
       sessionActive: state.ui.sessionActive,
       controlsVisible: state.ui.controlsVisible,
       affordance: state.ui.affordance,
+      hint: hintWord(state),
+      cueChannel: audio?.audible() ? 'audio' : 'visual',
       targetReached: state.ui.sessionActive && state.ui.sessionRemainingMs <= 0,
       fresh: [...state.collection.fresh],
       dayNumber: state.progress.dayNumber,
@@ -351,6 +401,12 @@ export function createPuffly(): Puffly {
     }
   };
 
+  /**
+   * The last cue channel the renderer was told to use. This is its only writer — the renderer
+   * starts on `false`, the same value, so the two can never disagree about who is in charge.
+   */
+  let cuesAreVisual = false;
+
   const frame = (nowMs: number): void => {
     if (!engine) return;
     const raw = lastFrameMs === 0 ? 1000 / 60 : Math.max(nowMs - lastFrameMs, 0);
@@ -369,6 +425,14 @@ export function createPuffly(): Puffly {
     if (summaryAccumulator >= SUMMARY_INTERVAL_MS) {
       summaryAccumulator = 0;
       refreshSummary();
+      // §63: if nothing can be heard — muted, blocked by the autoplay policy, or no Web Audio at
+      // all — the picture takes over the cues. Worth re-checking on this beat because the first
+      // tap is exactly when the answer changes.
+      const visual = summary.value.cueChannel === 'visual';
+      if (visual !== cuesAreVisual) {
+        cuesAreVisual = visual;
+        renderer?.setSettings({ visualCues: visual });
+      }
       if (engine?.getState().ui.sessionActive) persistBreak();
       const state = engine.getState();
       const quiet = state.ui.idleMs > IDLE_CLOSE_MS && !state.cigarette.ember.lit;
@@ -457,6 +521,9 @@ export function createPuffly(): Puffly {
           reducedMotion: settings.value.reducedMotion,
           quality: effectiveQuality(),
           contrast: settings.value.contrast,
+          // The loop below owns this from the first beat; starting where it starts means the two
+          // can never disagree about who is carrying the cues (§63).
+          visualCues: false,
         },
       });
     }

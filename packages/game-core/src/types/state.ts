@@ -199,7 +199,7 @@ export interface UiHints {
   sessionRemainingMs: number;
   sessionTargetMs: number;
   /** What the player is most likely about to do — used to nudge one affordance only. */
-  affordance: 'lighter' | 'puff' | 'flick' | 'extinguish' | 'discard' | 'none';
+  affordance: 'pick' | 'lighter' | 'puff' | 'flick' | 'extinguish' | 'discard' | 'none';
 }
 
 /** The stage the scene is laid out on: shape, and the prop table that fits it. */

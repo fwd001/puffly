@@ -155,6 +155,26 @@ function requireBoolean(
   return value;
 }
 
+/**
+ * A field that did not exist when the save was written: absent reads as `fallback` rather than
+ * throwing the whole settings record away.
+ */
+function booleanWithDefault(
+  source: Record<string, unknown>,
+  key: string,
+  fallback: boolean,
+  path: string,
+  errors: ValidationErrors,
+): boolean {
+  const value = source[key];
+  if (value === undefined) return fallback;
+  if (typeof value !== 'boolean') {
+    fail(errors, `${path}.${key}`, 'expected true or false');
+    return fallback;
+  }
+  return value;
+}
+
 function requireOneOf<K extends string>(
   source: Record<string, unknown>,
   key: string,
@@ -568,6 +588,8 @@ export function readSettings(
     errors,
   );
   const haptics = requireBoolean(record, 'haptics', path, errors);
+  // A save written before §28's hint word existed has no opinion about it: the default stands.
+  const hints = booleanWithDefault(record, 'hints', true, path, errors);
 
   if (
     volume === null ||
@@ -595,6 +617,7 @@ export function readSettings(
     quality,
     sessionTargetMs,
     showClock,
+    hints,
     utcOffsetMinutes,
     haptics,
   };

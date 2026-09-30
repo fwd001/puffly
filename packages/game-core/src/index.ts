@@ -50,11 +50,19 @@ export {
 } from './constants';
 
 export { createContentLookup, ContentError, type ContentLookup } from './content/lookup';
-export { computeAnchors, hitCandidates, inputPoint, isInside, resolveTarget } from './anchors';
+export {
+  anchorForTarget,
+  computeAnchors,
+  hitCandidates,
+  inputPoint,
+  isInside,
+  resolveTarget,
+} from './anchors';
 export {
   STAGE_LAYOUTS,
   STAGE_MAX_ASPECT,
   STAGE_MIN_ASPECT,
+  TOUCH_HIT_PAD,
   TOUCH_HIT_TOLERANCE,
   TALL_ASPECT_MAX,
   WIDE_ASPECT_MIN,
@@ -62,6 +70,7 @@ export {
   layoutFor,
   stageBoxFor,
   stageDistance,
+  touchReach,
   type StageBox,
   type StageLayout,
 } from './stage';

@@ -117,7 +117,12 @@ export const HIT: Record<'body' | 'ember' | 'ash' | 'lighter' | 'ashtray' | 'pac
   ember: 0.085,
   ash: 0.075,
   lighter: 0.095,
-  ashtray: 0.135,
+  /**
+   * A floor, not the tray's size: the drawn tray is at least this wide in every layout, and
+   * `touchReach` adds the finger budget on top. Higher than this and the tray's touch area
+   * reaches past its own rim onto whatever is lying next to it.
+   */
+  ashtray: 0.1,
   pack: 0.1,
 };
 

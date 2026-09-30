@@ -177,9 +177,11 @@ whatever URL you point it at:
    portrait, phone landscape, and a desktop window driven with a mouse (the only pass where the hit
    radii are not widened for a finger, so it is the only one that can see a rod whose far half has
    gone untappable). A break completed with pointers, targets that fit a finger, no double-tap zoom,
-   no words on the main screen, a drawn breath that measurably changes the pixels, and the two ways
-   the operating system takes a phone away: frames that stop (it wakes to a rod that kept burning)
-   and a page that is reloaded (it comes back to the same break, at the minute the clock says).
+   no prose on the stage — at most the one gesture word, and the word is checked to change with the
+   affordance and to disappear when settings say so — a drawn breath that measurably changes the
+   pixels, and the two ways the operating system takes a phone away: frames that stop (it wakes to a
+   rod that kept burning) and a page that is reloaded (it comes back to the same break, at the
+   minute the clock says).
 
 ## Deliberately not built
 
@@ -188,8 +190,11 @@ complexity for hypothetical futures (SPEC.md §89, 9-10):
 
 - **no desktop or mobile shell yet** — only the seams above, which is why `apps/` holds `web` alone;
 - **no accounts, sync or telemetry** (§52) — there is no network code in the repository;
-- **no i18n in the game core** (§5) — the core is language independent by construction; the only
-  text is `aria-label` for screen readers and the PWA manifest;
+- **no i18n in the game core** (§5) — the core is language independent by construction. The visible
+  text in the whole product is one gesture verb (`tap` / `light` / `hold` / `flick` / `press` /
+  `drop`) that the *shell* draws over the object the core is already nudging, plus `aria-label` for
+  screen readers and the PWA manifest. The core never sees a word: it publishes an affordance, and
+  the shell decides what language, if any, that affordance wears;
 - **no game engine dependency** (§76) — Canvas 2D and `requestAnimationFrame` only;
 - **no medical claims or recovery percentages** (§84) — `smokeFreeDays` is a count of days on an
   anchor the player sets themselves, and nothing in the UI turns it into a health statement.

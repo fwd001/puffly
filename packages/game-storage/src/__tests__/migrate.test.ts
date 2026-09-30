@@ -86,6 +86,18 @@ describe('migrateSaveFile: version 0 -> 1 (§51)', () => {
     expect(save.progress.startedAt).toBe(at(2, 20, 0));
   });
 
+  it('defaults a settings field the legacy file predates, and keeps the rest', () => {
+    // §28's hint word is younger than this file. An absent key must not throw the player's own
+    // volume, contrast and break length away — that is the whole difference between a default
+    // and a requirement.
+    const stored = legacy.settings;
+    if (!isRecord(stored) || 'hints' in stored) throw new Error('the v0 fixture grew a hints key');
+    expect(save.settings.hints).toBe(true);
+    expect(save.settings.volume).toBe(0.5);
+    expect(save.settings.contrast).toBe('high');
+    expect(save.settings.sessionTargetMs).toBe(240_000);
+  });
+
   it('round-trips afterwards: the migrated file serialises and re-parses identically', () => {
     const again = parseSaveFile(serializeSaveFile(save));
     if (!again.ok)

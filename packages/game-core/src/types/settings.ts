@@ -19,6 +19,12 @@ export interface Settings {
   /** Minutes, §31's `◷ 03:00`. */
   sessionTargetMs: number;
   showClock: boolean;
+  /**
+   * §28: whether the object the scene is nudging also gets one plain word naming the gesture
+   * ("tap", "hold", "flick", "press", "drop"). On by default — a word is cheaper than a
+   * missed gesture — and the only text the game ever shows.
+   */
+  hints: boolean;
   utcOffsetMinutes: number;
   /** §33: the player's own anchor for smoke-free days. Never inferred as a claim (§84). */
   quitAnchorTimestamp?: number;
@@ -57,6 +63,7 @@ export function createDefaultSettings(utcOffsetMinutes = 0): Settings {
     quality: 'auto',
     sessionTargetMs: DEFAULT_SESSION_TARGET_MS,
     showClock: true,
+    hints: true,
     utcOffsetMinutes,
     haptics: false,
   };

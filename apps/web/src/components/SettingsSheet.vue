@@ -157,6 +157,14 @@ watch(
         ◷
       </button>
       <button
+        class="icon-button"
+        :aria-pressed="settings.hints"
+        aria-label="hint words"
+        @click="game.setSettings({ hints: !settings.hints })"
+      >
+        ✎
+      </button>
+      <button
         v-if="game.canVibrate.value"
         class="icon-button"
         :aria-pressed="settings.haptics"

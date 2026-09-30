@@ -303,7 +303,7 @@ describe('renderer as an adapter (§48)', () => {
       height: 600,
       dpr: 1,
       sprites,
-      settings: { reducedMotion: true, quality: 'auto', contrast: 'normal' },
+      settings: { reducedMotion: true, quality: 'auto', contrast: 'normal', visualCues: false },
     });
     const loud = createCanvasRenderer({
       ctx: fake.ctx,
@@ -311,7 +311,7 @@ describe('renderer as an adapter (§48)', () => {
       height: 600,
       dpr: 1,
       sprites,
-      settings: { reducedMotion: false, quality: 'high', contrast: 'normal' },
+      settings: { reducedMotion: false, quality: 'high', contrast: 'normal', visualCues: false },
     });
     expect(calm.poolCapacity()).toBeLessThan(loud.poolCapacity());
 
@@ -332,7 +332,7 @@ describe('renderer as an adapter (§48)', () => {
         height: 1200,
         dpr: 2,
         sprites: { size: 16, soft: () => fakeSprite(16), clear: () => undefined },
-        settings: { reducedMotion: false, quality: 'high', contrast },
+        settings: { reducedMotion: false, quality: 'high', contrast, visualCues: false },
       });
 
       const engine = createEngine({
@@ -517,6 +517,49 @@ describe('scene feedback (§19, §20, §60)', () => {
     const resting = strokesAfter('RESTING');
     expect(resting).toBeGreaterThan(0);
     expect(lifted).toBe(resting + 1);
+  });
+
+  it('a cue nobody can hear is one they have to see (§63)', () => {
+    // Two renderers and the same event: the only difference is whether sound was available, so
+    // whatever differs here is the setting and nothing else. `frames` is how many 50 ms renders
+    // pass before the count, because the renderer clamps a frame the way the shell does, and the
+    // burst carries no particles so the only thing that can differ is the mark it leaves.
+    const strokesAfter = (visualCues: boolean, frames: number, withCue: boolean): number => {
+      const fake = createFakeCanvas();
+      const renderer = createCanvasRenderer({
+        ctx: fake.ctx,
+        width: 900,
+        height: 1200,
+        dpr: 1,
+        sprites: { size: 16, soft: () => fakeSprite(16), clear: () => undefined },
+        settings: { reducedMotion: false, quality: 'high', contrast: 'normal', visualCues },
+      });
+      const view = snapshotView();
+      renderer.render(view, 16);
+      if (withCue)
+        renderer.handleEvent({
+          kind: 'burst',
+          atMs: 0,
+          burst: burst({ kind: 'ember', count: 0 }),
+        });
+      for (let frame = 0; frame < frames; frame += 1) renderer.render(view, 50);
+      const strokes = fake.count('stroke');
+      renderer.dispose();
+      return strokes;
+    };
+
+    const none = strokesAfter(false, 3, false);
+    expect(none).toBeGreaterThan(0);
+    // The cherry catching leaves a mark now at all: a muted player used to light a rod and see
+    // nothing agree with it.
+    expect(strokesAfter(false, 3, true) - none).toBeGreaterThanOrEqual(1);
+    // Silent, the same event draws the same number of marks — it is the mark that got louder,
+    // not a second object cluttering the scene…
+    expect(strokesAfter(true, 3, true)).toBe(strokesAfter(false, 3, true));
+    // …and the one that outlives the heard version: 460 ms becomes 667 ms, so over the ten
+    // frames after it, the version with sound has faded while the version without is still
+    // drawing the mark.
+    expect(strokesAfter(true, 10, true)).toBeGreaterThan(strokesAfter(false, 10, true));
   });
 
   it('a lit cherry puts light on the scene that a dead one does not (§17)', () => {
