@@ -486,6 +486,39 @@ describe('scene feedback (§19, §20, §60)', () => {
     expect(full.count('rotate')).toBeGreaterThan(empty.count('rotate'));
   });
 
+  it('picking the rod up leaves a mark, and an idle transition does not (§60)', () => {
+    // Two identical renderers differing only in the event they were handed, so the difference
+    // that is claimed is the ring and nothing else.
+    const strokesAfter = (to: 'PICKED_UP' | 'RESTING'): number => {
+      const fake = createFakeCanvas();
+      const renderer = createCanvasRenderer({
+        ctx: fake.ctx,
+        width: 900,
+        height: 1200,
+        dpr: 1,
+        sprites: { size: 16, soft: () => fakeSprite(16), clear: () => undefined },
+      });
+      const view = snapshotView();
+      // The ring is placed against the frame the renderer last saw, so it has to see one first.
+      renderer.render(view, 16);
+      renderer.handleEvent({
+        kind: 'transition',
+        atMs: 0,
+        from: to === 'PICKED_UP' ? 'IDLE' : 'BURNING',
+        to,
+      });
+      renderer.render(view, 16);
+      const strokes = fake.count('stroke');
+      renderer.dispose();
+      return strokes;
+    };
+
+    const lifted = strokesAfter('PICKED_UP');
+    const resting = strokesAfter('RESTING');
+    expect(resting).toBeGreaterThan(0);
+    expect(lifted).toBe(resting + 1);
+  });
+
   it('a lit cherry puts light on the scene that a dead one does not (§17)', () => {
     const renderWith = (brightness: number): number => {
       const view = snapshotView();

@@ -134,6 +134,35 @@ export function stageDistance(a: Point, b: Point, aspect: number): number {
 }
 
 /**
+ * Distance from a point to a line segment, in the same screen-round metric as
+ * `stageDistance`.
+ *
+ * A cigarette is 0.26 stage units long and about 0.01 thick. Measuring a tap against its
+ * midpoint alone leaves the outer half of the thing you can see untappable, which on a phone
+ * means the tray's wide touch target swallows the tap instead.
+ */
+export function stageDistanceToSegment(
+  point: Point,
+  from: Point,
+  to: Point,
+  aspect: number,
+): number {
+  const scale = Number.isFinite(aspect) ? aspect : 1;
+  const px = point.x * scale;
+  const py = point.y;
+  const ax = from.x * scale;
+  const ay = from.y;
+  const bx = to.x * scale;
+  const by = to.y;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq <= 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSq));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/**
  * A finger is not a cursor: on a 390 px screen one normalised unit is 180 px, so a
  * 0.085 radius is already generous — but touch still lands sloppily, especially on the
  * cherry and the ash. Touch inputs get this multiplier on every hit radius (§66).

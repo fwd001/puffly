@@ -112,6 +112,47 @@ at it; this list exists only for people maintaining the code.
 | drag it over the tray and let go | smothered first, then discarded; a fresh rod turns up          |
 | stop touching anything           | chrome fades out, the scene keeps living (wind, light, flares) |
 
+## How to play it
+
+Nothing on the screen is a button except the three icons at the bottom. Everything else is a
+physical object on a table, and it answers to being touched the way the object would.
+
+**The four things you can touch**
+
+| Object         | One tap                                                 | Hold                                                                    |
+| -------------- | ------------------------------------------------------- | ----------------------------------------------------------------------- |
+| The cigarette  | pick it up (or, if it is already out, take a fresh one) | draw — the cherry brightens and smoke gathers                           |
+| The lighter    | a spark, then a flame that dies on its own              | keep the flame alive                                                    |
+| The ash column | flick it: ash falls into the tray                       | —                                                                       |
+| The ashtray    | put the cigarette out in it, or drop it in              | press the rod into the tray and hold: the harder and longer, the deader |
+
+**One break, start to finish**
+
+1. Tap the cigarette. It lifts into the hand — a ring marks where you touched it.
+2. Tap the lighter. Sparks, then flame. Bring the rod near it and the cherry catches; a cheap
+   wheel lighter sometimes fails, and that is also a sound.
+3. Hold on the rod and release. The drawn smoke expands when you let go. Every rod exhales
+   differently: one pours down the table, one blooms upward, one curls.
+4. Let the ash grow. It bends as it lengthens, and asks to be flicked.
+5. Put it out: press it into the tray and hold. The cherry dies in stages — flare, burst, hiss,
+   thin smoke, dark.
+6. Drop it in the tray. **The break is over at this moment**: the clock goes away, and a fresh
+   rod turns up on the table a beat later. That is not a reset — ending the break is the point of
+   the loop, and the record of it (how long, how many draws, how much ash) is what accumulates.
+
+You never have to finish a rod. Walk away mid-break and the session closes itself quietly after
+about 90 seconds of stillness; nothing is scored, nothing is lost.
+
+**The three icons**
+
+- `◍` this break: how long it has run, what you did in it, and the craving note you can leave
+  before or after.
+- `✦` the shelf: every rod, room, lighter and tray you have, with the ones you have not yet
+  unlocked shown dimmed. Choosing one changes how the smoke looks, moves and sounds.
+- `⚙` the settings on the [What changes how it feels](#what-changes-how-it-feels) list.
+
+A new unlock is marked by the icon itself lighting up — no dialog, no text.
+
 ## How it is verified
 
 | Command                                                 | What it proves                                                                                                  |

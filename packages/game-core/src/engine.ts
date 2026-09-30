@@ -47,7 +47,7 @@ import {
   tickWorld,
   timeOfDayForHour,
 } from './systems/world';
-import { discardImpactBurst, extinguishBurst, lighterBurst } from './systems/emissions';
+import { discardImpactBurst, driftBurst, extinguishBurst, lighterBurst } from './systems/emissions';
 import { SessionEventType } from './types/events';
 import {
   collectionSnapshot,
@@ -294,8 +294,12 @@ export function createEngine(options: EngineOptions): GameEngine {
   // thing that decides what state comes next.
   const pickUp = (): void => {
     if (rt.state.cigarette.state !== 'IDLE') return;
-    if (setState(rt, 'PICKED_UP'))
+    if (setState(rt, 'PICKED_UP')) {
       record(rt, SessionEventType.PICK_UP, { cigaretteId: rt.cigarette.id });
+      // Lifting the rod stirs the column that was rising off it. Without this the single most
+      // repeated gesture moves nothing in the air until the first draw (§60).
+      emit(rt, { kind: 'burst', atMs: rt.state.nowMs, burst: driftBurst(rt, 10) });
+    }
   };
 
   const engageLighter = (autoHold: boolean): void => {

@@ -9,6 +9,7 @@ import {
   resolveTarget,
   stageBoxFor,
   stageDistance,
+  type StageAnchors,
 } from '@puffly/game-core';
 import { FIXTURE } from './fixture';
 import { harness, lit } from './harness';
@@ -96,6 +97,47 @@ describe('stage shape decides where things live (§55)', () => {
     ).toBeLessThan(0.001);
   });
 
+  it('every point along the rod answers a tap, not only its middle (§66)', () => {
+    // The rod is ~0.26 stage units long and ~0.01 thick. Measured against its midpoint alone, a
+    // cursor tapping either end hit nothing at all — reproduced in the browser at 1280x800, where
+    // only the middle fifth of the rod answered.
+    const h = harness();
+    h.engine.setStageAspect(1.6);
+    const desktop = h.state();
+    const rod = { from: desktop.anchors.rodStart, to: desktop.anchors.ember };
+    const along = (fraction: number) => ({
+      x: rod.from.x + (rod.to.x - rod.from.x) * fraction,
+      y: rod.from.y + (rod.to.y - rod.from.y) * fraction,
+    });
+
+    for (const fraction of [0, 0.5, 1]) {
+      expect(
+        resolveTarget(along(fraction), desktop.anchors, desktop.cigarette.ash.length, 1.6, 1),
+        `cursor tap at ${fraction} along the rod`,
+      ).not.toBeNull();
+    }
+
+    // On a phone the same tap fell to the tray instead, whose widened radius overlaps the rod.
+    h.engine.setStageAspect(0.46);
+    const phone = h.state();
+    const phoneRod = { from: phone.anchors.rodStart, to: phone.anchors.ember };
+    for (const fraction of [0, 0.25, 0.5, 0.75]) {
+      const point = {
+        x: phoneRod.from.x + (phoneRod.to.x - phoneRod.from.x) * fraction,
+        y: phoneRod.from.y + (phoneRod.to.y - phoneRod.from.y) * fraction,
+      };
+      expect(
+        resolveTarget(point, phone.anchors, phone.cigarette.ash.length, 0.46, 1.6),
+        `thumb tap at ${fraction} along the rod`,
+      ).not.toBe('ashtray');
+    }
+
+    // A point well clear of the rod is still not the rod.
+    expect(
+      resolveTarget({ x: rod.from.x, y: rod.from.y - 0.3 }, desktop.anchors, 0, 1.6, 1),
+    ).not.toBe('cigarette');
+  });
+
   it('a widened tray target does not steal the rod lying next to it (§66)', () => {
     // On a phone the tray's touch radius reaches over the rod lying beside it. The finger is
     // on the rod, so the rod answers — otherwise every pick-up near the tray is a discard.
@@ -118,13 +160,17 @@ describe('stage shape decides where things live (§55)', () => {
     expect(hitToleranceFor('mouse')).toBe(1);
     expect(hitToleranceFor(undefined)).toBe(1);
 
-    const anchors = {
+    // Typed as the real shape, so a new anchor field breaks this file at compile time rather
+    // than at runtime.
+    const anchors: StageAnchors = {
       pack: { x: 0.2, y: 0.9 },
       lighter: { x: 0.1, y: 0.7 },
       ashtray: { x: 0.8, y: 0.9 },
       body: { x: 0.5, y: 0.6 },
       ember: { x: 0.66, y: 0.55 },
       ash: { x: 0.66, y: 0.55 },
+      rodStart: { x: 0.34, y: 0.65 },
+      ashEnd: { x: 0.66, y: 0.55 },
       ashtrayRadius: 0.1,
     };
     // A point just outside the cherry's radius: a cursor misses, a thumb does not.
@@ -178,17 +224,29 @@ describe('every rod has its own plume (§13, §16)', () => {
     const capture = (cigaretteId: string) => {
       const h = harness({ seed: 808, cigaretteId });
       lit(h, 400);
-      h.press('cigarette');
-      h.run(600);
-      h.release('cigarette');
-      const first = h.bursts.find(
-        (event) => event.kind === 'burst' && event.burst.kind === 'exhale',
-      );
-      if (first === undefined || first.kind !== 'burst')
-        throw new Error('no exhale burst captured');
-      return first.burst;
+      const exhales: { spreadDeg: number; turbulence: number; rise: number }[] = [];
+      for (let round = 0; round < 6; round += 1) {
+        h.press('cigarette');
+        h.run(600);
+        h.release('cigarette');
+        h.run(400);
+      }
+      for (const event of h.bursts) {
+        if (event.kind === 'burst' && event.burst.kind === 'exhale') exhales.push(event.burst);
+      }
+      if (exhales.length < 2) throw new Error(`only ${exhales.length} exhales captured`);
+      const mean = (pick: (burst: (typeof exhales)[number]) => number): number =>
+        exhales.reduce((sum, burst) => sum + pick(burst), 0) / exhales.length;
+      return {
+        spreadDeg: mean((burst) => burst.spreadDeg),
+        turbulence: mean((burst) => burst.turbulence),
+        rise: mean((burst) => burst.rise),
+        samples: exhales.length,
+      };
     };
 
+    // Averaged over several breaths on purpose: every burst is sampled from a ±40% envelope, so
+    // a single one is not evidence of which rod rolls harder.
     const pouring = capture('test-rod');
     const restless = capture('test-long');
 

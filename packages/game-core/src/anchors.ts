@@ -8,7 +8,7 @@
 
 import { HIT } from './constants';
 import { offset, type Point } from './types/geometry';
-import { stageDistance } from './stage';
+import { stageDistance, stageDistanceToSegment } from './stage';
 import type { StageLayout } from './stage';
 import type { GameInput, InputTarget } from './types/input';
 import type { CigarettePose, StageAnchors } from './types/state';
@@ -33,6 +33,8 @@ export function computeAnchors(
     body,
     ember: tip,
     ash,
+    rodStart: { ...pivot },
+    ashEnd: ashLength > ASH_MIN_LENGTH ? pose.ashTip : tip,
     ashtrayRadius: layout.ashtrayRadius,
   };
 }
@@ -41,12 +43,22 @@ interface Candidate {
   target: InputTarget;
   at: Point;
   radius: number;
+  /**
+   * When set, the target is this line rather than a dot: what the player sees is a 0.26-unit
+   * rod, so the whole of it has to answer, not only the middle.
+   */
+  span?: readonly [Point, Point];
 }
 
 export function hitCandidates(anchors: StageAnchors, ashLength: number): Candidate[] {
   const list: Candidate[] = [
     { target: 'ember', at: anchors.ember, radius: HIT.ember },
-    { target: 'cigarette', at: anchors.body, radius: HIT.body },
+    {
+      target: 'cigarette',
+      at: anchors.body,
+      radius: HIT.body,
+      span: [anchors.rodStart, anchors.ember],
+    },
     { target: 'lighter', at: anchors.lighter, radius: HIT.lighter },
     {
       target: 'ashtray',
@@ -55,7 +67,12 @@ export function hitCandidates(anchors: StageAnchors, ashLength: number): Candida
     },
   ];
   if (ashLength > ASH_MIN_LENGTH)
-    list.splice(1, 0, { target: 'ash', at: anchors.ash, radius: HIT.ash });
+    list.splice(1, 0, {
+      target: 'ash',
+      at: anchors.ash,
+      radius: HIT.ash,
+      span: [anchors.ember, anchors.ashEnd],
+    });
   return list;
 }
 
@@ -67,9 +84,11 @@ export function hitCandidates(anchors: StageAnchors, ashLength: number): Candida
  * widens every radius for a finger, which is how a 0.08-unit cherry stays hittable on a
  * 390 px phone (§66: no precise pixel targets).
  *
- * The winner is the candidate the point sits *furthest inside*, so a large target that
- * merely reaches over a small one does not steal it: on a phone the tray's widened radius
- * overlaps the rod lying next to it, and a finger on the cigarette stays on the cigarette.
+ * The winner is the candidate whose anchor the point is *closest to*, among those wide enough
+ * to contain it. Ranking by leftover room instead would let a large target that merely reaches
+ * over a small one steal the tap — the tray's widened touch radius overlaps the rod lying next
+ * to it, and the cherry sits at the end of that rod — and the candidate order (ember, ash,
+ * rod, lighter, tray) then breaks ties in the intuitive direction: what is on top answers.
  */
 export function resolveTarget(
   at: Point,
@@ -78,12 +97,14 @@ export function resolveTarget(
   aspect = 1,
   tolerance = 1,
 ): InputTarget | null {
-  let best: { target: InputTarget; slack: number } | null = null;
+  let best: { target: InputTarget; distance: number } | null = null;
   for (const candidate of hitCandidates(anchors, ashLength)) {
-    const distance = stageDistance(at, candidate.at, aspect);
-    const slack = distance - candidate.radius * tolerance;
-    if (slack > 0) continue;
-    if (best === null || slack < best.slack) best = { target: candidate.target, slack };
+    const distance = candidate.span
+      ? stageDistanceToSegment(at, candidate.span[0], candidate.span[1], aspect)
+      : stageDistance(at, candidate.at, aspect);
+    if (distance > candidate.radius * tolerance) continue;
+    const rank = stageDistance(at, candidate.at, aspect);
+    if (best === null || rank < best.distance) best = { target: candidate.target, distance: rank };
   }
   return best?.target ?? null;
 }

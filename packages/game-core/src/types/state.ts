@@ -216,6 +216,10 @@ export interface StageAnchors {
   body: Point;
   ember: Point;
   ash: Point;
+  /** Where the rod starts, so the whole rod answers a tap and not only its middle. */
+  rodStart: Point;
+  /** The far end of the ash column, which is where a flick should land. */
+  ashEnd: Point;
   ashtrayRadius: number;
 }
 

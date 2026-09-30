@@ -66,10 +66,11 @@ export interface PlumeShape {
 
 const PLAMES: Record<SmokeCharacter, PlumeShape> = {
   column: {
-    count: 0.85,
-    spread: 0.5,
+    count: 0.95,
+    spread: 0.6,
     speed: 1.0,
-    radius: 0.8,
+    // A column should not be *thinner* than the base recipe it multiplies.
+    radius: 1.05,
     life: 1.15,
     alpha: 1.0,
     rise: 1.25,
@@ -181,9 +182,9 @@ export function puffBurst(rt: EngineRuntime): Burst {
     origin: rt.state.cigarette.pose.tip,
     count: 10 + Math.round(26 * intensity),
     directionDeg: tipAngle(rt),
-    spreadDeg: 26,
+    spreadDeg: 34,
     speed: [0.012, 0.05],
-    radius: [0.006, 0.02],
+    radius: [0.008, 0.028],
     lifeMs: [900, 2200],
     alphaPeak: 0.22 + 0.3 * intensity,
     rise: smoke.riseSpeed * (0.5 + intensity),
@@ -204,9 +205,9 @@ export function exhaleBurst(
     origin: rt.state.cigarette.pose.tip,
     count: 34 + Math.round(86 * intensity),
     directionDeg: tipAngle(rt) + 8,
-    spreadDeg: 62,
+    spreadDeg: 66,
     speed: [0.02, 0.09 + 0.1 * intensity],
-    radius: [0.01, 0.04],
+    radius: [0.014, 0.052],
     lifeMs: [2600, 6400],
     alphaPeak: 0.2 + 0.26 * intensity,
     rise: smoke.riseSpeed * modifier.riseSpeed * (0.8 + intensity * 0.9),
@@ -224,14 +225,16 @@ export function driftBurst(rt: EngineRuntime, count = 18): Burst {
     origin: rt.state.cigarette.pose.tip,
     count,
     directionDeg: tipAngle(rt),
-    spreadDeg: 34,
+    spreadDeg: 40,
     speed: [0.006, 0.03],
-    radius: [0.007, 0.028],
+    // The lazy column is the thing the player watches for three minutes, and it was thinner
+    // than the breath that made it: 0.007-0.028 units growing only 1.7x.
+    radius: [0.011, 0.042],
     lifeMs: [3200, 7800],
-    alphaPeak: 0.13,
+    alphaPeak: 0.16,
     rise: smoke.riseSpeed,
     turbulence: smoke.turbulence,
-    scaleGrowth: 1.7,
+    scaleGrowth: 2.6,
   });
 }
 

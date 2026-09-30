@@ -45,8 +45,18 @@ html[data-contrast='high'] .chrome[data-visible='true'] {
   opacity: 1;
 }
 
+/*
+ * A long press must not raise the browser's own menu. `-webkit-touch-callout` is not reliably
+ * inherited in every WebKit build, and the callout we are refusing is raised by the element
+ * under the finger — the canvas, a glyph, a slider — so the rule is written on every element
+ * rather than trusted to inheritance. The JS half (`createSurfaceGuard`) covers the events a
+ * desktop mouse can raise.
+ */
 * {
   box-sizing: border-box;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 html,

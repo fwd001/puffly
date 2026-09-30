@@ -169,6 +169,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
   let trayLoad = 0;
   let trayWobble = 0;
   let lastDropped = -1;
+  /** The frame the renderer last drew; a discrete event is placed against it. */
+  let lastView: GameStateView | null = null;
 
   const tintFor = (base: Rgb, particleHeat: number, visibility: number): Rgb => {
     const key = `${base[0]}|${base[1]}|${base[2]}|${Math.round(particleHeat * 8)}|${Math.round(visibility * 8)}`;
@@ -350,6 +352,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
 
   const renderer: PufflyRenderer = {
     render(state, dtMs) {
+      lastView = state;
       const frame = Math.max(0, Math.min(dtMs, MAX_FRAME_MS));
       clockMs += frame;
 
@@ -430,6 +433,25 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       }
     },
     handleEvent(event) {
+      if (event.kind === 'transition') {
+        // Picking the rod up is the most repeated gesture in the game and it emits no burst,
+        // so it used to answer with nothing but movement. A ring where it left the table is the
+        // §60 "every action gets feedback" beat that a burst cannot carry.
+        if (event.to === 'PICKED_UP' && lastView && !settings.reducedMotion) {
+          const at = lastView.anchors.body;
+          effects.push({
+            kind: 'ring',
+            x: at.x,
+            y: at.y,
+            bornMs: clockMs,
+            ttlMs: 360,
+            strength: 0.45,
+            reach: 0.075,
+            tint: [255, 214, 150],
+          });
+        }
+        return;
+      }
       if (event.kind !== 'burst') return;
       intakeBurst(event.burst, pool, { densityScale: densityScaleFor(settings) });
       const effect = effectFor(event.burst, clockMs);

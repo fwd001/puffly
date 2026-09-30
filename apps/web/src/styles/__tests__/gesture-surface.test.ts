@@ -16,6 +16,9 @@ const css = readFileSync(fileURLToPath(new URL('../global.css', import.meta.url)
 describe('the page refuses the browser’s own gestures (§66)', () => {
   it('switches the iOS long-press callout off', () => {
     expect(css).toContain('-webkit-touch-callout: none');
+    // On `*`, not on html/body: the callout is raised by the element under the finger — the
+    // canvas, a glyph, a slider — and inheritance is not something to bet a behaviour on.
+    expect(css).toMatch(/^\* \{[^}]*-webkit-touch-callout: none/im);
   });
 
   it('takes the whole surface out of the browser’s hands', () => {
