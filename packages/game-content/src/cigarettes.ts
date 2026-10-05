@@ -24,6 +24,12 @@ export const CIGARETTES: CigaretteContent[] = [
     smokeProfile: { density: 0.92, turbulence: 0.9, riseSpeed: 0.3, dispersion: 0.85 },
     emberProfile: { brightness: 0.74, flicker: 0.32, flareChance: 0.016 },
     ashProfile: { minLength: 0.022, maxLength: 0.072 },
+    physical: {
+      lengthMm: 84,
+      ashGrams: 2.1,
+      centerTempC: [700, 800],
+      puffs: { target: 12, min: 8, max: 15 },
+    },
     eventPool: ASHY_EVENTS,
     palette: {
       paper: rgb(238, 233, 222),
@@ -46,6 +52,12 @@ export const CIGARETTES: CigaretteContent[] = [
     smokeProfile: { density: 0.72, turbulence: 0.62, riseSpeed: 0.36, dispersion: 0.6 },
     emberProfile: { brightness: 0.66, flicker: 0.22, flareChance: 0.011 },
     ashProfile: { minLength: 0.018, maxLength: 0.058 },
+    physical: {
+      lengthMm: 99,
+      ashGrams: 1.8,
+      centerTempC: [690, 780],
+      puffs: { target: 11, min: 8, max: 14 },
+    },
     eventPool: COMMON_EVENTS,
     palette: {
       paper: rgb(246, 246, 248),
@@ -68,6 +80,12 @@ export const CIGARETTES: CigaretteContent[] = [
     smokeProfile: { density: 1.08, turbulence: 1.24, riseSpeed: 0.24, dispersion: 1.05 },
     emberProfile: { brightness: 0.86, flicker: 0.44, flareChance: 0.026 },
     ashProfile: { minLength: 0.026, maxLength: 0.084 },
+    physical: {
+      lengthMm: 84,
+      ashGrams: 2.0,
+      centerTempC: [720, 800],
+      puffs: { target: 13, min: 9, max: 16 },
+    },
     eventPool: STORMY_EVENTS,
     palette: {
       paper: rgb(196, 198, 210),
@@ -89,6 +107,12 @@ export const CIGARETTES: CigaretteContent[] = [
     smokeProfile: { density: 0.66, turbulence: 0.54, riseSpeed: 0.42, dispersion: 0.52 },
     emberProfile: { brightness: 0.6, flicker: 0.18, flareChance: 0.008 },
     ashProfile: { minLength: 0.03, maxLength: 0.108 },
+    physical: {
+      lengthMm: 100,
+      ashGrams: 2.6,
+      centerTempC: [690, 790],
+      puffs: { target: 14, min: 10, max: 18 },
+    },
     eventPool: ASHY_EVENTS,
     palette: {
       paper: rgb(240, 238, 232),
@@ -111,6 +135,12 @@ export const CIGARETTES: CigaretteContent[] = [
     smokeProfile: { density: 1.16, turbulence: 1.42, riseSpeed: 0.34, dispersion: 1.2 },
     emberProfile: { brightness: 0.94, flicker: 0.52, flareChance: 0.042 },
     ashProfile: { minLength: 0.016, maxLength: 0.05 },
+    physical: {
+      lengthMm: 84,
+      ashGrams: 1.9,
+      centerTempC: [740, 800],
+      puffs: { target: 13, min: 9, max: 16 },
+    },
     eventPool: STORMY_EVENTS,
     palette: {
       paper: rgb(232, 206, 176),
@@ -133,6 +163,12 @@ export const CIGARETTES: CigaretteContent[] = [
     smokeProfile: { density: 1.3, turbulence: 0.42, riseSpeed: 0.16, dispersion: 1.35 },
     emberProfile: { brightness: 0.58, flicker: 0.14, flareChance: 0.006 },
     ashProfile: { minLength: 0.024, maxLength: 0.09 },
+    physical: {
+      lengthMm: 90,
+      ashGrams: 2.3,
+      centerTempC: [660, 740],
+      puffs: { target: 10, min: 7, max: 13 },
+    },
     eventPool: [...COMMON_EVENTS, 'smoke_swirl', 'rain'],
     palette: {
       paper: rgb(228, 234, 236),

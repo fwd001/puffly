@@ -7,6 +7,7 @@
  */
 
 import type { IdGenerator, Rng } from '@puffly/shared';
+import { clamp01 } from '@puffly/shared';
 import { ASH, THRESHOLDS, TIMING } from './constants';
 import type { StageLayout } from './stage';
 import { CIGARETTE_LENGTH, type Point } from './types/geometry';
@@ -25,7 +26,7 @@ import type { InputTarget } from './types/input';
 import type { CollectionCategoryValue, Progress } from './types/progress';
 import type { Settings } from './types/settings';
 import type { GameState } from './types/state';
-import type { CigarettePose, CigaretteSnapshot } from './types/state';
+import type { CigarettePose, CigaretteSnapshot, Readouts } from './types/state';
 import type { CollectionSnapshot, ProgressSnapshot, UiHints } from './types/state';
 
 export interface SessionLog {
@@ -195,6 +196,28 @@ export function createPose(
   return pose;
 }
 
+/**
+ * The millimetres and grams the interface reads off the stick. One function, called wherever the
+ * rod's geometry just changed, so a phone, a desktop window and a replayed session all say the
+ * same number about the same column of ash (§79). Rounded to what a person could notice.
+ */
+export function deriveReadouts(
+  type: CigaretteContent,
+  rodRemaining: number,
+  ashLength: number,
+): Readouts {
+  const { lengthMm, ashGrams } = type.physical;
+  const tenth = (value: number): number => Math.round(value * 10) / 10;
+  return {
+    puffsTarget: type.physical.puffs.target,
+    ashMm: tenth(clamp01(ashLength / CIGARETTE_LENGTH) * lengthMm),
+    rodMm: tenth(clamp01(rodRemaining) * lengthMm),
+    // Ash is what the burn has already turned into, whether it is still leaning on the rod or
+    // lying in the tray — so it only ever grows, and a finished stick reports its full figure.
+    ashGrams: Math.round(clamp01(1 - rodRemaining) * ashGrams * 100) / 100,
+  };
+}
+
 export function createCigaretteSnapshot(
   type: CigaretteContent,
   rng: Rng,
@@ -242,6 +265,7 @@ export function createCigaretteSnapshot(
       load: 0,
     },
     pose: createPose(poseState, angleDeg, layout),
+    readouts: deriveReadouts(type, 1, 0),
     extinguishProgress: 0,
     discardProgress: 0,
   };

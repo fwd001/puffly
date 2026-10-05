@@ -9,6 +9,7 @@ import { SAVE_SCHEMA_VERSION, type SaveFile, type Session } from '@puffly/game-c
 import { mergeSaveFiles, mergeSessionLogs } from '../merge';
 import {
   at,
+  makeChosenSettings,
   makeProfile,
   makeProgress,
   makeSave,
@@ -178,13 +179,17 @@ describe('mergeSaveFiles: the rest of the save (§37, §51, §52)', () => {
     });
     const incoming = makeSave({
       profile: makeProfile({ id: 'pro-incoming', createdAt: at(1, 8, 0), displayName: 'Older' }),
-      settings: { ...makeSettings(), muted: true, sessionTargetMs: 300_000 },
+      settings: { ...makeChosenSettings(), muted: true, sessionTargetMs: 300_000 },
     });
     const { save, summary } = mergeSaveFiles(current, incoming);
     expect(save.profile.id).toBe('pro-incoming');
     expect(summary.profileIdSource).toBe('incoming');
     expect(save.settings.muted).toBe(true);
     expect(save.settings.sessionTargetMs).toBe(300_000);
+    // Importing on a second device is the same statement of taste: neither the rod in the hand
+    // nor the language asked for may reset on the way through a merge.
+    expect(save.settings.language).toBe('zh-CN');
+    expect(save.settings.selection?.cigarette).toBe('long-thin');
     // and the other way round, the current profile is the older one
     expect(mergeSaveFiles(incoming, current).summary.profileIdSource).toBe('current');
   });

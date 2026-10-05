@@ -285,6 +285,12 @@ export const BUNDLE: ContentBundle = {
       smokeProfile: { density: 1, turbulence: 1, riseSpeed: 0.3, dispersion: 1 },
       emberProfile: { brightness: 0.8, flicker: 0.1, flareChance: 0 },
       ashProfile: { minLength: 0.02, maxLength: 0.05 },
+      physical: {
+        lengthMm: 84,
+        ashGrams: 2.1,
+        centerTempC: [700, 800],
+        puffs: { target: 3, min: 2, max: 4 },
+      },
       eventPool: [],
       palette: {
         paper: [238, 233, 222],

@@ -18,9 +18,23 @@ export const EN = {
   'hint.extinguish': 'press',
   'hint.discard': 'drop',
 
-  'menu.break': 'this break',
-  'menu.shelf': 'the shelf',
-  'menu.settings': 'settings',
+  /** The rail's four names (§9.2): three phases the state machine is in, and one sheet. */
+  'tab.light': 'light',
+  'tab.puff': 'inhale',
+  'tab.tray': 'ashtray',
+  'tab.settings': 'settings',
+
+  /**
+   * The big pill's short label, one per affordance (§28's verbs are on the scene, these are the
+   * handle). They stay in every tier but `icons` on purpose: §9.2 keeps a button label because it
+   * is the anchor a translation hangs on — a rail of pure marks has nothing left to localise.
+   */
+  'cta.pick': 'pick up',
+  'cta.lighter': 'light it',
+  'cta.puff': 'inhale',
+  'cta.flick': 'flick the ash',
+  'cta.extinguish': 'put it out',
+  'cta.discard': 'drop it in',
 
   'settings.sound': 'Sound',
   'settings.ambient': 'Ambient',
@@ -42,7 +56,6 @@ export const EN = {
   'settings.language.auto': 'auto',
   'settings.language.icons': 'icons',
 
-  'a11y.menu': 'menu',
   'a11y.close': 'close',
   'a11y.export': 'export',
   'a11y.import': 'import',
@@ -58,11 +71,22 @@ export const EN = {
   'a11y.language': 'language',
   'a11y.audioUnavailable': 'audio unavailable',
   'a11y.memoryOnly': 'memory only',
+  /** The ring and its readouts: spoken nouns, since §9.2 keeps what the eye sees to digits. */
+  'a11y.hud.rail': 'the break so far',
+  'a11y.hud.sticks': 'sticks today',
+  'a11y.hud.clock': 'this break so far',
+  'a11y.hud.remaining': 'rod left',
+  'a11y.hud.hold': 'held for',
+  'a11y.hud.puffs': 'draws so far',
+  'a11y.hud.force': 'how hard the smoke came out',
+  'a11y.hud.ash': 'ash column',
+  'a11y.hud.ashMass': 'ash so far',
+  'a11y.hud.category': 'which rod this is',
+  'a11y.pill': 'the big action: {word}',
   'a11y.smokeOption': 'smoke {word}',
   'a11y.sheetBreak': 'Break',
   'a11y.sheetShelf': 'Collection',
   'a11y.sheetSettings': 'Settings',
-  'a11y.sheetMenu': 'Menu',
   'a11y.cravingBefore': 'how strong is the craving now',
   'a11y.cravingAfter': 'how strong is it now',
   'a11y.endBreak': 'end this break',
@@ -107,9 +131,17 @@ const ZH: Table = {
   'hint.extinguish': '摁',
   'hint.discard': '丢',
 
-  'menu.break': '休息中',
-  'menu.shelf': '烟架',
-  'menu.settings': '设置',
+  'tab.light': '点燃',
+  'tab.puff': '吸烟',
+  'tab.tray': '烟灰缸',
+  'tab.settings': '设置',
+
+  'cta.pick': '拿起',
+  'cta.lighter': '点着',
+  'cta.puff': '吸入',
+  'cta.flick': '磕灰',
+  'cta.extinguish': '掐灭',
+  'cta.discard': '丢进去',
 
   'settings.sound': '声音',
   'settings.ambient': '环境',
@@ -131,7 +163,6 @@ const ZH: Table = {
   'settings.language.auto': '自动',
   'settings.language.icons': '纯图标',
 
-  'a11y.menu': '菜单',
   'a11y.close': '关闭',
   'a11y.export': '导出',
   'a11y.import': '导入',
@@ -147,11 +178,21 @@ const ZH: Table = {
   'a11y.language': '语言',
   'a11y.audioUnavailable': '没有可用的音频',
   'a11y.memoryOnly': '只存在内存里',
+  'a11y.hud.rail': '这次休息',
+  'a11y.hud.sticks': '今天第几支',
+  'a11y.hud.clock': '这次休息已经',
+  'a11y.hud.remaining': '还剩多少烟',
+  'a11y.hud.hold': '已经按住',
+  'a11y.hud.puffs': '已经吸了几口',
+  'a11y.hud.force': '吐出来的劲道',
+  'a11y.hud.ash': '灰柱长度',
+  'a11y.hud.ashMass': '已经生成的灰',
+  'a11y.hud.category': '这是哪一根',
+  'a11y.pill': '主操作：{word}',
   'a11y.smokeOption': '烟雾 {word}',
   'a11y.sheetBreak': '这次休息',
   'a11y.sheetShelf': '烟架',
   'a11y.sheetSettings': '设置',
-  'a11y.sheetMenu': '菜单',
   'a11y.cravingBefore': '现在有多想抽',
   'a11y.cravingAfter': '现在还剩多少',
   'a11y.endBreak': '结束这次休息',
@@ -187,7 +228,7 @@ const ZH: Table = {
  * assert that the fall-through is what a player sees — not a blank label.
  */
 const AR: Table = {
-  'menu.settings': 'الإعدادات',
+  'tab.settings': 'الإعدادات',
   'a11y.close': 'إغلاق',
   'settings.sound': 'الصوت',
   'settings.smoke': 'الدخان',
@@ -220,8 +261,20 @@ export const HINT_KEYS: Record<string, CopyKey> = {
   discard: 'hint.discard',
 };
 
-/** §4: what a screen reader hears, keyed off `GameState.cigarette.state`. */
-export const STATE_KEYS: Record<string, CopyKey> = {
+/** The same six affordances, in the words the pill wears (§9.2 keeps a label to translate). */
+export const CTA_KEYS: Record<string, CopyKey> = {
+  pick: 'cta.pick',
+  lighter: 'cta.lighter',
+  puff: 'cta.puff',
+  flick: 'cta.flick',
+  extinguish: 'cta.extinguish',
+  discard: 'cta.discard',
+};
+
+/** §4: what a screen reader hears, keyed off `GameState.cigarette.state`. */ export const STATE_KEYS: Record<
+  string,
+  CopyKey
+> = {
   IDLE: 'state.idle',
   PICKED_UP: 'state.pickedUp',
   LIGHTING: 'state.lighting',

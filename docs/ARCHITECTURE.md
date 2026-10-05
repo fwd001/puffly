@@ -127,9 +127,10 @@ comes back ended.
 
 ## Where the interface ends and the scene begins
 
-The stage owns everything a player touches; the shell owns only a mark at the bottom that exists
-for a few seconds after a touch, and the three words behind it (`this break`, `the shelf`,
-`settings`). Two rules keep that split from rotting back into an app:
+The stage owns everything a player touches. The shell owns three readings of the same state
+machine — the head-up row, the pill, and a rail whose first three cells are indicators, not
+buttons — and all three fold together on the core's word (`ui.controlsVisible`). Two rules keep
+that split from rotting back into an app:
 
 - **the core decides visibility, once.** `ui.controlsVisible` folds together "has the player ever
   touched anything", "how long since they did", "are they mid-draw" and "did they just swipe the

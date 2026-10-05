@@ -30,6 +30,7 @@ import {
   createTimers,
   createUiHints,
   createWorldBoost,
+  deriveReadouts,
   projectProgress,
   type EngineListener,
   type EngineRuntime,
@@ -251,6 +252,7 @@ export function createEngine(options: EngineOptions): GameEngine {
       at: { ...LAYOUT.lighter },
       engaged: false,
       flame: 0,
+      heldMs: 0,
       flicker: 0,
       sputter: 0,
     },
@@ -567,6 +569,11 @@ export function createEngine(options: EngineOptions): GameEngine {
     const lighter = rt.state.lighter;
     const target = lighter.engaged ? 1 : 0;
     lighter.flame = approach(lighter.flame, target, lighter.engaged ? 9 : 14, STEP_MS);
+    // A released lighter starts the next attempt from zero: the ring counts an attempt, not a
+    // session. It was already on the runtime model and never advanced, which made it a number
+    // that existed only to be read.
+    rt.timers.lighterHeldMs = lighter.engaged ? rt.timers.lighterHeldMs + STEP_MS : 0;
+    lighter.heldMs = rt.timers.lighterHeldMs;
     lighter.sputter = Math.max(0, lighter.sputter - STEP_MS / 1200);
     lighter.flicker = rt.rng.range(-0.2, 0.2) * (0.4 + lighter.flame);
 
@@ -676,6 +683,7 @@ export function createEngine(options: EngineOptions): GameEngine {
     cigarette.lengthRemaining = clamp01(
       (cigarette.pose.rodLength + cigarette.ash.length) / CIGARETTE_LENGTH,
     );
+    cigarette.readouts = deriveReadouts(rt.cigarette, cigarette.rodRemaining, cigarette.ash.length);
     if (cigarette.state === 'DISCARDED') {
       cigarette.discardProgress = clamp01(rt.timers.discardMs / TIMING.discardSettleMs);
     }

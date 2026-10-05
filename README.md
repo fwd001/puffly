@@ -56,7 +56,7 @@ never disagree (`engine.setStageAspect`, called on every resize).
 
 ## What changes how it feels
 
-Every row is a word and a control, reached from `···` → `settings`. None of it is required:
+Every row is a word and a control, reached from the rail’s `settings` tab. None of it is required:
 
 - **Quality** `◌ auto · •• ✦` — `auto` is not a guess. The shell measures its own frame times and
   walks the particle budget `high → balanced → light`, stepping down twice as eagerly as it climbs
@@ -169,19 +169,27 @@ rod has burnt to wherever that clock says it should be — and a break that woul
 while the phone was away comes back finished and counted, rather than waiting for someone to
 notice it.
 
-**The one mark, and the three words behind it**
+**The row, the pill and the rail**
 
-`···` opens a menu: `this break`, `the shelf`, `settings`. Those three words are the only reading
-a player has to do to use the app, and they are in the menu rather than on the scene because an
-icon cannot say which of the three it is.
+The chrome is three things, and all three are readings of the same state machine rather than three
+ways to navigate:
 
-- `this break` — how long it has run (the clock lives here now, not on the stage), what you did in
-  it, the craving note, and the journey.
-- `the shelf` — every rod, room, lighter and tray you have, with the ones you have not yet unlocked
-  shown dimmed. Choosing one changes how the smoke looks, moves and sounds.
-- `settings` — the rows on the [What changes how it feels](#what-changes-how-it-feels) list.
+- **the row** across the top — which stick of the day this is, inside a ring that empties as the
+  rod burns, then the break's clock and what is left of the stick: `1 · 03:00 · 100%`. While it is
+  being lit the ring counts the flame (`0.4s`), while it is drawn it counts the draws (`6 / 12`),
+  and when the ash is standing it measures the ash (`18mm · 1.1g`). Icons and Arabic digits: nothing
+  in that row needs translating, which is why it survives the wordless tier.
+- **the pill** above the rail — the same gesture the scene accepts, as a handle. It says `pick up`,
+  `light it`, `inhale`, `flick the ash`, `put it out`. Holding it draws; tapping it decides. The
+  short label stays on purpose: it is the anchor a translation hangs on, so a rail of pure marks
+  would leave localisation with nothing to hold.
+- **the rail** along the bottom — three phases and settings. The phases are indicators: the
+  cigarette lights one of them, and no finger is required or invited.
 
-A new unlock is marked by a dot on the `···` itself — no dialog, no text.
+The row's numbers are the stage's only numbers, and they live in the row rather than on the scene
+because a measurement of the simulation is not a thing to tap. Two of its cells are buttons: the
+stick mark opens the shelf, the clock opens the break. A new unlock is a dot on the stick mark —
+no dialog, no text.
 
 ## How it is verified
 
@@ -228,8 +236,10 @@ source for this repository — the deploy job cannot change that setting itself.
 ## Product boundaries
 
 Puffly is an entertainment and stress-relief object: a substitute ritual. It does not claim to treat
-anything, shows no medical data, and never references a real tobacco brand — every object in it is
-original and fictional (SPEC.md §13, §84).
+anything and shows no medical data. Everything you can hold is original and fictional — no real
+tobacco brand is ever an object in the scene, a thing to unlock, or a thing to want. Real brands
+appear only as archive material (a name, an origin, a year, an ≈ figure) in the sections that are
+reference rather than shopfront (SPEC.md §13, §84).
 
 Data never leaves the device. No account, no login, no upload, no analytics; the save file is JSON
 you can export and re-import (SPEC.md §51, §52).

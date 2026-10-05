@@ -19,22 +19,22 @@ describe('three tiers: target language → English → icons (§9)', () => {
   });
 
   it('a partial language falls through to English rather than to nothing', () => {
-    expect(translate('ar', 'menu.settings')).toBe('الإعدادات');
-    expect(translate('ar', 'menu.break')).toBe('this break');
+    expect(translate('ar', 'tab.settings')).toBe('الإعدادات');
+    expect(translate('ar', 'tab.puff')).toBe('inhale');
     // The partial table is the point: it has to stay partial for this to mean anything.
     expect(Object.keys(COPY.ar ?? {}).length).toBeLessThan(KEYS.length);
   });
 
   it('the third tier is reachable, and only for what a player reads with their eyes', () => {
     expect(translate('icons', 'hint.pick')).toBeNull();
-    expect(translate('icons', 'menu.break')).toBeNull();
+    expect(translate('icons', 'cta.puff')).toBeNull();
     expect(announce('icons', 'a11y.close')).toBe('close');
     expect(announce('icons', 'state.burning')).toBe('burning');
   });
 
   it('a missing key never produces an empty name for a screen reader', () => {
     expect(announce('zh-CN', 'app.name')).toBe('Puffly');
-    expect(announce('zz-ZZ', 'a11y.menu')).toBe('menu');
+    expect(announce('zz-ZZ', 'a11y.close')).toBe('close');
   });
 
   it('a parameter is filled in whatever language answers', () => {
@@ -56,8 +56,13 @@ describe('three tiers: target language → English → icons (§9)', () => {
     // is the mistake this guards against.
     const quantifiers = ['支', '口', '根', '次'];
     const inLoop = KEYS.filter(
-      (key) => key.startsWith('hint.') || key.startsWith('menu.') || key.startsWith('state.'),
+      (key) =>
+        key.startsWith('hint.') ||
+        key.startsWith('cta.') ||
+        key.startsWith('tab.') ||
+        key.startsWith('state.'),
     );
+    expect(inLoop.length).toBeGreaterThan(10);
     for (const key of inLoop) {
       const chinese = COPY['zh-CN']?.[key] ?? '';
       for (const unit of quantifiers) {
@@ -87,6 +92,6 @@ describe('which language a player ends up with', () => {
     expect(resolveLocale(undefined, [])).toBe('en');
     expect(resolveLocale('th-TH', ['th-TH'])).toBe('en');
     // The anchor is a language with a complete table, not the tier that says nothing.
-    expect(announce(resolveLocale(undefined, ['de-DE']), 'menu.break')).toBe('this break');
+    expect(announce(resolveLocale(undefined, ['de-DE']), 'tab.puff')).toBe('inhale');
   });
 });

@@ -111,6 +111,22 @@ export interface CigarettePose {
   dragged: boolean;
 }
 
+/**
+ * The measurements the interface reads off the stick. Core owns this arithmetic so a phone, a
+ * desktop and a replayed session all say the same number about the same column of ash (§79);
+ * the shell only formats it. Rounded to what a person could actually notice.
+ */
+export interface Readouts {
+  /** Draws this rod is planned for — the denominator of "6 / 12". */
+  puffsTarget: number;
+  /** Millimetres of ash standing on the rod right now. */
+  ashMm: number;
+  /** Millimetres of rod still unburnt. */
+  rodMm: number;
+  /** Grammes of ash this stick has made so far, whether it is still leaning on the rod or in the tray. */
+  ashGrams: number;
+}
+
 export interface CigaretteSnapshot {
   state: CigaretteStateId;
   typeId: string;
@@ -126,6 +142,7 @@ export interface CigaretteSnapshot {
   ash: AshState;
   puff: PuffState;
   pose: CigarettePose;
+  readouts: Readouts;
   /** 0..1 through §19's pressure interaction. */
   extinguishProgress: number;
   /** 0..1 through §20's discard animation. */
@@ -182,6 +199,8 @@ export interface LighterSnapshot {
   engaged: boolean;
   /** 0..1 flame size while held. */
   flame: number;
+  /** Milliseconds this attempt has been held for — the "0.4s" the ignition ring counts up. */
+  heldMs: number;
   flicker: number;
   /** 1 for a moment when `lighter_failure` bites (§21). */
   sputter: number;

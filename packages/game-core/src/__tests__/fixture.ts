@@ -17,6 +17,12 @@ export const FIXTURE: ContentBundle = {
       smokeProfile: { density: 1, turbulence: 1, riseSpeed: 0.3, dispersion: 1 },
       emberProfile: { brightness: 0.8, flicker: 0.1, flareChance: 0 },
       ashProfile: { minLength: 0.02, maxLength: 0.05 },
+      physical: {
+        lengthMm: 84,
+        ashGrams: 2.1,
+        centerTempC: [700, 800],
+        puffs: { target: 3, min: 2, max: 4 },
+      },
       eventPool: ['wind', 'ember_flare', 'ash_fall', 'smoke_swirl', 'light_change'],
       palette: {
         paper: [238, 233, 222],
@@ -37,6 +43,14 @@ export const FIXTURE: ContentBundle = {
       smokeProfile: { density: 0.6, turbulence: 1.4, riseSpeed: 0.4, dispersion: 0.8 },
       emberProfile: { brightness: 0.6, flicker: 0.3, flareChance: 0.05 },
       ashProfile: { minLength: 0.01, maxLength: 0.09 },
+      // Its own body, not a copy: the long rod is longer, heavier and drawn more times, and the
+      // readouts test depends on the numbers being per-rod rather than per-engine.
+      physical: {
+        lengthMm: 100,
+        ashGrams: 2.6,
+        centerTempC: [690, 790],
+        puffs: { target: 5, min: 3, max: 7 },
+      },
       eventPool: ['wind', 'ambient_event'],
       palette: {
         paper: [246, 246, 248],

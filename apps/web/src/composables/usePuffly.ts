@@ -49,6 +49,7 @@ import {
   targetForAffordance,
 } from './useInputAdapters';
 import { HINT_KEYS, createI18n, resolveLocale, type I18n, type LocaleCode } from '../i18n';
+import { phaseOf, type Phase } from '../phase';
 
 /** How often chrome is allowed to re-render (§54). */
 const SUMMARY_INTERVAL_MS = 200;
@@ -121,6 +122,8 @@ export interface Summary {
   sessionActive: boolean;
   controlsVisible: boolean;
   affordance: string;
+  /** Which of the design's three phases the rail and the HUD are reading (§9.2). */
+  phase: Phase;
   hint: HintWord | null;
   /**
    * Which channel is carrying the cues right now (§63). Mirrored onto the stage as
@@ -155,6 +158,12 @@ export interface Puffly {
   /** Whether a vibration motor exists to be asked for one (§30). */
   canVibrate: Ref<boolean>;
   attach(canvas: HTMLCanvasElement): Promise<void>;
+  /**
+   * Drive the scene from a control instead of a finger on it: the same input the space bar sends,
+   * aimed at the same anchor (§65). A pill that faked the gesture would be the one thing §28
+   * forbids, so this is a handle on the real thing, not a picture of it.
+   */
+  gesture(kind: 'hold' | 'tap' | 'release'): void;
   setSettings(patch: Partial<Settings>): void;
   select(selection: Partial<Selection>): void;
   setCraving(level: number, phase: 'before' | 'after'): void;
@@ -189,6 +198,7 @@ export function createPuffly(): Puffly {
     sessionActive: false,
     controlsVisible: true,
     affordance: 'none',
+    phase: 'light',
     hint: null,
     cueChannel: 'visual',
     targetReached: false,
@@ -339,6 +349,7 @@ export function createPuffly(): Puffly {
       sessionActive: state.ui.sessionActive,
       controlsVisible: state.ui.controlsVisible,
       affordance: state.ui.affordance,
+      phase: phaseOf(state.cigarette.state),
       hint: hintWord(state),
       cueChannel: audio?.audible() ? 'audio' : 'visual',
       targetReached: state.ui.sessionActive && state.ui.sessionRemainingMs <= 0,
@@ -683,6 +694,19 @@ export function createPuffly(): Puffly {
     storageDegraded,
     canVibrate,
     attach,
+    gesture(kind) {
+      if (!engine) return;
+      const state = engine.getState();
+      engine.send({
+        type: kind,
+        x: 0,
+        y: 0,
+        timestamp: state.nowMs,
+        target: targetForAffordance(state),
+        source: 'pointer',
+      });
+      refreshSummary();
+    },
     setSettings(patch) {
       settings.value = { ...settings.value, ...patch };
       if (patch.quality === 'auto') autoTier = startingTier();

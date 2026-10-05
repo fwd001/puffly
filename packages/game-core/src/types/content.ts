@@ -41,6 +41,22 @@ export interface CigaretteType {
     maxLength: number;
   };
 
+  /**
+   * The four real measurements of a stick — Smoke Ritual's "Frozen Core". They are physics, not
+   * balance: a skin may recolour everything except these (§6.1), and the head-up display reads
+   * them as millimetres and grams rather than as points. `puffs.target` is what a stick is planned
+   * for (the denominator of "6 / 12"); the range is how far a real one wanders.
+   */
+  physical: {
+    /** Millimetres of a pristine rod, filter included. */
+    lengthMm: number;
+    /** Grammes of ash the whole stick leaves behind. */
+    ashGrams: number;
+    /** Degrees Celsius at the cherry, low and high of this rod's own range. */
+    centerTempC: [number, number];
+    puffs: { target: number; min: number; max: number };
+  };
+
   eventPool: string[];
 }
 

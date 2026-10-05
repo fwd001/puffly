@@ -10,7 +10,7 @@ import { COPY, LOCALES, isRtl, type CopyKey, type LocaleCode } from './copy';
 
 export { COPY, isRtl, LOCALES };
 export type { CopyKey, LocaleCode };
-export { HINT_KEYS, LANGUAGES, STATE_KEYS, type LanguageChoice } from './copy';
+export { CTA_KEYS, HINT_KEYS, LANGUAGES, STATE_KEYS, type LanguageChoice } from './copy';
 
 /** English is the anchor every key is defined against, and the tag `icons` still reads under. */
 export const ANCHOR_LOCALE = 'en';

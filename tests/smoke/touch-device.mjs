@@ -258,14 +258,16 @@ async function waitChannel(page, want, withinMs = 5000) {
  * than by their labels, because from here on the labels are in whatever language the tier under
  * test asked for — and a check that only passes in English proves nothing about the other two.
  */
+const SHEET_HANDLE = {
+  settings: '.rail [data-tab="settings"]',
+  shelf: '.hud [data-hook="category"]',
+  break: '.hud [data-hook="break"]',
+};
+
 async function openSheet(page, id, mouse = false) {
-  const mark = page.locator('.chrome .menu');
-  if (mouse) await mark.click();
-  else await mark.tap();
-  await page.waitForTimeout(420);
-  const entry = page.locator(`.sheet--menu .entry[data-entry="${id}"]`);
-  if (mouse) await entry.click();
-  else await entry.tap();
+  const handle = page.locator(SHEET_HANDLE[id]);
+  if (mouse) await handle.click();
+  else await handle.tap();
   await page.waitForTimeout(460);
 }
 
@@ -450,11 +452,15 @@ const hintCentre = async (page) => {
   const zoomAfter = await page.evaluate(() => window.visualViewport?.scale ?? 1);
   check('double-tap does not zoom the scene', Math.abs(zoomAfter - zoomBefore) < 0.01);
 
-  // An open sheet must leave the bar that opened it reachable. The bottom-anchored panel used to
-  // paint over all three chrome buttons, so on a phone the middle one went dead once it was open.
+  // An open sheet must leave the controls that opened it reachable: the bottom-anchored panel
+  // used to paint over the rail, so on a phone the way out went dead once a sheet was open.
   await openSheet(page, 'shelf');
   const covered = await page.evaluate(() =>
-    ['.chrome .menu', '.sheet[data-open="true"] .close'].filter((selector) => {
+    [
+      '.rail [data-tab="settings"]',
+      '.hud [data-hook="break"]',
+      '.sheet[data-open="true"] .close',
+    ].filter((selector) => {
       const btn = document.querySelector(selector);
       const r = btn.getBoundingClientRect();
       const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
@@ -462,7 +468,11 @@ const hintCentre = async (page) => {
       return !btn.contains(hit);
     }),
   );
-  check('the mark and the sheet stay tappable together', covered.length === 0, covered.join(', '));
+  check(
+    'the rail, the head-up row and the sheet stay tappable together',
+    covered.length === 0,
+    covered.join(','),
+  );
 
   await openSheet(page, 'settings');
   const switched = await page.evaluate(() =>
@@ -476,15 +486,25 @@ const hintCentre = async (page) => {
     switched.join(','),
   );
 
-  // §18: the stage carries no numbers. The break's clock lives inside the sheet now.
-  const onStage = await page.evaluate(
-    () =>
-      [...document.querySelectorAll('.stage > *:not(.sheet):not(.chrome)')]
-        .map((el) => el.textContent ?? '')
-        .join(' ')
-        .match(/\\d/g)?.length ?? 0,
+  // The row is the only place the stage is allowed digits (§9.2: icons and Arabic numerals).
+  // Everything else that shows a number lives inside a sheet, and prose still may not appear.
+  const digits = await page.evaluate(() => {
+    const count = (root) => (root?.textContent ?? '').match(/\\d/g)?.length ?? 0;
+    const stage = document.querySelector('.stage');
+    const inRow = count(document.querySelector('.hud'));
+    let outside = 0;
+    for (const child of stage.children) {
+      if (child.matches('.hud, .sheet')) continue;
+      if (child.tagName === 'CANVAS') continue;
+      outside += count(child);
+    }
+    return { inRow, outside };
+  });
+  check(
+    'the head-up row carries the digits, and nothing else on the stage does',
+    digits.inRow > 0 && digits.outside === 0,
+    JSON.stringify(digits),
   );
-  check('nothing on the stage is a number', onStage === 0, `${onStage} digits`);
 
   // §64: the word is a setting, not a fixture. Off has to mean off on the stage too, not just
   // in the sheet, and turning it off must not leave any other text behind.
@@ -557,14 +577,17 @@ const hintCentre = async (page) => {
   });
   await page.waitForTimeout(700);
   const folded = await page.evaluate(() => ({
-    chrome: document.querySelector('.chrome')?.dataset.visible ?? '?',
+    chrome: ['hud', 'cta', 'rail'].map((cls) => {
+      const el = document.querySelector(`.${cls}`);
+      return el && el.offsetParent !== null ? `${cls}:shown` : `${cls}:hidden`;
+    }),
     hint: !!document.querySelector('.hint'),
     sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
     state: document.querySelector('canvas')?.getAttribute('aria-label') ?? '',
   }));
   check(
     'a swipe down over nothing puts the interface away and leaves the break burning',
-    folded.chrome === 'false' &&
+    folded.chrome.join(',') === 'hud:hidden,cta:hidden,rail:hidden' &&
       !folded.hint &&
       folded.sheets === 0 &&
       /burning/.test(folded.state),
@@ -587,7 +610,7 @@ const hintCentre = async (page) => {
 
   const layout = LAYOUTS.wide;
   const chromeTop = await page.evaluate(
-    () => document.querySelector('.chrome')?.getBoundingClientRect().top ?? 9999,
+    () => document.querySelector('.rail')?.getBoundingClientRect().top ?? 9999,
   );
   const tray = await stagePoint(page, ...layout.tray);
   check(
@@ -732,6 +755,78 @@ const hintCentre = async (page) => {
   await context.close();
 }
 
+// --------------------------------------------------------- the chrome reads the break (§9.2)
+{
+  // S1–S5 in one run: the row, the pill and the rail are all readings of the same state machine,
+  // so they are checked against each other rather than against a screenshot.
+  const { page, errors, context } = await openPhone({ width: 393, height: 852, dpr: 3 });
+  const chrome = () =>
+    page.evaluate(() => {
+      const row = document.querySelector('.hud');
+      const cell = (sel) => (row.querySelector(sel)?.textContent ?? '').trim();
+      return {
+        phase: document.querySelector('.stage')?.dataset.phase ?? '',
+        ring: cell('.ring b') || cell('.ring .mark'),
+        arc: row.querySelector('.arc')?.getAttribute('stroke-dasharray') ?? '',
+        primary: cell('[data-hook="break"]'),
+        alt: cell('.num.alt'),
+        pill: (document.querySelector('.pill .word')?.textContent ?? '').trim(),
+        lit: [...document.querySelectorAll('.rail .tab')]
+          .filter((el) => el.dataset.on === 'true')
+          .map((el) => el.dataset.tab),
+      };
+    });
+
+  const idle = await chrome();
+  check(
+    'S1: the row reads the stick, the clock and what is left of the rod',
+    idle.phase === 'light' &&
+      idle.ring === '1' &&
+      idle.primary === '03:00' &&
+      idle.alt === '100%' &&
+      idle.arc.startsWith('94.25') &&
+      idle.lit.join() === 'light',
+    JSON.stringify(idle),
+  );
+
+  // The pill is a handle on the real gesture, not a picture of one: pressing it must do exactly
+  // what a finger on the rod does (§28, §65).
+  await page.locator('.pill').tap();
+  await page.waitForTimeout(420);
+  const picked = await chrome();
+  check(
+    'the pill picks the rod up and the word on it changes with the affordance',
+    picked.pill === 'light it' && picked.phase === 'light',
+    JSON.stringify(picked),
+  );
+
+  await page.locator('.pill').tap();
+  await page.waitForTimeout(1400);
+  const lit = await chrome();
+  check(
+    'lighting it moves the rail off the flame and the row onto the draw',
+    lit.phase === 'puff' && lit.lit.join() === 'puff' && /\d+ \/ \d+/.test(lit.primary),
+    JSON.stringify(lit),
+  );
+
+  // Hold the pill: the arc is the draw itself, and the row counts seconds while it runs.
+  const box = await page.locator('.pill').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(900);
+  const drawing = await chrome();
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  check(
+    'holding the pill draws, and the row says so in seconds',
+    /\\d+\\.\\d+s/.test(drawing.alt) && drawing.arc !== lit.arc,
+    `lit=${lit.arc} drawing=${drawing.arc} alt=${drawing.alt}`,
+  );
+
+  check('chrome: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+}
+
 // ------------------------------------------------------------ three tiers on one scene (§9)
 {
   // A device that asks for Chinese gets Chinese with nobody opening a sheet: the first tier is
@@ -857,11 +952,11 @@ const hintCentre = async (page) => {
   const after = await page.evaluate(() => ({
     lang: document.documentElement.lang,
     hint: document.querySelector('.hint')?.textContent?.trim() ?? '',
-    menu: document.querySelector('.chrome .menu')?.getAttribute('aria-label') ?? '',
+    menu: document.querySelector('.rail [data-tab="settings"]')?.getAttribute('aria-label') ?? '',
   }));
   check(
     'a wordless interface comes back wordless, still named for a screen reader',
-    after.lang === 'en' && after.hint === '' && after.menu === 'menu',
+    after.lang === 'en' && after.hint === '' && after.menu === 'settings',
     JSON.stringify(after),
   );
 

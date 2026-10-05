@@ -2,15 +2,17 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { createPuffly } from './composables/usePuffly';
 import { ANCHOR_LOCALE, STATE_KEYS } from './i18n';
-import ChromeBar from './components/ChromeBar.vue';
-import MenuSheet from './components/MenuSheet.vue';
+import HudBar from './components/HudBar.vue';
+import CtaPill from './components/CtaPill.vue';
+import TabRail from './components/TabRail.vue';
 import SettingsSheet from './components/SettingsSheet.vue';
 import SessionSheet from './components/SessionSheet.vue';
 import CollectionSheet from './components/CollectionSheet.vue';
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const game = createPuffly();
-type SheetName = 'none' | 'menu' | 'break' | 'shelf' | 'settings';
+/** The three sheets the rail and the head-up row can call up. The menu is gone: the rail is the menu. */
+type SheetName = 'none' | 'break' | 'shelf' | 'settings';
 const sheet = ref<SheetName>('none');
 
 // A swipe down folds the interface, and a sheet left open is the loudest part of it.
@@ -22,6 +24,12 @@ watch(
 );
 
 const summary = computed(() => game.summary.value);
+
+/**
+ * Whether the chrome is on screen. The core decides this once (`ui.controlsVisible`) so the head-up
+ * row, the pill and the rail all fold together and none of them can invent its own timer (§10).
+ */
+const chrome = computed(() => summary.value.controlsVisible || sheet.value !== 'none');
 
 /**
  * Screen-reader prose lives here and nowhere else (§4, §64): a blind user hears the state, a
@@ -64,7 +72,12 @@ function openSheet(next: SheetName): void {
 </script>
 
 <template>
-  <main class="stage" :data-cues="summary.cueChannel" :data-break="summary.clock">
+  <main
+    class="stage"
+    :data-cues="summary.cueChannel"
+    :data-break="summary.clock"
+    :data-phase="summary.phase"
+  >
     <canvas ref="canvas" tabindex="0" :aria-label="announced" />
 
     <p
@@ -76,19 +89,15 @@ function openSheet(next: SheetName): void {
       {{ summary.hint?.word }}
     </p>
 
-    <ChromeBar
-      :visible="summary.controlsVisible || sheet !== 'none'"
-      :open="sheet === 'menu'"
-      :fresh="summary.fresh.length"
-      :copy="game.copy.value"
-      @open="openSheet('menu')"
-    />
+    <HudBar v-show="chrome" :game="game" @shelf="openSheet('shelf')" @break="openSheet('break')" />
 
-    <MenuSheet
-      :open="sheet === 'menu'"
-      :copy="game.copy.value"
-      @close="sheet = 'none'"
-      @open="openSheet"
+    <CtaPill v-show="chrome" :game="game" />
+
+    <TabRail
+      v-show="chrome"
+      :game="game"
+      :settings-open="sheet === 'settings'"
+      @settings="openSheet('settings')"
     />
 
     <SessionSheet :open="sheet === 'break'" :game="game" @close="sheet = 'none'" />
