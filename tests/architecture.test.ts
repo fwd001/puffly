@@ -79,6 +79,20 @@ const BANNED_PACKAGE_IMPORTS = [
 /** What an adapter must never do: drive the simulation it is supposed to observe (§48). */
 const FORBIDDEN_FOR_ADAPTERS = ['createEngine', 'replaySession', 'EngineOptions'];
 
+/**
+ * §9 of the mobile brief: the player's language is a preference the pure layer only carries.
+ * A simulation that read it could burn differently on two machines, which would break §71's
+ * replay, and a renderer that read it would mirror the scene for right-to-left scripts — the
+ * one thing the brief says must never mirror.
+ */
+const LANGUAGE_UNAWARE = [
+  'packages/shared',
+  'packages/game-core',
+  'packages/game-renderer',
+  'packages/game-statistics',
+];
+const LANGUAGE_READ = /\.language\b|\blocale\b|\brtl\b/gi;
+
 function sources(dir: string): string[] {
   const absolute = join(root, dir);
   const found: string[] = [];
@@ -147,6 +161,20 @@ function scanPure(dir: string): string[] {
   );
 }
 
+/** A file that *chooses* words by the player's language, rather than only carrying the choice. */
+export function scanLanguageUse(rel: string, raw: string): string[] {
+  const code = stripComments(raw);
+  const hits = [...code.matchAll(LANGUAGE_READ)].map((match) => match[0].toLowerCase());
+  if (hits.length === 0) return [];
+  return [`${rel}: reads the player's language (${[...new Set(hits)].join(', ')})`];
+}
+
+function scanLanguageUnaware(dir: string): string[] {
+  return sources(dir).flatMap((file) =>
+    scanLanguageUse(relative(root, file), readFileSync(file, 'utf8')),
+  );
+}
+
 function scanAdapter(dir: string): string[] {
   const files = sources(dir);
   const code = files.map((file) => stripComments(readFileSync(file, 'utf8'))).join('\n');
@@ -169,6 +197,28 @@ describe('§73 architecture guards', () => {
 
   it.each(PURE_PACKAGES)('%s never touches a platform API', (dir) => {
     expect(scanPure(dir)).toEqual([]);
+  });
+
+  it.each(LANGUAGE_UNAWARE)("%s carries the player's language but never reads it", (dir) => {
+    expect(sources(dir).length, dir).toBeGreaterThan(0);
+    expect(scanLanguageUnaware(dir)).toEqual([]);
+  });
+
+  it('the language guard can fail, and does not fire on a field that is only carried', () => {
+    const offending = [
+      { label: 'a settings read', code: 'const speak = settings.language;' },
+      { label: 'a device read', code: 'const pick = navigator.language;' },
+      { label: 'a locale variable', code: 'let locale = "ar";' },
+      { label: 'a mirrored scene', code: 'const rtl = true; ctx.scale(rtl ? -1 : 1, 1);' },
+    ];
+    for (const item of offending) {
+      expect(scanLanguageUse('sample.ts', item.code), item.label).not.toEqual([]);
+    }
+
+    // The honest pass-through: a field that exists and is never read from.
+    expect(
+      scanLanguageUse('sample.ts', 'export interface Settings { language?: string; }'),
+    ).toEqual([]);
   });
 
   it('the scanner itself reports every shape it claims to catch', () => {

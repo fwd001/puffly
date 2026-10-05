@@ -6,7 +6,7 @@
  * re-render on a human scale instead of once per particle (§54, §81 (9), §81 (10)).
  */
 
-import { onBeforeUnmount, ref, type Ref } from 'vue';
+import { computed, onBeforeUnmount, ref, type ComputedRef, type Ref } from 'vue';
 import { formatClock } from '@puffly/shared';
 import {
   anchorForTarget,
@@ -48,6 +48,7 @@ import {
   createSurfaceGuard,
   targetForAffordance,
 } from './useInputAdapters';
+import { HINT_KEYS, createI18n, resolveLocale, type I18n, type LocaleCode } from '../i18n';
 
 /** How often chrome is allowed to re-render (§54). */
 const SUMMARY_INTERVAL_MS = 200;
@@ -98,18 +99,14 @@ function startingTier(): QualityMode {
   return cores <= 4 ? 'light' : 'balanced';
 }
 
-/**
- * §28: the only words the product shows. One verb, naming the gesture the scene is already
- * nudging — because a halo says *something* is next and a word says which finger movement.
- */
-const HINT_WORDS: Record<string, string> = {
-  pick: 'tap',
-  lighter: 'light',
-  puff: 'hold',
-  flick: 'flick',
-  extinguish: 'press',
-  discard: 'drop',
-};
+/** The device's own list, preferred language first. Empty on a shell with no navigator. */
+function deviceLanguages(): string[] {
+  if (typeof navigator === 'undefined') return [];
+  const listed = navigator.languages ?? [];
+  const out = [...listed];
+  if (typeof navigator.language === 'string') out.push(navigator.language);
+  return out;
+}
 
 /** Where a hint word sits: CSS pixels on the stage, above the thing it names. */
 export interface HintWord {
@@ -143,6 +140,10 @@ export interface Puffly {
   ready: Ref<boolean>;
   summary: Ref<Summary>;
   settings: Ref<Settings>;
+  /** Which of §9's three tiers the interface is on right now. */
+  locale: ComputedRef<LocaleCode>;
+  /** Every word the shell is allowed to use, resolved once so all of them agree (§9). */
+  copy: ComputedRef<I18n>;
   stats: Ref<Statistics>;
   today: Ref<TodayView | null>;
   journey: Ref<JourneyStop[]>;
@@ -205,6 +206,15 @@ export function createPuffly(): Puffly {
   const audioAvailable = ref(false);
   const storageDegraded = ref(false);
   const canVibrate = ref(typeof navigator !== 'undefined' && 'vibrate' in navigator);
+
+  /**
+   * §9's three tiers, resolved from the player's own request and the device's list. Read from
+   * `settings.language` only — a language is a preference, and the engine never sees it (§73).
+   */
+  const locale = computed<LocaleCode>(() =>
+    resolveLocale(settings.value.language, deviceLanguages()),
+  );
+  const copy = computed<I18n>(() => createI18n(locale.value));
 
   /**
    * A vibration is the one feedback a phone can give that a monitor cannot (§30). It marks the
@@ -302,10 +312,13 @@ export function createPuffly(): Puffly {
   /**
    * The one word the scene is allowed to say, sitting above the object it is about. It follows
    * the same awake/asleep rule as the halo it labels, and settings can take it away (§28, §64).
+   * The `icons` tier takes it away by default: `t()` answers with nothing, and the halo is the
+   * whole instruction.
    */
   const hintWord = (state: GameStateView): HintWord | null => {
-    const word = HINT_WORDS[state.ui.affordance];
-    if (word === undefined || !settings.value.hints || !state.ui.controlsVisible) return null;
+    const key = HINT_KEYS[state.ui.affordance];
+    const word = key === undefined ? null : copy.value.t(key);
+    if (word === null || !settings.value.hints || !state.ui.controlsVisible) return null;
     const anchor = anchorForTarget(state.anchors, targetForAffordance(state));
     if (anchor === null) return null;
     const at = viewport.px(anchor);
@@ -658,6 +671,8 @@ export function createPuffly(): Puffly {
     ready,
     summary,
     settings,
+    locale,
+    copy,
     stats,
     today,
     journey,

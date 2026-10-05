@@ -91,6 +91,12 @@ break through it: any write would throw a TypeError instead of corrupting the si
   with `LighterContent.failureChance`.
 - The ashtray catch radius, the flick threshold and the particle budget are each named once and
   read from there.
+- A storage reader may only drop a field it has a replacement for. `readSettings` and
+  `cloneSettings` both rebuild `Settings` from a typed-out list of keys, which is how a player's
+  chosen item and their chosen language came to vanish on the next reload while the memory
+  fallback — which hands back the object it was given — kept both. The two adapters are now pinned
+  to the same fixture (`makeChosenSettings`), so a field that is not listed in both places is a
+  failing test rather than a silent loss.
 
 ## Determinism and replay
 
@@ -131,7 +137,14 @@ for a few seconds after a touch, and the three words behind it (`this break`, `t
   gets the same behaviour for free (§10);
 - **the scene's numbers live inside the scene's sheets.** The break's clock is a row in `this
   break`, not an overlay, and the stage mirrors it as `data-break` for the same reason the cue
-  channel is mirrored as `data-cues`: a fact nothing can read is a fact nothing can check.
+  channel is mirrored as `data-cues`: a fact nothing can read is a fact nothing can check;
+- **a language is a preference the core carries and never reads.** `Settings.language` travels with
+  the save so a phone and a desktop agree after a sync, and every word is chosen in
+  `apps/web/src/i18n` — target language, then English, then no visible word at all. Two things
+  follow, and both are enforced: a test scans the pure layer for any read of a language, because a
+  simulation that picked words could burn differently on two machines and would break §71's replay;
+  and right-to-left mirrors the sheets (logical CSS properties only) and never the stage, because
+  the rod burns the same way whichever way you read.
 
 ## Performance
 

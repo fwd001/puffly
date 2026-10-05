@@ -12,9 +12,13 @@
  *
  *   node tests/smoke/touch-device.mjs http://localhost:5175/
  *
- * Playwright and a Chrome-compatible binary are resolved from the environment, because neither
- * is a dependency of the game:
+ * Playwright and a browser binary are resolved from the environment, because neither is a
+ * dependency of the game:
  *   PUFFLY_PLAYWRIGHT=/path/to/playwright/index.mjs  PUFFLY_CHROME=/path/to/chrome
+ *   PUFFLY_BROWSER=chromium|webkit|firefox           (default: chromium)
+ * Chromium is the engine the product ships on and the one worth installing for this check; the
+ * other two are here because a machine with only Playwright's WebKit bundle should still be able
+ * to run the gestures rather than report "not run".
  *
  * It exits 1 with a message when a check fails, and 3 when it could not run at all — a check
  * that silently skips is worse than one that does not exist.
@@ -23,6 +27,7 @@
 const URL_ARG = process.argv[2] ?? 'http://localhost:5175/';
 const PLAYWRIGHT_SPEC = process.env['PUFFLY_PLAYWRIGHT'] ?? 'playwright';
 const CHROME = process.env['PUFFLY_CHROME'];
+const ENGINE = process.env['PUFFLY_BROWSER'] ?? 'chromium';
 
 const results = [];
 const check = (name, ok, detail = '') => {
@@ -30,28 +35,33 @@ const check = (name, ok, detail = '') => {
   console.log(`${ok ? 'ok  ' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-let chromium;
+let browserType;
 try {
-  ({ chromium } = await import(PLAYWRIGHT_SPEC));
+  const playwright = await import(PLAYWRIGHT_SPEC);
+  browserType = playwright[ENGINE];
+  if (browserType === undefined) throw new Error(`no such engine: ${ENGINE}`);
 } catch {
   console.error(
-    `cannot import Playwright from ${JSON.stringify(PLAYWRIGHT_SPEC)}.\n` +
+    `cannot import Playwright's ${JSON.stringify(ENGINE)} from ${JSON.stringify(PLAYWRIGHT_SPEC)}.\n` +
       'Set PUFFLY_PLAYWRIGHT to a playwright entry point (an absolute path to its index.mjs is\n' +
-      'always fine) and PUFFLY_CHROME to a Chrome/Chromium binary. Not run, so nothing is proven.',
+      'always fine) and PUFFLY_CHROME to a browser binary. Not run, so nothing is proven.',
   );
   process.exit(3);
 }
 
+/** `PUFFLY_CHROME` is any engine's own binary: it points a check at the browser on this machine. */
 const launchOptions = CHROME ? { executablePath: CHROME } : {};
 let browser;
 try {
-  browser = await chromium.launch(launchOptions);
+  browser = await browserType.launch(launchOptions);
 } catch (error) {
   console.error(
-    `cannot launch the browser: ${error.message}\nSet PUFFLY_CHROME to a Chrome binary.`,
+    `cannot launch ${ENGINE}: ${error.message}\n` +
+      'Set PUFFLY_CHROME to a Chrome/Chromium binary, or PUFFLY_BROWSER to an engine that is installed.',
   );
   process.exit(3);
 }
+console.log(`engine: ${ENGINE}`);
 
 /** Where the tall (portrait) and wide (landscape) prop tables put things, in stage units. */
 const LAYOUTS = {
@@ -59,12 +69,13 @@ const LAYOUTS = {
   wide: { rod: [0.33, 0.86], lighter: [0.075, 0.66], held: [0.52, 0.5], tray: [0.815, 0.8] },
 };
 
-async function openPhone({ width, height, dpr }) {
+async function openPhone({ width, height, dpr, locale }) {
   const context = await browser.newContext({
     viewport: { width, height },
     deviceScaleFactor: dpr,
     isMobile: true,
     hasTouch: true,
+    ...(locale === undefined ? {} : { locale }),
   });
   const page = await context.newPage();
   const errors = [];
@@ -240,17 +251,33 @@ async function waitChannel(page, want, withinMs = 5000) {
   }
 }
 
-/** The one way into anything: the mark at the bottom, then the word it opens. */
-async function openSheet(page, word, mouse = false) {
-  const mark = page.locator('.chrome button[aria-label="menu"]');
+/**
+ * The one way into anything: the mark at the bottom, then the entry it opens.
+ *
+ * Both halves are addressed by the hooks the components mirror (`data-entry`, `.menu`) rather
+ * than by their labels, because from here on the labels are in whatever language the tier under
+ * test asked for — and a check that only passes in English proves nothing about the other two.
+ */
+async function openSheet(page, id, mouse = false) {
+  const mark = page.locator('.chrome .menu');
   if (mouse) await mark.click();
   else await mark.tap();
   await page.waitForTimeout(420);
-  const entry = page.locator('.sheet--menu .entry', { hasText: word });
+  const entry = page.locator(`.sheet--menu .entry[data-entry="${id}"]`);
   if (mouse) await entry.click();
   else await entry.tap();
   await page.waitForTimeout(460);
 }
+
+/**
+ * The mark a hint word is anchored to, as a centre. The word itself is a different width in
+ * every language — `点` is not `tap` — so the left edge proves nothing; the point the word is
+ * hanging off is the fact that must not move when the text changes direction.
+ */
+const hintCentre = async (page) => {
+  const box = await page.locator('.hint').boundingBox();
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+};
 
 // -------------------------------------------------------------------- portrait
 {
@@ -425,12 +452,9 @@ async function openSheet(page, word, mouse = false) {
 
   // An open sheet must leave the bar that opened it reachable. The bottom-anchored panel used to
   // paint over all three chrome buttons, so on a phone the middle one went dead once it was open.
-  await openSheet(page, 'the shelf');
+  await openSheet(page, 'shelf');
   const covered = await page.evaluate(() =>
-    [
-      '.chrome button[aria-label="menu"]',
-      '.sheet[data-open="true"] button[aria-label="close"]',
-    ].filter((selector) => {
+    ['.chrome .menu', '.sheet[data-open="true"] .close'].filter((selector) => {
       const btn = document.querySelector(selector);
       const r = btn.getBoundingClientRect();
       const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
@@ -442,13 +466,13 @@ async function openSheet(page, word, mouse = false) {
 
   await openSheet(page, 'settings');
   const switched = await page.evaluate(() =>
-    [...document.querySelectorAll('.sheet[data-open="true"]')].map((el) =>
-      el.getAttribute('aria-label'),
+    [...document.querySelectorAll('.sheet[data-open="true"]')].map(
+      (el) => `${el.dataset.sheet ?? 'unnamed'}/${el.getAttribute('aria-label') ?? ''}`,
     ),
   );
   check(
-    'the menu replaces the sheet that was open, and names itself in words',
-    switched.join(',') === 'Settings',
+    'the menu replaces the sheet that was open, and every sheet still has a name',
+    switched.length === 1 && switched[0].startsWith('settings/') && !switched[0].endsWith('/'),
     switched.join(','),
   );
 
@@ -464,8 +488,8 @@ async function openSheet(page, word, mouse = false) {
 
   // §64: the word is a setting, not a fixture. Off has to mean off on the stage too, not just
   // in the sheet, and turning it off must not leave any other text behind.
-  await page.locator('.sheet[data-open="true"] button[aria-label="hint words"]').tap();
-  await page.locator('.sheet[data-open="true"] button[aria-label="close"]').tap();
+  await page.locator('.sheet[data-open="true"] [data-setting="hints"]').tap();
+  await page.locator('.sheet[data-open="true"] .close').tap();
   await page.waitForTimeout(600);
   const quiet = await stageWords(page);
   check(
@@ -685,7 +709,7 @@ async function openSheet(page, word, mouse = false) {
   const afterGesture = await waitChannel(page, 'audio');
 
   await openSheet(page, 'settings');
-  const sound = page.locator('.sheet[data-open="true"] button[aria-label="sound level"]');
+  const sound = page.locator('.sheet[data-open="true"] [data-setting="sound"]');
   // Three steps — enough, a little, none — walked until the picture takes over, rather than a
   // fixed number of taps that assumes where the cycle started.
   let muted = await cueChannel(page);
@@ -695,7 +719,7 @@ async function openSheet(page, word, mouse = false) {
   }
   await sound.tap();
   const unmuted = await waitChannel(page, 'audio');
-  await page.locator('.sheet[data-open="true"] button[aria-label="close"]').tap();
+  await page.locator('.sheet[data-open="true"] .close').tap();
 
   check(
     'the picture carries the cues until the browser allows sound, and whenever the player mutes',
@@ -705,6 +729,143 @@ async function openSheet(page, word, mouse = false) {
       unmuted,
   );
   check('silent: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+}
+
+// ------------------------------------------------------------ three tiers on one scene (§9)
+{
+  // A device that asks for Chinese gets Chinese with nobody opening a sheet: the first tier is
+  // the device's own list, and the one word on the stage is the cheapest place to see it land.
+  const { page, errors, context } = await openPhone({
+    width: 393,
+    height: 852,
+    dpr: 3,
+    locale: 'zh-Hans-CN',
+  });
+
+  const zh = await stageWords(page);
+  check(
+    'a Chinese device reads the Chinese verb',
+    zh.hint === '点' && zh.other.length === 0,
+    JSON.stringify(zh),
+  );
+  const zhHint = await hintCentre(page);
+
+  await openSheet(page, 'settings');
+  const sheet = () => page.locator('.sheet[data-open="true"]');
+  const rows = async () =>
+    (await sheet().locator('.label').allTextContents()).map((line) => line.trim());
+  const closeLtr = await sheet().locator('.close').boundingBox();
+  const zhRows = await rows();
+  const zhControls = await sheet().locator('button').count();
+  check(
+    'the sheet asks for the player in the device language',
+    zhRows.includes('烟雾') && zhRows.every((row) => row.length > 0),
+    zhRows.join(' | '),
+  );
+
+  // Tier two, right-to-left. The Arabic table is deliberately partial, so a player sees two
+  // tongues at once — and the thing that must not follow the text is the scene.
+  await sheet().locator('[data-language="ar"]').tap();
+  await page.waitForTimeout(520);
+  const doc = await page.evaluate(() => ({
+    lang: document.documentElement.lang,
+    dir: document.documentElement.dir,
+  }));
+  check(
+    'a right-to-left language turns the document, and only the document',
+    doc.lang === 'ar' && doc.dir === 'rtl',
+    JSON.stringify(doc),
+  );
+
+  const arRows = await rows();
+  check(
+    'a partial language falls to English in the same sheet, never to a blank row',
+    arRows.some((row) => /[؀-ۿ]/.test(row)) &&
+      arRows.some((row) => /^[A-Za-z ]+$/.test(row)) &&
+      arRows.every((row) => row.length > 0),
+    arRows.join(' | '),
+  );
+
+  const closeRtl = await sheet().locator('.close').boundingBox();
+  check(
+    'the sheet mirrors itself, so the close button crosses to the other edge',
+    closeRtl.x < closeLtr.x - 20,
+    `left-to-right x=${Math.round(closeLtr.x)} → right-to-left x=${Math.round(closeRtl.x)}`,
+  );
+
+  await sheet().locator('.close').tap();
+  await page.waitForTimeout(420);
+  const arHint = await hintCentre(page);
+  const arWord = await stageWords(page);
+  check(
+    'the scene does not mirror: the verb hangs off the same point it did in Chinese',
+    Math.abs(arHint.x - zhHint.x) < 2 && Math.abs(arHint.y - zhHint.y) < 2 && arWord.hint === 'tap',
+    `x=${Math.round(arHint.x)} vs ${Math.round(zhHint.x)}, word=${arWord.hint}`,
+  );
+
+  // Tier three is a whole interface, not a colour: the same controls, the same positions, no
+  // words anywhere — and every one of them still named for a screen reader (§64).
+  await openSheet(page, 'settings');
+  await sheet().locator('[data-language="icons"]').tap();
+  await page.waitForTimeout(520);
+  const icons = await page.evaluate(() => {
+    const sheet = document.querySelector('.sheet[data-open="true"]');
+    const blank = [...sheet.querySelectorAll('[aria-label]')].filter(
+      (el) => (el.getAttribute('aria-label') ?? '').trim() === '',
+    );
+    return {
+      labels: sheet.querySelectorAll('.label').length,
+      subs: sheet.querySelectorAll('.sub, .word').length,
+      controls: sheet.querySelectorAll('button').length,
+      // Both directions, or the empty-name count below is a vacuous zero: a control that lost
+      // its `aria-label` attribute altogether would look exactly as wordless as one that kept it.
+      named: sheet.querySelectorAll('[aria-label]:not([aria-label=""])').length,
+      blank: blank.length,
+      lang: document.documentElement.lang,
+      dir: document.documentElement.dir,
+    };
+  });
+  check(
+    'the third tier leaves no words and no unnamed control behind, with the sheet still there',
+    icons.labels === 0 &&
+      icons.subs === 0 &&
+      icons.blank === 0 &&
+      icons.named >= 8 &&
+      icons.controls === zhControls,
+    JSON.stringify(icons),
+  );
+  check(
+    'wordless still reads left-to-right, under the anchor language tag',
+    icons.lang === 'en' && icons.dir === 'ltr',
+    `${icons.lang}/${icons.dir}`,
+  );
+
+  await sheet().locator('.close').tap();
+  await page.waitForTimeout(420);
+  const quiet = await stageWords(page);
+  check(
+    'with no words the stage says the gesture with the halo alone',
+    quiet.hint === '' && quiet.other.length === 0,
+    JSON.stringify(quiet),
+  );
+
+  // The choice is a preference, so it comes back — which is the same read path that dropped the
+  // player's chosen rod until this round.
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(900);
+  const after = await page.evaluate(() => ({
+    lang: document.documentElement.lang,
+    hint: document.querySelector('.hint')?.textContent?.trim() ?? '',
+    menu: document.querySelector('.chrome .menu')?.getAttribute('aria-label') ?? '',
+  }));
+  check(
+    'a wordless interface comes back wordless, still named for a screen reader',
+    after.lang === 'en' && after.hint === '' && after.menu === 'menu',
+    JSON.stringify(after),
+  );
+
+  check('three tiers: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 }
 

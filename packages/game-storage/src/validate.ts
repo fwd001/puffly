@@ -21,6 +21,7 @@ import {
   type Progress,
   type QualityMode,
   type SaveFile,
+  type Selection,
   type Session,
   type SessionEvent,
   type Settings,
@@ -45,7 +46,7 @@ const TIME_OF_DAY_VALUES: readonly TimeOfDayId[] = [
   'late-night',
 ];
 const WEATHER_VALUES: readonly WeatherId[] = ['clear', 'cloudy', 'rain', 'wind', 'storm'];
-const INPUT_TYPES: readonly InputType[] = ['tap', 'hold', 'release', 'drag', 'swipe'];
+const INPUT_TYPES: readonly InputType[] = ['tap', 'hold', 'release', 'drag', 'swipe', 'pinch'];
 const INPUT_SOURCES: readonly InputSource[] = ['pointer', 'touch', 'mouse', 'keyboard', 'shortcut'];
 const INPUT_TARGETS: readonly InputTarget[] = [
   'cigarette',
@@ -175,6 +176,51 @@ function booleanWithDefault(
   return value;
 }
 
+/**
+ * The four ids the cabinet writes, or nothing at all. A half-written selection is reported
+ * rather than kept: a rod with no ashtray is not a preference anyone chose.
+ */
+function optionalSelection(
+  source: Record<string, unknown>,
+  path: string,
+  errors: ValidationErrors,
+): Selection | undefined {
+  const value: unknown = source['selection'];
+  if (value === undefined) return undefined;
+  const record = requireRecord(value, `${path}.selection`, errors);
+  if (record === null) return undefined;
+  const at = `${path}.selection`;
+  const cigarette = requireString(record, 'cigarette', at, errors);
+  const environment = requireString(record, 'environment', at, errors);
+  const lighter = requireString(record, 'lighter', at, errors);
+  const ashtray = requireString(record, 'ashtray', at, errors);
+  if (cigarette === null || environment === null || lighter === null || ashtray === null) {
+    return undefined;
+  }
+  return { cigarette, environment, lighter, ashtray };
+}
+
+/**
+ * A language tag, or the literal `icons`. Deliberately not checked against a list: which
+ * languages exist is the shell's copy table, and an unreadable value simply means "ask the
+ * device" there. Long enough for a tag, short enough that nonsense cannot fill a save.
+ */
+const MAX_LANGUAGE_LENGTH = 20;
+
+function optionalLanguage(
+  source: Record<string, unknown>,
+  path: string,
+  errors: ValidationErrors,
+): string | undefined {
+  const value: unknown = source['language'];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_LANGUAGE_LENGTH) {
+    fail(errors, `${path}.language`, 'expected a short language tag or nothing at all');
+    return undefined;
+  }
+  return value;
+}
+
 function requireOneOf<K extends string>(
   source: Record<string, unknown>,
   key: string,
@@ -184,7 +230,6 @@ function requireOneOf<K extends string>(
 ): K | null {
   return pickOneOf(source[key], allowed, `${path}.${key}`, errors);
 }
-
 function pickOneOf<K extends string>(
   value: unknown,
   allowed: readonly K[],
@@ -589,6 +634,8 @@ export function readSettings(
   const haptics = requireBoolean(record, 'haptics', path, errors);
   // A save written before §28's hint word existed has no opinion about it: the default stands.
   const hints = booleanWithDefault(record, 'hints', true, path, errors);
+  const selection = optionalSelection(record, path, errors);
+  const language = optionalLanguage(record, path, errors);
 
   if (
     volume === null ||
@@ -628,6 +675,8 @@ export function readSettings(
     Number.MAX_SAFE_INTEGER,
   );
   if (quitAnchor !== undefined) settings.quitAnchorTimestamp = quitAnchor;
+  if (selection !== undefined) settings.selection = selection;
+  if (language !== undefined) settings.language = language;
   return settings;
 }
 

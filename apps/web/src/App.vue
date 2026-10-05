@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { createPuffly } from './composables/usePuffly';
+import { ANCHOR_LOCALE, STATE_KEYS } from './i18n';
 import ChromeBar from './components/ChromeBar.vue';
 import MenuSheet from './components/MenuSheet.vue';
 import SettingsSheet from './components/SettingsSheet.vue';
@@ -29,23 +30,29 @@ const summary = computed(() => game.summary.value);
  * because the label below already says the same thing out loud.
  */
 const announced = computed(() => {
+  const copy = game.copy.value;
   const state = summary.value.state;
-  if (!state) return 'Puffly';
-  const words: Record<string, string> = {
-    IDLE: 'a cigarette rests on the table',
-    PICKED_UP: 'held, not lit',
-    LIGHTING: 'lighting',
-    BURNING: 'burning',
-    PUFFING: 'drawing',
-    RESTING: 'resting between puffs',
-    ASH_READY: 'the ash is long',
-    NEAR_END: 'nearly finished',
-    EXTINGUISHING: 'putting it out',
-    EXTINGUISHED: 'out',
-    DISCARDED: 'in the tray',
-  };
-  return `Puffly — ${words[state.cigarette.state] ?? state.cigarette.state}`;
+  const name = copy.say('app.name');
+  if (!state) return name;
+  const key = STATE_KEYS[state.cigarette.state];
+  return `${name} — ${key === undefined ? state.cigarette.state : copy.say(key)}`;
 });
+
+/**
+ * §9's third tier is a whole interface, not a colour: the document itself has to say which
+ * language it is in and which way it reads, or a screen reader spells Arabic as Latin and a
+ * sheet lays itself out in the wrong direction. The scene never follows — only the chrome does.
+ */
+watch(
+  game.locale,
+  (locale) => {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    root.lang = locale === 'icons' ? ANCHOR_LOCALE : locale;
+    root.dir = game.copy.value.rtl ? 'rtl' : 'ltr';
+  },
+  { immediate: true },
+);
 
 onMounted(() => {
   if (canvas.value) void game.attach(canvas.value);
@@ -73,10 +80,16 @@ function openSheet(next: SheetName): void {
       :visible="summary.controlsVisible || sheet !== 'none'"
       :open="sheet === 'menu'"
       :fresh="summary.fresh.length"
+      :copy="game.copy.value"
       @open="openSheet('menu')"
     />
 
-    <MenuSheet :open="sheet === 'menu'" @close="sheet = 'none'" @open="openSheet" />
+    <MenuSheet
+      :open="sheet === 'menu'"
+      :copy="game.copy.value"
+      @close="sheet = 'none'"
+      @open="openSheet"
+    />
 
     <SessionSheet :open="sheet === 'break'" :game="game" @close="sheet = 'none'" />
     <CollectionSheet :open="sheet === 'shelf'" :game="game" @close="sheet = 'none'" />

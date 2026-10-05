@@ -6,7 +6,14 @@
 import { describe, expect, it } from 'vitest';
 import { SAVE_SCHEMA_VERSION, SessionEventType, type SaveFile } from '@puffly/game-core';
 import { exportSaveFile, parseSaveFile, serializeSaveFile } from '../save';
-import { isRecord, validateSaveFile, MAX_REPORTED_ISSUES, type SaveFileResult } from '../validate';
+import {
+  isRecord,
+  readSession,
+  readSettings,
+  validateSaveFile,
+  MAX_REPORTED_ISSUES,
+  type SaveFileResult,
+} from '../validate';
 import {
   JSON_BUT_NOT_A_SAVE,
   NOT_JSON,
@@ -241,5 +248,68 @@ describe('parseSaveFile: hostile input never throws (§63)', () => {
     const json = serializeSaveFile(save);
     expect(json).toContain('"dayNumber": null');
     expectRejected(parseSaveFile(json), 'dayNumber');
+  });
+});
+
+/**
+ * The rebuild-on-read rule: a reader may only drop a field it has a replacement for. Anything
+ * else is a player's choice lost on the next reload, and the memory adapter — which hands the
+ * stored object back untouched — would keep it, so the two paths must agree.
+ */
+describe('what a reader keeps (§64, §49)', () => {
+  const selection = {
+    cigarette: 'long-thin',
+    environment: 'balcony',
+    lighter: 'wheel',
+    ashtray: 'stone',
+  };
+
+  it("keeps the item in the player's hand and the words they asked for", () => {
+    const errors: string[] = [];
+    const kept = readSettings(
+      { ...makeSettings(), selection, language: 'zh-CN' },
+      'settings',
+      errors,
+    );
+    expect(errors).toEqual([]);
+    expect(kept?.selection).toEqual(selection);
+    expect(kept?.language).toBe('zh-CN');
+  });
+
+  it('leaves an untouched preference absent, so the shell still asks the device', () => {
+    const errors: string[] = [];
+    const plain = readSettings(makeSettings(), 'settings', errors);
+    expect(errors).toEqual([]);
+    expect(plain && 'language' in plain).toBe(false);
+    expect(plain && 'selection' in plain).toBe(false);
+  });
+
+  it('reports a half-written selection instead of keeping the half it likes', () => {
+    const errors: string[] = [];
+    const broken = readSettings(
+      { ...makeSettings(), selection: { cigarette: 'long-thin' } },
+      'settings',
+      errors,
+    );
+    expect(errors.join(' | ')).toContain('selection');
+    expect(broken?.selection).toBeUndefined();
+  });
+
+  it('round-trips a saved break through an export and back', () => {
+    const save = makeSave();
+    save.settings = { ...makeSettings(), selection, language: 'ar' };
+    const parsed = parseSaveFile(serializeSaveFile(save));
+    if (!parsed.ok) throw new Error(`unexpected problems: ${parsed.errors.join(' | ')}`);
+    expect(parsed.save.settings.selection).toEqual(selection);
+    expect(parsed.save.settings.language).toBe('ar');
+  });
+
+  it('keeps a pinch in the replay, because a two-finger close is an input like any other (§49)', () => {
+    const session = makeSession({ id: 'ses-pinch', startedAt: at(9, 4, 0), puffs: 1 });
+    session.inputs.push({ type: 'pinch', x: 0.52, y: 0.41, timestamp: 21_000, source: 'touch' });
+    const errors: string[] = [];
+    const read = readSession(session, 'sessions[0]', errors);
+    expect(errors).toEqual([]);
+    expect(read?.inputs.map((input) => input.type)).toContain('pinch');
   });
 });

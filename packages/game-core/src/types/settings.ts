@@ -24,6 +24,13 @@ export interface Settings {
    * missed gesture — and the only text the game ever shows.
    */
   hints: boolean;
+  /**
+   * §9 of the mobile brief: how the interface should speak — a language tag, or `icons` for no
+   * words at all. Absent means "ask the device", and the core only carries this value: picking
+   * the words is the shell's job, so a save can move between platforms without the simulation
+   * changing shape (§47).
+   */
+  language?: string;
   utcOffsetMinutes: number;
   /** §33: the player's own anchor for smoke-free days. Never inferred as a claim (§84). */
   quitAnchorTimestamp?: number;

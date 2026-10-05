@@ -6,22 +6,25 @@
  * page with a toolbar. Now the stage is the only thing at rest, and the way out of it appears in
  * the seconds after you touch something and then goes away.
  */
-defineProps<{
+import type { I18n } from '../i18n';
+
+const props = defineProps<{
   visible: boolean;
   /** Unread unlocks: the only reason the mark ever asks for attention. */
   fresh: number;
   open: boolean;
+  copy: I18n;
 }>();
 
 const emit = defineEmits<{ open: [] }>();
 </script>
 
 <template>
-  <nav class="chrome" :data-visible="visible" aria-label="Puffly">
+  <nav class="chrome" :data-visible="visible" :aria-label="props.copy.say('app.name')">
     <button
       class="icon-button menu"
       :aria-pressed="open"
-      aria-label="menu"
+      :aria-label="props.copy.say('a11y.menu')"
       :disabled="!visible"
       @click="emit('open')"
     >

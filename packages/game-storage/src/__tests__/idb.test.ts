@@ -26,7 +26,15 @@ import {
   type IdbStorage,
   type StorageIssue,
 } from '../idb';
-import { at, makeProfile, makeProgress, makeSave, makeSettings, sampleSessions } from './fixture';
+import {
+  at,
+  makeChosenSettings,
+  makeProfile,
+  makeProgress,
+  makeSave,
+  makeSettings,
+  sampleSessions,
+} from './fixture';
 
 /** Every test gets its own database, so none of them can see another's stores. */
 let counter = 0;
@@ -87,7 +95,7 @@ describe('createIdbStorage: round trips', () => {
   it('stores and reads the three singleton records', async () => {
     const storage = createIdbStorage({ databaseName: uniqueName('singletons') });
     const profile = makeProfile({ displayName: 'Local' });
-    const settings = { ...makeSettings(), quitAnchorTimestamp: at(1, 8, 0) };
+    const settings = makeChosenSettings();
     const progress = makeProgress();
 
     await storage.saveProfile(profile);

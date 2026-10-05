@@ -1,0 +1,92 @@
+/**
+ * The fallback chain, proven rather than asserted in prose — §9's three tiers.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { COPY, announce, isRtl, resolveLocale, translate } from '../index';
+import { EN, type CopyKey } from '../copy';
+
+const KEYS = Object.keys(EN) as CopyKey[];
+
+describe('three tiers: target language → English → icons (§9)', () => {
+  it('the anchor table is complete, because every key is defined against it', () => {
+    for (const key of KEYS) expect(EN[key]).to.be.a('string').and.not.equal('');
+  });
+
+  it('the shipped second language covers every key, so no player sees an English orphan', () => {
+    const missing = KEYS.filter((key) => typeof COPY['zh-CN']?.[key] !== 'string');
+    expect(missing, `missing zh-CN: ${missing.join(', ')}`).toEqual([]);
+  });
+
+  it('a partial language falls through to English rather than to nothing', () => {
+    expect(translate('ar', 'menu.settings')).toBe('الإعدادات');
+    expect(translate('ar', 'menu.break')).toBe('this break');
+    // The partial table is the point: it has to stay partial for this to mean anything.
+    expect(Object.keys(COPY.ar ?? {}).length).toBeLessThan(KEYS.length);
+  });
+
+  it('the third tier is reachable, and only for what a player reads with their eyes', () => {
+    expect(translate('icons', 'hint.pick')).toBeNull();
+    expect(translate('icons', 'menu.break')).toBeNull();
+    expect(announce('icons', 'a11y.close')).toBe('close');
+    expect(announce('icons', 'state.burning')).toBe('burning');
+  });
+
+  it('a missing key never produces an empty name for a screen reader', () => {
+    expect(announce('zh-CN', 'app.name')).toBe('Puffly');
+    expect(announce('zz-ZZ', 'a11y.menu')).toBe('menu');
+  });
+
+  it('a parameter is filled in whatever language answers', () => {
+    expect(translate('en', 'a11y.smokeOption', { word: 'soft' })).toBe('smoke soft');
+    expect(translate('zh-CN', 'a11y.smokeOption', { word: '稀' })).toBe('烟雾 稀');
+    expect(translate('ar', 'a11y.smokeOption', { word: 'x' })).toBe('smoke x');
+  });
+
+  it('right-to-left is a property of the language, not of the tier', () => {
+    expect(isRtl('ar')).toBe(true);
+    expect(isRtl('he')).toBe(true);
+    expect(isRtl('zh-CN')).toBe(false);
+    expect(isRtl('en')).toBe(false);
+    expect(isRtl('icons')).toBe(false);
+  });
+
+  it('the core loop is spelled with icons and digits, never a quantifier', () => {
+    // §9.2: 中文量词 lives in the 图鉴 and the 档案 only. A key inside the loop that carries one
+    // is the mistake this guards against.
+    const quantifiers = ['支', '口', '根', '次'];
+    const inLoop = KEYS.filter(
+      (key) => key.startsWith('hint.') || key.startsWith('menu.') || key.startsWith('state.'),
+    );
+    for (const key of inLoop) {
+      const chinese = COPY['zh-CN']?.[key] ?? '';
+      for (const unit of quantifiers) {
+        expect(chinese, `${key} = "${chinese}" uses the quantifier ${unit}`).not.toContain(unit);
+      }
+    }
+    // The quantifiers exist in the table, where the archive needs them.
+    expect(COPY['zh-CN']?.['unit.stick']).toBe('支');
+    expect(COPY['zh-CN']?.['unit.puff']).toBe('口');
+  });
+});
+
+/** §9's first tier is a question about the device, not about the table. */
+describe('which language a player ends up with', () => {
+  it('an explicit choice wins over the device, including the wordless tier', () => {
+    expect(resolveLocale('zh-CN', ['en-US'])).toBe('zh-CN');
+    expect(resolveLocale('icons', ['zh-CN'])).toBe('icons');
+  });
+
+  it('an absent or undecided choice follows the device, exactly first and then by family', () => {
+    expect(resolveLocale(undefined, ['en-US'])).toBe('en');
+    expect(resolveLocale(undefined, ['zh-Hans-CN', 'en'])).toBe('zh-CN');
+    expect(resolveLocale('auto', ['fr-FR', 'ar-EG'])).toBe('ar');
+  });
+
+  it('a device the table has no words for falls to the anchor, never to a blank', () => {
+    expect(resolveLocale(undefined, [])).toBe('en');
+    expect(resolveLocale('th-TH', ['th-TH'])).toBe('en');
+    // The anchor is a language with a complete table, not the tier that says nothing.
+    expect(announce(resolveLocale(undefined, ['de-DE']), 'menu.break')).toBe('this break');
+  });
+});

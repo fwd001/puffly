@@ -19,6 +19,9 @@ import type { Puffly } from '../composables/usePuffly';
 const props = defineProps<{ open: boolean; game: Puffly }>();
 const emit = defineEmits<{ close: [] }>();
 
+/** Item names are content data, not copy: an archive entry is spelled the way it ships (§9). */
+const copy = computed(() => props.game.copy.value);
+
 const SHELF: readonly { category: string; glyph: string }[] = [
   { category: CollectionCategory.CIGARETTES, glyph: '—' },
   { category: CollectionCategory.LIGHTERS, glyph: '△' },
@@ -86,10 +89,18 @@ watch(
 </script>
 
 <template>
-  <section ref="root" class="sheet" :data-open="open" aria-label="Collection">
+  <section
+    ref="root"
+    class="sheet"
+    data-sheet="shelf"
+    :data-open="open"
+    :aria-label="copy.say('a11y.sheetShelf')"
+  >
     <header class="head">
       <span class="mark">✦</span>
-      <button class="icon-button close" aria-label="close" @click="emit('close')">×</button>
+      <button class="icon-button close" :aria-label="copy.say('a11y.close')" @click="emit('close')">
+        ×
+      </button>
     </header>
 
     <div v-for="shelf in shelves" :key="shelf.category" class="group">
@@ -127,7 +138,7 @@ watch(
 }
 
 .close {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .shelf-mark {

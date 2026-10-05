@@ -6,12 +6,12 @@ A wordless, offline-first smoke-break game. A table, a lighter, a tray, a rod of
 never tobacco. Tap it, light it, draw, and watch the smoke take the shape that particular cigarette
 makes. Nothing to read, nothing to sign up for, nothing leaves the device.
 
-| Phone, 393×852                                                                   | Desktop, 1280×800                                                       |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| ![Smoke on a phone](docs/images/phone-smoke.jpg)                                 | ![The scene on a desktop](docs/images/desktop-smoke.jpg)                |
-| Three draws in: the column takes shape, and the cherry lights the air around it. | The same break on a wide stage, where the props spread apart.           |
-| ![Landscape phone](docs/images/phone-landscape-smoke.jpg)                        | ![Settings](docs/images/desktop-settings.jpg)                           |
-| 844×390: the props spread apart instead of crowding everything into a column.    | Icons, sliders, toggles. The words live in `aria-label`, not on screen. |
+| Phone, 393×852                                                                   | Desktop, 1280×800                                                  |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ![Smoke on a phone](docs/images/phone-smoke.jpg)                                 | ![The scene on a desktop](docs/images/desktop-smoke.jpg)           |
+| Three draws in: the column takes shape, and the cherry lights the air around it. | The same break on a wide stage, where the props spread apart.      |
+| ![Landscape phone](docs/images/phone-landscape-smoke.jpg)                        | ![Settings](docs/images/desktop-settings.jpg)                      |
+| 844×390: the props spread apart instead of crowding everything into a column.    | A word per row, and a control beside it. Nothing here is required. |
 
 **Play it now: <https://fwd001.github.io/puffly/>** — the same build `main` publishes on every
 push, installable to a phone home screen and usable offline afterwards.
@@ -68,6 +68,11 @@ Every row is a word and a control, reached from `···` → `settings`. None of
   only appears on a device that has a motor to ask. Muting is not a degraded mode: when nothing can
   be heard — muted, blocked by the browser's autoplay policy, or no Web Audio at all — the discrete
   cues are drawn larger and a beat longer, so the picture says what the mix would have said.
+- **Language** `◌ A 中 ع ∅` — three tiers, in this order: the language you asked for, then English,
+  then no words at all. Untouched, it follows the device. `∅` is a real interface rather than a
+  broken one: the sheets lose every label and keep every `aria-label`, because an unnamed control
+  is the one thing this product is not allowed to ship. A language never reaches the simulation —
+  the rod burns the same way whichever way you read.
 - **Rod, room, lighter, tray** — six rods, seven rooms, eight props, five smoke styles. Each rod
   has a plume character (column, haze, curls, pour, bloom), so a Mist pours down the table while an
   Ember blooms upward. Recount them with
@@ -138,7 +143,8 @@ While the chrome is awake, the object the game thinks you are about to use breat
 halo, and the halo gets a name: `tap`, `light`, `hold`, `flick`, `press`, `drop`. That is the whole
 vocabulary — a verb, never a sentence, gone the moment you act, and switchable off in settings for
 people who would rather be shown nothing. The word is not a button and takes no taps: the object
-underneath it is what answers.
+underneath it is what answers. Set the language to `∅` and this is the state of the game: six verbs
+that only exist as a halo, and a table that says the rest.
 
 **One break, start to finish**
 

@@ -6,15 +6,20 @@
  * three places a player can go, which is the one thing an icon cannot do without a guess.
  */
 import { nextTick, ref, watch } from 'vue';
+import type { CopyKey, I18n } from '../i18n';
 
-const props = defineProps<{ open: boolean }>();
+const props = defineProps<{ open: boolean; copy: I18n }>();
 const emit = defineEmits<{ close: []; open: ['break' | 'shelf' | 'settings'] }>();
 
-const ENTRIES = [
-  { id: 'break', glyph: '◍', word: 'this break' },
-  { id: 'shelf', glyph: '✦', word: 'the shelf' },
-  { id: 'settings', glyph: '⚙', word: 'settings' },
-] as const;
+/**
+ * Three marks and, on the two tiers that have words, three words. The glyph carries the entry on
+ * its own, which is what lets `icons` delete the column without deleting the menu.
+ */
+const ENTRIES: readonly { id: 'break' | 'shelf' | 'settings'; glyph: string; key: CopyKey }[] = [
+  { id: 'break', glyph: '◍', key: 'menu.break' },
+  { id: 'shelf', glyph: '✦', key: 'menu.shelf' },
+  { id: 'settings', glyph: '⚙', key: 'menu.settings' },
+];
 
 const root = ref<HTMLElement | null>(null);
 watch(
@@ -27,14 +32,29 @@ watch(
 </script>
 
 <template>
-  <section ref="root" class="sheet sheet--menu" :data-open="open" aria-label="Menu">
+  <section
+    ref="root"
+    class="sheet sheet--menu"
+    data-sheet="menu"
+    :data-open="open"
+    :aria-label="copy.say('a11y.sheetMenu')"
+  >
     <header class="head">
       <span class="mark" aria-hidden="true">···</span>
-      <button class="icon-button close" aria-label="close" @click="emit('close')">×</button>
+      <button class="icon-button close" :aria-label="copy.say('a11y.close')" @click="emit('close')">
+        ×
+      </button>
     </header>
-    <button v-for="entry in ENTRIES" :key="entry.id" class="entry" @click="emit('open', entry.id)">
+    <button
+      v-for="entry in ENTRIES"
+      :key="entry.id"
+      class="entry"
+      :data-entry="entry.id"
+      :aria-label="copy.say(entry.key)"
+      @click="emit('open', entry.id)"
+    >
       <span class="glyph" aria-hidden="true">{{ entry.glyph }}</span>
-      <span class="word">{{ entry.word }}</span>
+      <span v-if="copy.t(entry.key) !== null" class="word">{{ copy.t(entry.key) }}</span>
     </button>
   </section>
 </template>
@@ -53,7 +73,7 @@ watch(
 }
 
 .close {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .entry {
@@ -69,7 +89,8 @@ watch(
   background: transparent;
   color: var(--soft-white);
   font: inherit;
-  text-align: left;
+  /* Logical, not physical: an Arabic menu reads from the other edge (§9). */
+  text-align: start;
   transition:
     background-color 180ms var(--ease-out),
     border-color 180ms var(--ease-out);

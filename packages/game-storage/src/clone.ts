@@ -77,6 +77,20 @@ export function cloneSettings(settings: Settings): Settings {
   if (typeof settings.quitAnchorTimestamp === 'number') {
     copy.quitAnchorTimestamp = settings.quitAnchorTimestamp;
   }
+  // What the player is holding is as much their state as the volume they chose; both have to
+  // survive the copy, or the next reload quietly puts the default rod back on the table.
+  const selection = settings.selection;
+  if (selection !== undefined) {
+    copy.selection = {
+      cigarette: selection.cigarette,
+      environment: selection.environment,
+      lighter: selection.lighter,
+      ashtray: selection.ashtray,
+    };
+  }
+  if (typeof settings.language === 'string' && settings.language.length > 0) {
+    copy.language = settings.language;
+  }
   return copy;
 }
 

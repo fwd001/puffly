@@ -185,6 +185,25 @@ export function makeSettings(nowMs = at(5, 9, 0)): Settings {
   return { ...createDefaultSettings(nowMs), utcOffsetMinutes: 0, volume: 0.4 };
 }
 
+/**
+ * Settings the way a player actually leaves them: an anchor set, something in the hand, and a
+ * language asked for. The three fields a store loses silently, because each of the two
+ * adapters rebuilds `Settings` from a list of keys someone typed out.
+ */
+export function makeChosenSettings(nowMs = at(5, 9, 0)): Settings {
+  return {
+    ...makeSettings(nowMs),
+    quitAnchorTimestamp: at(1, 8, 0),
+    selection: {
+      cigarette: 'long-thin',
+      environment: 'balcony',
+      lighter: 'wheel',
+      ashtray: 'stone',
+    },
+    language: 'zh-CN',
+  };
+}
+
 export function makeOpenBreak(overrides: Partial<OpenBreak> = {}): OpenBreak {
   return {
     id: 'ses-open',

@@ -6,7 +6,15 @@
 import { describe, expect, it } from 'vitest';
 import { StorageError, applySessionFilter, isStorageError, type StorageAdapter } from '../adapter';
 import { createMemoryStorage } from '../memory';
-import { at, makeProfile, makeProgress, makeSave, makeSettings, sampleSessions } from './fixture';
+import {
+  at,
+  makeChosenSettings,
+  makeProfile,
+  makeProgress,
+  makeSave,
+  makeSettings,
+  sampleSessions,
+} from './fixture';
 
 describe('createMemoryStorage (§63)', () => {
   it('is a StorageAdapter, and starts empty', async () => {
@@ -20,7 +28,7 @@ describe('createMemoryStorage (§63)', () => {
   it('round-trips the three records', async () => {
     const storage = createMemoryStorage();
     const profile = makeProfile({ displayName: 'Local' });
-    const settings = { ...makeSettings(), quitAnchorTimestamp: at(1, 8, 0) };
+    const settings = makeChosenSettings();
     const progress = makeProgress();
 
     await storage.saveProfile(profile);

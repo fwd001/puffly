@@ -8,19 +8,22 @@
  */
 import { computed, nextTick, ref, watch } from 'vue';
 import type { Puffly } from '../composables/usePuffly';
+import type { CopyKey } from '../i18n';
 
 const props = defineProps<{ open: boolean; game: Puffly }>();
 const emit = defineEmits<{ close: [] }>();
 
-const TRIGGER_GLYPHS: readonly { tag: string; glyph: string }[] = [
-  { tag: 'coffee', glyph: '☕' },
-  { tag: 'drink', glyph: '🍺' },
-  { tag: 'work', glyph: '💼' },
-  { tag: 'angry', glyph: '😤' },
-  { tag: 'night', glyph: '🌙' },
-  { tag: 'people', glyph: '🧑‍🤝‍🧑' },
-  { tag: 'drive', glyph: '🚗' },
-  { tag: 'meal', glyph: '🍽️' },
+const copy = computed(() => props.game.copy.value);
+
+const TRIGGER_GLYPHS: readonly { tag: string; glyph: string; key: CopyKey }[] = [
+  { tag: 'coffee', glyph: '☕', key: 'a11y.trigger.coffee' },
+  { tag: 'drink', glyph: '🍺', key: 'a11y.trigger.drink' },
+  { tag: 'work', glyph: '💼', key: 'a11y.trigger.work' },
+  { tag: 'angry', glyph: '😤', key: 'a11y.trigger.angry' },
+  { tag: 'night', glyph: '🌙', key: 'a11y.trigger.night' },
+  { tag: 'people', glyph: '🧑‍🤝‍🧑', key: 'a11y.trigger.people' },
+  { tag: 'drive', glyph: '🚗', key: 'a11y.trigger.drive' },
+  { tag: 'meal', glyph: '🍽️', key: 'a11y.trigger.meal' },
 ];
 
 const summary = computed(() => props.game.summary.value);
@@ -73,7 +76,13 @@ watch(
 </script>
 
 <template>
-  <section ref="root" class="sheet" :data-open="open" aria-label="Break">
+  <section
+    ref="root"
+    class="sheet"
+    data-sheet="break"
+    :data-open="open"
+    :aria-label="copy.say('a11y.sheetBreak')"
+  >
     <header class="row">
       <!-- The break's own clock lives in here now: the stage shows no numbers, and the time a
            player has spent is still worth seeing when they go looking for it (§31). -->
@@ -83,7 +92,9 @@ watch(
       <span class="count">🌙 {{ today?.nightHours ?? 0 }}h</span>
       <span class="count">🔥 {{ summary.puffs }}</span>
       <span class="count">🌫️ {{ today?.smokeEvents ?? 0 }}</span>
-      <button class="icon-button close" aria-label="close" @click="emit('close')">×</button>
+      <button class="icon-button close" :aria-label="copy.say('a11y.close')" @click="emit('close')">
+        ×
+      </button>
     </header>
 
     <div class="mood group">
@@ -95,7 +106,7 @@ watch(
         max="10"
         step="1"
         :aria-label="
-          cravingPhase === 'before' ? 'how strong is the craving now' : 'how strong is it now'
+          copy.say(cravingPhase === 'before' ? 'a11y.cravingBefore' : 'a11y.cravingAfter')
         "
         @change="setCraving"
       />
@@ -108,7 +119,7 @@ watch(
         v-for="item in TRIGGER_GLYPHS"
         :key="item.tag"
         class="icon-button tag"
-        :aria-label="item.tag"
+        :aria-label="copy.say(item.key)"
         :aria-pressed="isTagged(item.tag)"
         @click="toggleTrigger(item.tag)"
       >
@@ -116,7 +127,12 @@ watch(
       </button>
     </div>
 
-    <svg class="journey group" viewBox="0 0 320 44" aria-label="journey" role="img">
+    <svg
+      class="journey group"
+      viewBox="0 0 320 44"
+      :aria-label="copy.say('a11y.journey')"
+      role="img"
+    >
       <line
         x1="10"
         y1="24"
@@ -153,7 +169,9 @@ watch(
       <span class="count">✧ {{ stats.smokeFreeDays }}</span>
       <span class="count">▲ {{ stats.longestStreakDays }}</span>
       <span v-if="lastStop?.isMilestone" class="mark" aria-hidden="true">◆</span>
-      <button class="icon-button" aria-label="end this break" @click="game.endBreak()">◌</button>
+      <button class="icon-button" :aria-label="copy.say('a11y.endBreak')" @click="game.endBreak()">
+        ◌
+      </button>
     </div>
   </section>
 </template>
@@ -184,7 +202,7 @@ watch(
 }
 
 .close {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .mood {
