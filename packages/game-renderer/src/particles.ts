@@ -42,10 +42,22 @@ export interface Particle {
   heat: number;
   /** 0 = far away and dim, 1 = at the front of the frame. Lets smoke read as volume. */
   depth: number;
+  /**
+   * How much of the room's eddies this particle actually feels sideways, 0..1. A column of smoke
+   * denser than air is not a passive tracer: it keeps climbing its own buoyancy path and meanders
+   * far less than the same turbulence would push a speck of dust.
+   */
+  swing: number;
   /** Previous position, so a spark can be drawn as a streak instead of a dot. */
   px: number;
   py: number;
   spark: boolean;
+  /**
+   * Milliseconds before this particle is born. A breath is not instantaneous: the smoke keeps
+   * leaving the mouth while the head of the column is already above it, and a particle that has
+   * not been born yet holds still and draws nothing.
+   */
+  delay: number;
   active: boolean;
 }
 
@@ -66,10 +78,13 @@ export interface SpawnInit {
   rise: number;
   gravity: number;
   drag: number;
+  swing?: number;
   tint: Rgb;
   heat: number;
   depth: number;
   spark: boolean;
+  /** See `Particle.delay`: milliseconds before this one is born. */
+  delay?: number;
 }
 
 const EMPTY: Particle = {
@@ -93,12 +108,14 @@ const EMPTY: Particle = {
   rise: 0,
   gravity: 0,
   drag: 0.9,
+  swing: 1,
   tint: [200, 200, 200],
   heat: 0,
   depth: 0.5,
   px: 0,
   py: 0,
   spark: false,
+  delay: 0,
   active: false,
 };
 
@@ -150,12 +167,14 @@ export class ParticlePool {
     slot.rise = init.rise;
     slot.gravity = init.gravity;
     slot.drag = init.drag;
+    slot.swing = init.swing ?? 1;
     slot.tint = init.tint;
     slot.heat = init.heat;
     slot.depth = init.depth;
     slot.spark = init.spark;
     slot.px = init.x;
     slot.py = init.y;
+    slot.delay = init.delay ?? 0;
     slot.active = true;
     return slot;
   }
@@ -173,12 +192,26 @@ export class ParticlePool {
     timeSeconds: number,
   ): void {
     if (this.activeCount === 0) return;
-    const dt = dtMs / 1000;
 
     for (const particle of this.items) {
       if (!particle.active) continue;
 
-      particle.life -= dtMs;
+      // Not born yet: it holds its place at the mouth and draws nothing, which is what lets one
+      // burst be a stream instead of a lump. A step that reaches past the birth still owes the
+      // particle the rest of it — otherwise one long frame, like a tab that was in the background,
+      // would freeze the whole stream and hand back a slot that has never aged.
+      let step = dtMs;
+      if (particle.delay > 0) {
+        if (particle.delay >= step) {
+          particle.delay -= step;
+          continue;
+        }
+        step -= particle.delay;
+        particle.delay = 0;
+      }
+      const dt = step / 1000;
+
+      particle.life -= step;
       if (particle.life <= 0) {
         particle.active = false;
         this.activeCount -= 1;
@@ -201,7 +234,7 @@ export class ParticlePool {
       );
 
       // Turbulence is the acceleration; the wind is the air the particle is sitting in.
-      particle.vx += swirl.vx * particle.turbulence * dt;
+      particle.vx += swirl.vx * particle.turbulence * particle.swing * dt;
       particle.vy += (swirl.vy * particle.turbulence - particle.rise + particle.gravity) * dt;
 
       // Air drags a particle back to still; without this it accelerates into streaks. The rate is

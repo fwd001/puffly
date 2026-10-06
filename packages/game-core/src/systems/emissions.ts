@@ -27,6 +27,12 @@ export interface BurstOptions {
   alphaPeak: number;
   rise: number;
   turbulence: number;
+  /**
+   * How the puff's light is spent across its own life. Left unset it is the §16 random envelope,
+   * which is right for a clump of ash and wrong for a column: smoke that is meant to thin as it
+   * rises has to be authored to fade, not to hold.
+   */
+  alphaDecay?: number;
   scaleGrowth?: number;
   gravity?: number;
   tint?: Rgb;
@@ -161,7 +167,8 @@ export function makeBurst(rt: EngineRuntime, options: BurstOptions): Burst {
     alphaPeak: clamp01(
       options.alphaPeak * plume.alpha * (0.75 + density * 0.5) * rng.range(0.9, 1.1),
     ),
-    alphaDecay: rng.range(0.55, 0.95),
+    // Drawn every time, so authoring it cannot shift the random stream behind it.
+    alphaDecay: options.alphaDecay ?? rng.range(0.55, 0.95),
     rise: options.rise * plume.rise * rng.range(0.85, 1.15),
     turbulence,
     scaleGrowth: options.scaleGrowth ?? 2.4,
@@ -203,6 +210,7 @@ export function puffBurst(rt: EngineRuntime): Burst {
     lifeMs: [1600, 3400],
     // Dim per particle: the ribbon is built by overlap, and an opaque particle shows its own edge.
     alphaPeak: 0.09 + 0.16 * intensity,
+    alphaDecay: 1.1,
     rise: smoke.riseSpeed * (0.95 + 1.45 * intensity),
     turbulence: smoke.turbulence * 0.5,
     scaleGrowth: 1.25,
@@ -236,9 +244,16 @@ export function exhaleBurst(
     radius: [0.01, 0.03],
     lifeMs: [3600 * slow, 8200 * slow],
     alphaPeak: 0.08 + 0.1 * intensity,
+    // Widening by less than three fifths of itself over its life: the breath is a column, and a
+    // puff that grows faster than it climbs is a balloon.
+    // 缓缓吐出 means the breath thins as it goes, and the frame is only so tall: a cloud that is
+    // still half lit when its own body crosses the top edge is smoke leaving the scene, which is
+    // what `plume-on-stage.test.ts` forbids. Measured: at 1.55 the centre of a classic's breath
+    // left at four seconds still 55% lit, and at 1.9 it left at 43%.
+    alphaDecay: 1.9,
     rise: smoke.riseSpeed * modifier.riseSpeed * (1.3 + intensity * 1.3) * ease,
     turbulence: smoke.turbulence * modifier.turbulence * (0.3 + intensity * 0.35),
-    scaleGrowth: 1.8,
+    scaleGrowth: 1.45,
     heat: clamp01(intensity * 0.35),
   });
 }
@@ -259,6 +274,7 @@ export function driftBurst(rt: EngineRuntime, count = 18): Burst {
     radius: [0.005, 0.013],
     lifeMs: [3200, 7800],
     alphaPeak: 0.18,
+    alphaDecay: 1.25,
     rise: smoke.riseSpeed * 1.35,
     turbulence: smoke.turbulence * 0.22,
     scaleGrowth: 1.3,

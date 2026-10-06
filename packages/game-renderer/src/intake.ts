@@ -36,17 +36,60 @@ const MATERIAL_BURSTS: ReadonlySet<BurstKind> = new Set(['ember', 'ash', 'impact
 /**
  * How fast still air brings each kind of particle back to rest, per second.
  *
- * Smoke is an aerosol: its relaxation time is far below a frame, so what the player sees is the
- * buoyancy it is left with. The number that mattered here used to be 0.9 for everything, which
- * is roughly right for a flake of ash and an order of magnitude too gentle for smoke — at that
- * drag the exhaled cloud reached a terminal speed of four to eleven tenths of a stage height per
- * second and was outside the frame before the player had finished the breath.
+ * Two failures sit on either side of this number, and both were real. At 0.9 — a flake of ash's
+ * relaxation time, borrowed for smoke — the exhaled cloud reached four to eleven tenths of a
+ * stage height per second and was outside the frame before the player had finished the breath.
+ * At 12, the fix for that, it reached a hundred and twentieth of one: the whole breath became a
+ * small tight body parked on the mouth, which is what `plume-column.test.ts` now measures.
+ *
+ * 6 is the middle that matches what a breath actually does — about a tenth of a screen height
+ * per second, most of it within a quarter second of letting go. Buoyancy is the acceleration
+ * and this is the air's answer to it; the product of the two is the speed, so neither number can
+ * be moved alone.
  */
-export const SMOKE_DRAG = 12;
+export const SMOKE_DRAG = 6;
 export const MATERIAL_DRAG = 0.9;
 
 const dragFor = (kind: BurstKind): number =>
   MATERIAL_BURSTS.has(kind) ? MATERIAL_DRAG : SMOKE_DRAG;
+
+/**
+ * The plume bodies — the ones that are meant to be *watched rising*. A spark, a flake of ash and
+ * the puff of a struck flint are all events, and an event that fades in over a second is a bug.
+ */
+const STREAMED_BURSTS: ReadonlySet<BurstKind> = new Set(['puff', 'exhale', 'drift']);
+
+/**
+ * How long each kind of plume body keeps leaving its source, as a share of its own life.
+ *
+ * The three are different events and one number could only be right for one of them. A breath is a
+ * second of smoke, so its burst is spread over a second. A drift batch is a clump that arrives
+ * every few hundred milliseconds, and spreading *it* over a second is what beaded the thread: the
+ * clump's ten discs were pushed apart along the column instead of filling the gap behind the last
+ * clump. The window is the event, not the particle.
+ */
+const STREAM_SHARE: Partial<Record<BurstKind, number>> = {
+  exhale: 0.44,
+  puff: 0.25,
+  drift: 0.3,
+};
+const STREAM_MAX_MS = 1600;
+/** How much dimmer the last of the breath is than the first. */
+const STREAM_TAPER = 0.5;
+
+/**
+ * How much of the room's eddies a smoke particle feels sideways. The curl field is authored at
+ * room scale — eight cells across the stage — so taken whole it wanders a rising column a tenth
+ * of a screen width in four seconds, which is the same complaint the smoke arrived with
+ * (「那个烟会到左上角」) seen from the other side. Buoyancy is the column's own momentum and the
+ * eddies are not; only the horizontal pays for that.
+ */
+const LATERAL_SWING = 0.45;
+
+const streamWindow = (burst: Burst): number => {
+  const share = STREAM_SHARE[burst.kind];
+  return share === undefined ? 0 : Math.min(burst.lifeMs.min * share, STREAM_MAX_MS);
+};
 
 const tintFor = (burst: Burst, plumeTint: Rgb | undefined): Rgb =>
   plumeTint && !MATERIAL_BURSTS.has(burst.kind) ? plumeTint : burst.tint;
@@ -59,8 +102,13 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
   const requested = Math.min(burst.count, limit);
   const spawnCount = Math.max(1, Math.round(requested * options.densityScale));
   let spawned = 0;
+  const windowMs = streamWindow(burst);
 
   for (let i = 0; i < spawnCount; i++) {
+    // 0 at the first particle, 1 at the last. Even spacing is what keeps the column continuous:
+    // bunching the births made the breath front-loaded in *mass* as well as in brightness, and the
+    // clumps read as a dashed line once they had risen.
+    const share = spawnCount > 1 ? i / (spawnCount - 1) : 0;
     const angle = degToRad(
       burst.directionDeg + rng.range(-burst.spreadDeg / 2, burst.spreadDeg / 2),
     );
@@ -74,7 +122,7 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       radius,
-      alphaPeak: burst.alphaPeak * rng.range(0.7, 1.1),
+      alphaPeak: burst.alphaPeak * rng.range(0.7, 1.1) * (1 - STREAM_TAPER * share),
       alphaDecay: burst.alphaDecay,
       life,
       noiseSeed: rng.int(0, 65535),
@@ -85,6 +133,7 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       rise: burst.rise * rng.range(0.75, 1.25),
       gravity: burst.gravity,
       drag: dragFor(burst.kind),
+      swing: STREAMED_BURSTS.has(burst.kind) ? LATERAL_SWING : 1,
       tint: tintFor(burst, options.plumeTint),
       heat: burst.heat * rng.range(0.6, 1),
       // Depth is sampled, not derived from index, so a puff never bands into layers.
@@ -92,6 +141,7 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       // Only a struck flint throws sparks. Hot smoke is still smoke: promoting a fifth of the
       // cherry's puff to an additive streak is what put a line of light bulbs up the ribbon.
       spark: burst.kind === 'ember',
+      delay: windowMs * share,
     });
     if (particle) spawned += 1;
   }

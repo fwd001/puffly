@@ -42,7 +42,7 @@ const NEAR_DEPTH = 0.55;
 /** Ash pieces that fill the tray mound; past this the tray just looks full. */
 const TRAY_LOAD_FRAGMENTS = 14;
 /** Overlap instead of opacity: see `drawSmoke`. */
-const PUFF_SPREAD = 1.34;
+export const PUFF_SPREAD = 1.34;
 const PUFF_ALPHA = 0.62;
 const PUFF_FLATTEN = 0.74;
 

@@ -78,22 +78,28 @@ describe('the mouth and the lungs (§14, 品鉴型)', () => {
   });
 
   it('the cloud that comes out is the mouthful that went in', () => {
-    const sip = harness({ content: MOUTH });
-    lit(sip);
-    sip.press('cigarette');
-    sip.run(400);
-    sip.release('cigarette');
-
-    const full = harness({ content: MOUTH });
-    lit(full);
-    full.press('cigarette');
-    full.run(2200);
-    full.release('cigarette');
-
-    const short = burstsOf(sip, 'exhale').at(-1);
-    const long = burstsOf(full, 'exhale').at(-1);
-    expect(short?.count).toBeTypeOf('number');
-    expect(long?.count ?? 0).toBeGreaterThan((short?.count ?? 0) * 1.2);
+    // §16 puts a wide jitter on every burst's count, so one sip can out-puff one full draw on luck
+    // alone — and comparing a single roll of each, as this used to, was measuring that jitter rather
+    // than the thing the claim is about. One rod per draw (a second draw on a rod that has just
+    // been held for two seconds has no rod left to draw on), seven seeds, and the middle of them.
+    const medianCountAfter = (holdMs: number): number => {
+      // Twenty-one, not seven: §16's own spread is ±55% on the count, and the authored difference
+      // between these two breaths is 1.49x, which seven rolls can comfortably hide.
+      const counts = Array.from({ length: 21 }, (_, index) => index * 7 + 3)
+        .map((seed) => {
+          const h = harness({ content: MOUTH, seed });
+          lit(h);
+          h.press('cigarette');
+          h.run(holdMs);
+          h.release('cigarette');
+          const breath = burstsOf(h, 'exhale').at(-1);
+          expect(breath, `${String(seed)} never breathed at ${String(holdMs)} ms`).toBeDefined();
+          return breath?.count ?? 0;
+        })
+        .sort((a, b) => a - b);
+      return counts[Math.floor(counts.length / 2)] ?? 0;
+    };
+    expect(medianCountAfter(2200)).toBeGreaterThan(medianCountAfter(400) * 1.2);
   });
 
   it('a draw that never reaches the lungs leaves no resistance for the next one', () => {

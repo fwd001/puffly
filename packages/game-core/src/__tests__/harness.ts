@@ -168,6 +168,15 @@ export function lit(h: Harness, extraMs = 0): void {
   h.run(16);
   h.tap('lighter');
   h.run(900);
+  // 900 ms is how long the fixture's lighter takes, not how long every one of them does. A caller
+  // that presses the rod while the cherry is still lighting gets nothing: `beginPuff` only draws
+  // from a lit state, so the hold is ignored, the release ends no puff, and the test goes on to
+  // measure a plume that was never breathed. Wait for the cherry, and say so loudly if it never
+  // comes.
+  h.until(() => {
+    const state = h.state().cigarette.state;
+    return state !== 'IDLE' && state !== 'LIGHTING';
+  }, 3000);
   if (extraMs > 0) h.run(extraMs);
 }
 

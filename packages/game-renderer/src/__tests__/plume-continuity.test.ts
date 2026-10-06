@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONTENT } from '@puffly/game-content';
 import type { Burst } from '@puffly/game-core';
 import { FIELD_SCALE, intakeBurst } from '../intake';
+import { PUFF_SPREAD } from '../renderer';
 import { ParticlePool } from '../particles';
 import { harness, lit } from '../../../game-core/src/__tests__/harness';
 
@@ -51,12 +52,19 @@ function columnAfter(
 
   const discs: { x: number; y: number; r: number }[] = [];
   pool.forEachActive((particle) => {
-    // The radius the sprite is actually blitted at, in stage units: what `drawSmoke` multiplies
-    // by the viewport and a spread factor.
+    // The radius the sprite is actually blitted at, in stage units — the same expression
+    // `drawSmoke` uses. Reading the renderer's own constant rather than restating the product is
+    // the point: this line used to leave out the spread and the depth scale, which measured a
+    // thread about a third narrower than the one being drawn and called the difference a gap.
     discs.push({
       x: particle.x,
       y: particle.y,
-      r: particle.radius * particle.scale * particle.size,
+      r:
+        particle.radius *
+        particle.scale *
+        particle.size *
+        (0.72 + particle.depth * 0.5) *
+        PUFF_SPREAD,
     });
   });
   expect(discs.length, 'the cherry was still smoking').toBeGreaterThan(20);
@@ -73,8 +81,11 @@ function columnAfter(
   let insideGap = false;
   for (let band = 0; band < BANDS; band++) {
     const centre = top + (span * (band + 0.5)) / BANDS;
+    // Six radii, not three: a thread long enough to see also meanders far enough that its own mean
+    // line is not where every band of it sits. Three counted a wandering column as a column with
+    // holes in it, which is the opposite of what this is for.
     const hit = discs.some(
-      (disc) => Math.abs(disc.y - centre) <= disc.r && Math.abs(disc.x - spine) <= disc.r * 3,
+      (disc) => Math.abs(disc.y - centre) <= disc.r && Math.abs(disc.x - spine) <= disc.r * 6,
     );
     if (hit) covered += 1;
     else if (!insideGap) gaps += 1;
