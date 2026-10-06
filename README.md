@@ -100,6 +100,14 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   What is already in the air when you switch stays as it was for a few seconds — smoke that has left
   the rod does not get a second colour. Rerun with
   `npx vitest run packages/game-renderer/src/__tests__/plume-palette.test.ts`.
+- **The button does not sit on the table.** The chrome at the bottom of the screen is fixed pixels, so
+  how much of the scene it eats depends on how tall the scene is: 16% of a portrait phone's height,
+  34% of the same phone turned sideways, plus a 12px pad so nothing sits flush against it. A constant
+  fraction could not express that, and the picture it let through put the resting cigarette 30px
+  behind the pill in landscape and left the tray 1px from it on a 320×568 screen. The clearance line
+  is now computed from the stage's pixel height,
+  and lifts the whole table when a window is too short for both — a desktop window keeps the table the
+  brief drew. Rerun with `npx vitest run packages/game-renderer/src/__tests__/chrome-band.test.ts`.
 
 ## Architecture in one paragraph
 

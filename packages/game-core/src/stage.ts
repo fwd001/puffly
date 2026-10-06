@@ -40,6 +40,65 @@ export const STAGE_MIN_ASPECT = 0.42;
  * cannot tell which of the two a tap will hit. `stage.test.ts` holds every layout to this.
  */
 export const CHROME_CLEAR_Y = 0.72;
+
+/**
+ * How tall the shell's bottom furniture is, in CSS pixels: `CtaPill.vue` sits 74px off the bottom
+ * of the window and the pill itself is 58px tall. The rail under it is shorter than that, so the
+ * pill owns the band.
+ */
+export const CHROME_BAND_PX = 74 + 58;
+
+/** A prop flush against the edge of a button still reads as one object with it; this is the gap. */
+export const CHROME_EDGE_PX = CHROME_BAND_PX + 12;
+
+/**
+ * Where the chrome starts on a stage this tall, as a fraction of the stage's own height.
+ *
+ * The line is not a constant. The chrome is fixed pixels and the stage is not, so the shorter the
+ * window, the larger its share: on a 390×844 phone the band is 17% of the stage, and on the same
+ * phone turned sideways it is 37% — which is how a table that clears the button in portrait can
+ * put the cigarette behind it in landscape.
+ *
+ * Without a height the honest answer is the historical line, so a caller that never learned the
+ * pixel size keeps the layout it was built with.
+ */
+export function chromeClearY(stageHeightPx?: number): number {
+  if (!Number.isFinite(stageHeightPx ?? NaN) || (stageHeightPx ?? 0) <= 0) return CHROME_CLEAR_Y;
+  return clamp(1 - CHROME_EDGE_PX / (stageHeightPx as number), 0.25, 1);
+}
+
+/**
+ * How far below its anchor each thing is actually painted, in stage units. The tray's is its own
+ * radius; the rest are measured off the picture by `chrome-band.test.ts`, which draws the real
+ * objects and goes red when these numbers lie.
+ */
+const ROD_REACH = 0.05;
+const PACK_REACH = 0.035;
+const LIGHTER_REACH = 0.06;
+
+/** Lift a layout into the space the chrome leaves, by compressing its vertical positions toward the top. */
+function liftTo(layout: StageLayout, clearY: number): StageLayout {
+  const lowest = (anchor: number, reach: number): number =>
+    anchor + reach >= clearY ? (clearY - reach) / anchor : 1;
+  const scale = Math.min(
+    lowest(layout.table.y, ROD_REACH),
+    lowest(layout.pack.y, PACK_REACH),
+    lowest(layout.lighter.y, LIGHTER_REACH),
+    lowest(layout.ashtray.y, layout.ashtrayRadius),
+    lowest(layout.restPivot.y, ROD_REACH),
+  );
+  if (scale >= 1) return layout;
+  const y = (point: Point): Point => ({ x: point.x, y: point.y * scale });
+  return {
+    ...layout,
+    table: y(layout.table),
+    pack: y(layout.pack),
+    lighter: y(layout.lighter),
+    ashtray: y(layout.ashtray),
+    restPivot: y(layout.restPivot),
+    tableEdgeY: layout.tableEdgeY * scale,
+  };
+}
 /** …nor wider than this, so an ultrawide monitor does not fling the tray off-screen. */
 export const STAGE_MAX_ASPECT = 1.9;
 
@@ -114,11 +173,11 @@ export const STAGE_LAYOUTS: Record<StageLayout['id'], StageLayout> = {
   wide: WIDE,
 };
 
-export function layoutFor(aspect: number): StageLayout {
-  if (!Number.isFinite(aspect) || aspect <= 0) return REGULAR;
-  if (aspect < TALL_ASPECT_MAX) return TALL;
-  if (aspect >= WIDE_ASPECT_MIN) return WIDE;
-  return REGULAR;
+export function layoutFor(aspect: number, clearY: number = CHROME_CLEAR_Y): StageLayout {
+  if (!Number.isFinite(aspect) || aspect <= 0) return liftTo(REGULAR, clearY);
+  if (aspect < TALL_ASPECT_MAX) return liftTo(TALL, clearY);
+  if (aspect >= WIDE_ASPECT_MIN) return liftTo(WIDE, clearY);
+  return liftTo(REGULAR, clearY);
 }
 
 export interface StageBox {

@@ -587,8 +587,9 @@ export function createPuffly(): Puffly {
     canvas.style.height = `${cssHeight}px`;
     viewport.resize(cssWidth, cssHeight, dpr);
     renderer?.setViewport(cssWidth, cssHeight, dpr);
-    // The core owns hit-testing, so it has to know the same shape the canvas just became.
-    engine?.setStageAspect(viewport.aspect);
+    // The core owns hit-testing, so it has to know the same shape the canvas just became —
+    // including how tall, because the chrome it must clear is measured in pixels.
+    engine?.setStageAspect(viewport.aspect, viewport.stage.height);
   };
 
   const attach = async (canvas: HTMLCanvasElement): Promise<void> => {
@@ -657,7 +658,7 @@ export function createPuffly(): Puffly {
     resize(canvas);
 
     // The very first aspect has to be in place before a pointer can be aimed at anything.
-    engine?.setStageAspect(viewport.aspect);
+    engine?.setStageAspect(viewport.aspect, viewport.stage.height);
 
     audio = createAudioBridge(content, settings.value);
     audioAvailable.value = audio.available();

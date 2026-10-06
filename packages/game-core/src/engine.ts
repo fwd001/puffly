@@ -20,7 +20,7 @@ import {
 import { ANGLES, HIT, LAYOUT, STEP_MS, TIMING } from './constants';
 import { CIGARETTE_LENGTH, type Point } from './types/geometry';
 import { computeAnchors, inputPoint, isInside, resolveTarget } from './anchors';
-import { hitToleranceFor, layoutFor, touchReach } from './stage';
+import { chromeClearY, hitToleranceFor, layoutFor, touchReach } from './stage';
 import { createContentLookup, type ContentLookup } from './content/lookup';
 import { emit, markRevision, record, setState } from './emit';
 import { deriveAmbientState, isLit } from './stateMachine';
@@ -114,8 +114,12 @@ export interface GameEngine {
    * Tell the simulation how wide the stage is, in pixels. It swaps the prop layout
    * (a landscape phone has different empty space from a portrait one) and fixes the
    * hit metric so a round target stays round. SPEC.md §55, §66.
+   *
+   * The height is optional but not redundant: the shell's bottom furniture is a fixed
+   * number of pixels, so how much of the stage it eats depends on how tall the stage
+   * is. Without it the layout keeps the historical clearance line.
    */
-  setStageAspect(aspect: number): void;
+  setStageAspect(aspect: number, stageHeightPx?: number): void;
   startSession(): void;
   endSession(): Session | null;
   sessionId(): string | null;
@@ -888,10 +892,14 @@ export function createEngine(options: EngineOptions): GameEngine {
       rt.state.world.activeEvents = [];
       rt.timers.nextWorldEventMs = rt.state.nowMs + rt.rng.range(3000, 7000);
     },
-    setStageAspect(aspect: number) {
+    setStageAspect(aspect: number, stageHeightPx?: number) {
       const next = Number.isFinite(aspect) && aspect > 0 ? aspect : 0.75;
-      const layout = layoutFor(next);
-      const changed = layout.id !== rt.layout.id || Math.abs(next - rt.stageAspect) > 0.001;
+      const layout = layoutFor(next, chromeClearY(stageHeightPx));
+      const changed =
+        layout.id !== rt.layout.id ||
+        layout.table.y !== rt.layout.table.y ||
+        layout.ashtray.y !== rt.layout.ashtray.y ||
+        Math.abs(next - rt.stageAspect) > 0.001;
       rt.stageAspect = next;
       rt.layout = layout;
       rt.state.stage = { aspect: next, layout };

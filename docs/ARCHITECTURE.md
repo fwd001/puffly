@@ -111,6 +111,14 @@ break through it: any write would throw a TypeError instead of corrupting the si
   test, just a filter nobody was driving. It spreads the target now and overrides only the field the
   trim touches. Where a rebuild has to enumerate (validation, where every field needs a bound), the
   enumeration is pinned by a fixture; where it does not, spread it.
+- A clearance written as a fraction cannot bound a thing measured in pixels. `CHROME_CLEAR_Y = 0.72`
+  held every prop *anchor* above the line and every layout passed, while on a phone turned sideways
+  the pill started at 0.66 of the stage and the rod lay at 0.695 — drawn behind the button that picks
+  it up, which is the complaint the constant was written to prevent. The rule was not wrong so much as
+  dimensionally wrong: the chrome is 132 CSS pixels, so the line it implies moves with the height of
+  the window. Where a constant has to meet a fixed-pixel neighbour, derive it from that neighbour at
+  the size it actually is — and keep the identity case intact, so a layout that already clears the
+  line comes back unchanged and nothing else in the scene, or in §71's replay, moves.
 - A colour layer that reaches only a nearly transparent gradient is a layer nobody can see.
   `applySkin` wrote a skin's 烟羽 into `view.smoke.tint`, and the only reader of that field was the
   density veil, whose alpha tops out at 0.033; the plume's colour had already been decided in the

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   STAGE_LAYOUTS,
   CHROME_CLEAR_Y,
+  chromeClearY,
   computeAnchors,
   deriveSmokeCharacter,
   hitToleranceFor,
@@ -291,5 +292,42 @@ describe('every rod has its own plume (§13, §16)', () => {
     expect(restless.rise).toBeGreaterThan(0);
     expect(pouring.spreadDeg).toBeGreaterThan(restless.spreadDeg);
     expect(restless.turbulence).toBeGreaterThan(pouring.turbulence);
+  });
+});
+
+describe('the chrome takes pixels, not a fraction (§55)', () => {
+  it('lifts the table on a short stage and leaves a tall one alone', () => {
+    const landscape = layoutFor(2.16, chromeClearY(390));
+    const desktop = layoutFor(2.16, chromeClearY(900));
+    expect(landscape.table.y).toBeLessThan(STAGE_LAYOUTS.wide.table.y);
+    // A desktop window has more stage than the button needs, so nothing moves: the layout the
+    // brief drew is still the layout a player sees, and a replay of it is unchanged.
+    expect(desktop).toEqual(STAGE_LAYOUTS.wide);
+  });
+
+  it('keeps the horizon above the table it lifts, at every height', () => {
+    for (const height of [360, 390, 568, 844, 900, 1080]) {
+      const clear = chromeClearY(height);
+      const layout = layoutFor(2.16, clear);
+      // Lift the table past the horizon and the rod floats in the air above the surface it lies on.
+      expect(layout.tableEdgeY, `${height}px tall: the horizon`).toBeLessThan(layout.table.y);
+      expect(
+        layout.ashtray.y + layout.ashtrayRadius,
+        `${height}px tall: the tray`,
+      ).toBeLessThanOrEqual(clear);
+    }
+  });
+
+  it('lifts nothing that already clears the line', () => {
+    // The brief's own table, untouched, when there is room for it: a desktop window has more
+    // stage than the button needs, so a layout change there would be a regression, not a fix.
+    const aspects: Record<'tall' | 'regular' | 'wide', number> = {
+      tall: 0.46,
+      regular: 1,
+      wide: 2.16,
+    };
+    for (const [id, aspect] of Object.entries(aspects)) {
+      expect(layoutFor(aspect, 1)).toEqual(STAGE_LAYOUTS[id as 'tall']);
+    }
   });
 });
