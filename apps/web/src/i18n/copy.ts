@@ -128,6 +128,18 @@ export const EN = {
   'a11y.skin': 'skin {name}',
   'shelf.rods': 'the ladder',
   'shelf.kit': 'the rest of the table',
+  /**
+   * The seven rooms as a set the player can walk through. The heading is a word and so disappears
+   * on the icons tier — the mark `▢` and the `n / 7` digits stay; a rung is announced in words
+   * because "3" alone does not say what it counts.
+   */
+  'shelf.scenes': 'the rooms',
+  'a11y.scene': 'room {name}',
+  'a11y.rung.now': 'there from the first night',
+  'a11y.rung.day': 'day {n}',
+  'a11y.rung.breaks': '{n} breaks',
+  'a11y.rung.draws': '{n} draws',
+  'a11y.rung.boxes': '{n} boxes',
   'rail.break': 'this break',
   'rail.reduction': 'reduction',
   'shelf.hint': 'swipe up for all {total} · hold a card for its archive',
@@ -281,6 +293,13 @@ const ZH: Table = {
   'a11y.skin': '皮肤 {name}',
   'shelf.rods': '烟种',
   'shelf.kit': '桌上其余',
+  'shelf.scenes': '场景',
+  'a11y.scene': '场景 {name}',
+  'a11y.rung.now': '一开始就在',
+  'a11y.rung.day': '第 {n} 天',
+  'a11y.rung.breaks': '{n} 次休息',
+  'a11y.rung.draws': '{n} 口',
+  'a11y.rung.boxes': '{n} 个烟盒',
   'rail.break': '休息',
   'rail.reduction': '减量',
   'shelf.hint': '下滑查看全部 {total} 款 · 长按卡片查档案',

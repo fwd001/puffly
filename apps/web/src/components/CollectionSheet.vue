@@ -3,9 +3,9 @@
  * The cabinet — S8 and S8b over the top of §38 and §39.
  *
  * The ladder comes first: eleven categories, grouped by what the hand does with them, with the
- * count of how many have been met. Everything else the player can change — rooms, lighters,
- * trays, plumes, voices — sits below it as the rest of the table, because those are props and
- * this is the subject.
+ * count of how many have been met. Then the two ways to change what the scene looks like — the four
+ * palette layers and the seven rooms, each room showing the rung that opens it. Lighters, trays,
+ * plumes and voices sit below those as the rest of the table, because those are props.
  *
  * A card answers two ways, like the mark in the head-up row: a tap puts the rod in the hand, a
  * hold asks what it is. Choosing a rod is the picker, so there is no second menu to explain (§0).
@@ -23,6 +23,7 @@ import type { Puffly } from '../composables/usePuffly';
 import ArchiveTile from './ArchiveTile.vue';
 import { PACKS, SKINS } from '@puffly/game-content';
 import { shelfCount, shelvesOf } from '../shelf';
+import { RUNG_KEYS, byRung, rungCount, rungOf, rungShown } from '../scenes';
 
 const props = defineProps<{
   open: boolean;
@@ -42,10 +43,14 @@ const met = computed(() => new Set(props.game.unlocked.value.cigarettes ?? []));
 const count = computed(() => shelfCount(rods, [...met.value]));
 const chosen = computed(() => props.game.settings.value.selection?.cigarette);
 
-/** The other five categories, drawn from each item's own palette as before. */
+/**
+ * The other four categories, drawn from each item's own palette as before. The rooms are not here:
+ * they are the scene the table sits in, not a prop on it, and they got their own row above (S10's
+ * 皮肤 entry is where a player goes to change what the background looks like — palette is half of
+ * that, the room is the other half).
+ */
 const KIT: readonly { category: CollectionCategoryValue; glyph: string }[] = [
   { category: CollectionCategory.LIGHTERS, glyph: '△' },
-  { category: CollectionCategory.ENVIRONMENTS, glyph: '▢' },
   { category: CollectionCategory.ASHTRAYS, glyph: '○' },
   { category: CollectionCategory.SMOKE, glyph: '≈' },
   { category: CollectionCategory.SOUNDS, glyph: '∿' },
@@ -76,6 +81,38 @@ const worn = computed(() => props.game.settings.value.skin ?? 'night');
 const unlockedSkins = computed(
   () => new Set(props.game.summary.value.state?.collection.unlockedSkins ?? []),
 );
+
+/**
+ * The rooms as a set with a ladder: every one the content defines, in the order a player meets
+ * them, each carrying the number of its own rung. They left the props row because a room is where a
+ * break happens, not a thing on the table — and because "set the background" has two halves, the
+ * palette and the place.
+ */
+const scenes = computed(() =>
+  byRung(
+    props.game.items.value.filter((item) => item.category === CollectionCategory.ENVIRONMENTS),
+  ),
+);
+const metScenes = computed(
+  () => new Set(props.game.unlocked.value[CollectionCategory.ENVIRONMENTS] ?? []),
+);
+const sceneCount = computed(() => rungCount(scenes.value, [...metScenes.value]));
+
+/**
+ * A card shows digits, which is what the wordless tier can carry. What it *counts* — days, breaks,
+ * boxes — is only ever spoken, because "3" without an axis is a number with no door on it.
+ */
+function rungSpoken(item: CollectionItem): string {
+  const rung = rungOf(item.unlock);
+  return copy.value.say(RUNG_KEYS[rung.unit], { n: rung.step ?? '' });
+}
+
+/** Name, then which rung opens it, then whether it is still shut — in that order in every language. */
+function sceneLabel(item: CollectionItem): string {
+  const parts = [copy.value.say('a11y.scene', { name: item.name }), rungSpoken(item)];
+  if (!metScenes.value.has(item.id)) parts.push(copy.value.say('a11y.tileLocked'));
+  return parts.join(' · ');
+}
 
 function isUnlocked(item: CollectionItem): boolean {
   return (props.game.unlocked.value[item.category] ?? []).includes(item.id);
@@ -230,6 +267,31 @@ watch(
               :style="{ background: rgbToCss(skin.palette[layer as 'paper']) }"
             />
           </span>
+        </button>
+      </div>
+
+      <p v-if="copy.t('shelf.scenes') !== null" class="kind rooms-kind">
+        {{ copy.t('shelf.scenes') }}
+        <span class="digits">{{ sceneCount }}</span>
+      </p>
+      <div class="rooms">
+        <button
+          v-for="scene in scenes"
+          :key="scene.id"
+          class="room"
+          :class="{ fresh: fresh.has(`${scene.category}:${scene.id}`) }"
+          :data-scene="scene.id"
+          :data-locked="!metScenes.has(scene.id)"
+          :data-selected="isChosen(scene)"
+          :aria-pressed="isChosen(scene)"
+          :aria-label="sceneLabel(scene)"
+          @click="use(scene)"
+        >
+          <span class="chip" :style="{ background: rgbToCss(scene.swatch) }" aria-hidden="true" />
+          <span v-if="!metScenes.has(scene.id)" class="rung digits" aria-hidden="true">{{
+            rungShown(scene)
+          }}</span>
+          <span v-if="copy.t('shelf.scenes') !== null" class="room-name">{{ scene.name }}</span>
         </button>
       </div>
     </div>
@@ -398,6 +460,65 @@ watch(
 .skin[data-selected='true'] {
   border-color: var(--ember-orange);
   background: color-mix(in oklab, var(--ember-orange) 12%, transparent);
+}
+
+/* The rooms are a card with a caption, so they are their own size: wide enough for a name to stay
+   on one line (the lesson of 烟灰缸 on a phone), tall enough for a finger. */
+.rooms-kind {
+  margin-top: 14px;
+}
+
+.rooms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: calc(10px * var(--text-scale));
+}
+
+.room {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 64px;
+  padding: 7px;
+  border: 1px solid var(--chrome-line);
+  border-radius: var(--radius);
+  background: var(--deep-charcoal);
+  color: var(--soft-white);
+  text-align: start;
+  cursor: pointer;
+}
+
+.room .chip {
+  position: relative;
+  inset: auto;
+  height: 30px;
+}
+
+.room[data-locked='true'] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.room[data-selected='true'] {
+  border-color: var(--ember-orange);
+}
+
+.rung {
+  position: absolute;
+  top: 11px;
+  inset-inline-end: 11px;
+  color: var(--soft-white);
+  font-size: calc(15px * var(--text-scale));
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 0.7);
+}
+
+.room-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: calc(15px * var(--text-scale));
 }
 
 .chip {
