@@ -5,6 +5,10 @@
  * would only ever see the screens a test happens to open, while the rule is about every string
  * the shell can put on screen — including the ones that appear only after a player has unlocked
  * something, or only in right-to-left, or only in the wordless tier.
+ *
+ * One mark is deliberately smaller and this scan does not see it: the journey line's milestone star
+ * is an SVG `font-size="9"` attribute on an `aria-hidden` decoration inside a 48-unit band, not a
+ * word. The floor is about text a player reads; a symbol drawn on a line is the renderer's business.
  */
 
 import { describe, expect, it } from 'vitest';

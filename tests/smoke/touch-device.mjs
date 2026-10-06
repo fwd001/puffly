@@ -1082,6 +1082,101 @@ const hintCentre = async (page) => {
   await context.close();
 }
 
+// ------------------------------------------------------------------ the desk column (S10)
+{
+  const { page, errors, context } = await openWindow({ width: 1440, height: 900 });
+
+  const desk = await page.evaluate(() => {
+    const box = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return {
+        x: Math.round(r.x),
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+        display: getComputedStyle(el).display,
+      };
+    };
+    const words = [...document.querySelectorAll('.data-rail *')].filter((el) =>
+      [...el.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim() !== ''),
+    );
+    const entries = [...document.querySelectorAll('.data-rail [data-entry]')];
+    return {
+      rail: box('.data-rail'),
+      stage: box('.stage'),
+      canvas: box('canvas'),
+      hud: box('.hud'),
+      entries: entries.map((b) => b.getAttribute('data-entry')),
+      minEntry: Math.min(...entries.map((b) => Math.round(b.getBoundingClientRect().height))),
+      minFont: Math.min(...words.map((e) => parseFloat(getComputedStyle(e).fontSize))),
+      bars: document.querySelectorAll('.data-rail .trend rect').length,
+    };
+  });
+
+  check(
+    'S10: the column stands 260px wide and the scene gives it the room, under it not over it',
+    desk.rail !== null &&
+      desk.rail.display === 'flex' &&
+      desk.rail.w === 260 &&
+      desk.rail.x === 1180 &&
+      desk.stage.w === 1180 &&
+      desk.canvas.w === 1180,
+    JSON.stringify(desk),
+  );
+  check(
+    'S10: seven entries, each a finger-sized target wearing a word at the type floor',
+    desk.entries.length === 7 && desk.minEntry >= 44 && desk.minFont >= 15,
+    JSON.stringify({ entries: desk.entries, minEntry: desk.minEntry, minFont: desk.minFont }),
+  );
+  check(
+    'S10: the column carries the day as the sheet does — seven bars, and the row clears it',
+    desk.bars === 7 && desk.hud !== null && desk.hud.x + desk.hud.w <= desk.rail.x,
+    JSON.stringify({ bars: desk.bars, hud: desk.hud, rail: desk.rail }),
+  );
+
+  // The four groups' tops, before and after the entry is used: the deep link has to move the
+  // sheet's own scroll, not merely open it.
+  const groupTops = () =>
+    page.evaluate(() =>
+      ['rods', 'packs', 'skins', 'kit'].map((group) =>
+        Math.round(document.querySelector(`[data-group="${group}"]`).getBoundingClientRect().top),
+      ),
+    );
+  const before = await groupTops();
+  await page.click('[data-entry="skins"]');
+  await page.waitForTimeout(1400);
+  const moved = {
+    before,
+    after: await groupTops(),
+    current: await page.getAttribute('[data-entry="skins"]', 'aria-current'),
+    sheets: await page.locator('.sheet[data-open="true"]').count(),
+  };
+  check(
+    'S10: an entry opens the same sheet the chrome opens and lands on the group it names',
+    moved.sheets === 1 &&
+      moved.current === 'skins' &&
+      moved.after[2] < 320 &&
+      moved.before[2] > moved.after[2] + 300,
+    JSON.stringify(moved),
+  );
+
+  const narrow = await openWindow({ width: 600, height: 900 });
+  const folded = await narrow.page.evaluate(() => ({
+    display: getComputedStyle(document.querySelector('.data-rail')).display,
+    canvas: Math.round(document.querySelector('canvas').getBoundingClientRect().width),
+  }));
+  check(
+    'the column is a width rather than a device: at 600px it is away and the scene has the window',
+    folded.display === 'none' && folded.canvas === 600,
+    JSON.stringify(folded),
+  );
+  await narrow.context.close();
+
+  check('S10: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+}
+
 await browser.close();
 const failed = results.filter((entry) => !entry.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
