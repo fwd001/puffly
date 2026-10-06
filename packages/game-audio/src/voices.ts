@@ -57,6 +57,8 @@ export interface BedHandle {
   readonly gain: AudioParamLike;
   /** Tone openness in Hz: a harder draw breathes brighter. */
   readonly cutoff: AudioParamLike;
+  /** The duct's own formant, when this voice has one — the tube the air is being pulled through. */
+  readonly formant?: AudioParamLike;
   /** Swaps the looped buffer for a freshly seeded one so an ambience never loops audibly. */
   reseed(rng: Rng): void;
   dispose(nowSec: number): void;
@@ -550,9 +552,39 @@ interface BedRecipe {
   readonly channels?: number;
   readonly rate?: number;
   readonly filter: { readonly type: string; readonly hz: number; readonly q: number };
+  /**
+   * A second, narrower stage: the formant of air inside a duct. A rod is a tube, and a tube has a
+   * voice of its own sitting above its body — one filter cannot give both.
+   */
+  readonly duct?: {
+    readonly type: string;
+    readonly hz: number;
+    readonly q: number;
+    /** How much the duct lifts its own band, in dB. A peak rides on top; it never starves the body. */
+    readonly boostDb?: number;
+  };
   /** The bed's own breathing: how fast and how deep it moves with no player input. */
+  /**
+   * A second, parallel low path. One bandpass can be the tube or it can be the body, and with no
+   * bottom the whole draw measures as a hair dryer: offline, the single-stage bed put 4.4x more
+   * energy above 1.5 kHz than in the 150-900 Hz band a chest would fill.
+   */
+  readonly rumble?: {
+    readonly flavor: NoiseFlavor;
+    readonly seconds: number;
+    readonly hz: number;
+    readonly q: number;
+    readonly gain: number;
+  };
   readonly lfoHz: number;
   readonly lfoDepth: number;
+  /**
+   * Turbulence. Held air pulled through a narrow gap does not hiss evenly — the column breaks up.
+   * Two unsyncopated rates wobble the duct so the bed is never at rest and never periodic
+   * (§81 (8)). Wobbling the *formant* rather than the level is deliberate: an amplitude LFO adds to
+   * a param the engine drives to zero, so a silent bed would still be breathing.
+   */
+  readonly flutter?: readonly { readonly hz: number; readonly depth: number }[];
 }
 
 const BEDS: Partial<Record<AudioVoiceId, BedRecipe>> = {
@@ -569,8 +601,18 @@ const BEDS: Partial<Record<AudioVoiceId, BedRecipe>> = {
     seconds: 2.8,
     channels: 2,
     filter: { type: 'bandpass', hz: 460, q: 0.8 },
+    // A peak rides on top of the body instead of in front of it: measured offline against the
+    // single-stage bed, a series bandpass made the draw darker, because it starves the very band it
+    // means to emphasise. The lift is deliberately small — at +9 dB this bed went 19x top-heavy
+    // (tube/body 4.4 -> 19) and 48% louder, which is a hiss with a new coat of paint.
+    duct: { type: 'peaking', hz: 1900, q: 0.9, boostDb: 3 },
+    rumble: { flavor: 'brown', seconds: 3.4, hz: 300, q: 0.7, gain: 0.28 },
     lfoHz: 0.32,
     lfoDepth: 140,
+    flutter: [
+      { hz: 7.3, depth: 260 },
+      { hz: 17.9, depth: 90 },
+    ],
   },
   crackle: {
     flavor: 'grain',
@@ -652,10 +694,33 @@ export function buildBed(
   const graph = new VoiceGraph(context, out, args, label);
   const level = graph.gain('level', SILENT);
   const shape = graph.filter('shape', recipe.filter.type, recipe.filter.hz, recipe.filter.q);
+  const duct = recipe.duct
+    ? graph.filter('duct', recipe.duct.type, recipe.duct.hz, recipe.duct.q)
+    : null;
+  if (duct && recipe.duct?.boostDb) duct.gain.value = recipe.duct.boostDb;
   const field = graph.stage('field');
-  shape.connect(level);
+  if (duct) {
+    shape.connect(duct);
+    duct.connect(level);
+  } else {
+    shape.connect(level);
+  }
+  const low = recipe.rumble
+    ? graph.filter('rumble', 'lowpass', recipe.rumble.hz, recipe.rumble.q)
+    : null;
+  if (low && recipe.rumble) {
+    // Parallel, not in series: the body has to survive the tube, and the tube has to survive it.
+    const lift = graph.gain('rumble.level', recipe.rumble.gain);
+    low.connect(lift);
+    lift.connect(level);
+  }
   level.connect(field);
   graph.lfo('breath', recipe.lfoHz, recipe.lfoDepth, shape.frequency);
+  if (duct) {
+    for (const [index, wave] of (recipe.flutter ?? []).entries()) {
+      graph.lfo(`flutter${index}`, wave.hz, wave.depth, duct.frequency);
+    }
+  }
 
   const seconds = recipe.seconds;
   const density = recipe.density ?? 0.35;
@@ -668,12 +733,23 @@ export function buildBed(
     specOf(recipe.flavor, seconds, density, channels),
     rate,
   );
+  /** The body's own loop, seeded beside the air's so neither of them ever repeats (§27). */
+  let rumbling: AudioBufferSourceLike | null =
+    low && recipe.rumble
+      ? graph.loopInto(
+          low,
+          'rumble.loop',
+          specOf(recipe.rumble.flavor, recipe.rumble.seconds, undefined, 2),
+          1,
+        )
+      : null;
 
   const { nodes } = graph.view();
 
   return {
     gain: level.gain,
     cutoff: shape.frequency,
+    ...(duct ? { formant: duct.frequency } : {}),
     reseed: (rng: Rng) => {
       // Stop the old loop a moment after the new one starts: the crossfade is a few samples,
       // and the fresh buffer is a different grain pattern, so the bed never repeats (§27).
@@ -694,6 +770,22 @@ export function buildBed(
           dying.stop(context.currentTime + 0.08);
         } catch {
           /* already finished */
+        }
+      }
+      if (low && recipe.rumble) {
+        const dyingLow = rumbling;
+        rumbling = graph.loopInto(
+          low,
+          `rumble.loop.${nodes.length}`,
+          specOf(recipe.rumble.flavor, recipe.rumble.seconds * rng.range(0.85, 1.15), undefined, 2),
+          1,
+        );
+        if (dyingLow) {
+          try {
+            dyingLow.stop(context.currentTime + 0.08);
+          } catch {
+            /* already finished */
+          }
         }
       }
     },

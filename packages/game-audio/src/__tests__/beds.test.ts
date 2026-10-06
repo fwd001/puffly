@@ -113,13 +113,14 @@ describe('continuous beds (§27)', () => {
     h.frame(state);
     const before = h.ctx.buffers.length;
     const loopsBefore = h.ctx.sources.filter((source) => source.loop).length;
-    expect(loopsBefore).toBe(4);
+    // Five held sources across four beds: the draw carries an air loop *and* the body loop under it.
+    expect(loopsBefore).toBe(5);
 
     // Twenty seconds of quiet frames: past the longest re-seed horizon, so every bed must move.
     for (let i = 0; i < 20; i += 1) h.run(1000, state);
 
     const loops = h.ctx.sources.filter((source) => source.loop);
-    expect(loops.length).toBeGreaterThanOrEqual(loopsBefore + 4);
+    expect(loops.length).toBeGreaterThanOrEqual(loopsBefore + 5);
     // And the swapped-in buffers are different audio, not the same loop started again.
     const prints = loops.map((source) =>
       source.buffer instanceof FakeBuffer ? source.buffer.fingerprint() : 0,

@@ -309,7 +309,11 @@ Honest gaps, so nobody rediscovers them as bugs:
   app that would host it is not here.
 - No accounts, sync or cloud of any kind — by design.
 - Sound is synthesised from oscillators, filtered noise and envelopes. There are no samples, so a
-  voice is only as close to the real object as its filter and envelope make it.
+  voice is only as close to the real object as its filter and envelope make it. The beds are at least
+  measurable: `createAudioEngine` takes an injected context, so pointing it at an
+  `OfflineAudioContext` renders the shipped synth and its spectrum can be compared before and after a
+  change — that is how the draw's tube-to-body balance and its spectral movement were tuned (§26).
+  What that cannot settle is whether it sounds right. Nobody has listened to these numbers.
 - No `LICENSE` file has been chosen for the repository yet.
 - The 12-box collection reserves three boxes for the cinnabar skin's finale (中华硬 / 黄鹤楼1916 /
   和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.

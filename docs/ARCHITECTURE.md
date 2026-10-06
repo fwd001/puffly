@@ -91,12 +91,17 @@ break through it: any write would throw a TypeError instead of corrupting the si
   with `LighterContent.failureChance`.
 - The ashtray catch radius, the flick threshold and the particle budget are each named once and
   read from there.
-- A storage reader may only drop a field it has a replacement for. `readSettings` and
-  `cloneSettings` both rebuild `Settings` from a typed-out list of keys, which is how a player's
-  chosen item and their chosen language came to vanish on the next reload while the memory
-  fallback — which hands back the object it was given — kept both. The two adapters are now pinned
-  to the same fixture (`makeChosenSettings`), so a field that is not listed in both places is a
-  failing test rather than a silent loss.
+- A rebuild-by-hand drops every field it does not name, so it may only drop one it has a replacement
+  for. Two instances, one shape: `readSettings` and `cloneSettings` both rebuild `Settings` from a
+  typed-out list of keys, which is how a player's chosen item and their chosen language came to
+  vanish on the next reload while the memory fallback — which hands back the object it was given —
+  kept both; the two adapters are now pinned to the same fixture (`makeChosenSettings`), so a field
+  that is not listed in both places is a failing test rather than a silent loss. And
+  `BedController.sync` rebuilt a `BedTarget` as `{ gain, cutoff }`, which computed, wired and then
+  discarded the draw bed's `formant` one step before it reached the graph — no type error, no red
+  test, just a filter nobody was driving. It spreads the target now and overrides only the field the
+  trim touches. Where a rebuild has to enumerate (validation, where every field needs a bound), the
+  enumeration is pinned by a fixture; where it does not, spread it.
 
 ## Determinism and replay
 

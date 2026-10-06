@@ -42,6 +42,8 @@ export interface BedTarget {
   readonly gain: number;
   /** Cutoff in Hz the bed's shaping filter chases. */
   readonly cutoff: number;
+  /** The duct's formant in Hz, for the beds that have a duct. Absent means "do not move it". */
+  readonly formant?: number;
 }
 
 export interface GrooveHost {
@@ -159,6 +161,15 @@ class BedGroup {
         nowSec,
         TIME_CONSTANT[this.id],
       );
+      // Both halves have to agree: a voice built without a duct is not moved, and a target that
+      // names no formant leaves the duct where its recipe put it.
+      if (entry.handle.formant !== undefined && target.formant !== undefined) {
+        entry.handle.formant.setTargetAtTime(
+          clamp(target.formant, 24, 18000),
+          nowSec,
+          TIME_CONSTANT[this.id],
+        );
+      }
     }
   }
 
@@ -264,10 +275,9 @@ export class BedController {
     const group = this.groups[bed];
     group.ensure(source.profileId, source.layers, { pan: source.pan, pitch: 0 });
     const target = targets[bed];
-    group.apply(
-      { gain: target.gain * source.trim, cutoff: target.cutoff },
-      this.options.context.currentTime,
-    );
+    // Spread, then override the one field the trim touches. Re-listing these fields by hand is how
+    // `formant` was built, wired and then quietly dropped on its way to the graph.
+    group.apply({ ...target, gain: target.gain * source.trim }, this.options.context.currentTime);
   }
 
   tick(): void {
@@ -313,6 +323,9 @@ export function bedTargets(
       gain: intensity * tail,
       // A deep draw is brighter air: the cutoff tracks intensity, never a fixed number.
       cutoff: 300 + intensity * 1500 + density * 260,
+      // And the rod has a voice of its own above that body: the formant climbs as the pull hardens,
+      // so a sip and a real draw are two different tubes rather than one tube at two volumes.
+      formant: 1450 + intensity * 820 + density * 150,
     },
     flame: {
       gain: flame * (0.35 + flame * 0.65),
