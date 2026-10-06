@@ -796,13 +796,16 @@ export function createPuffly(): Puffly {
     gesture(kind) {
       if (!engine) return;
       const state = engine.getState();
+      // A button is not a finger on the table. Sent as `pointer` at (0,0) the core read it as a
+      // real press in the top-left corner and dragged the rod there; `shortcut` is the source
+      // that says "aim at this anchor, I have no pixel of my own" (§65).
       engine.send({
         type: kind,
         x: 0,
         y: 0,
         timestamp: state.nowMs,
         target: targetForAffordance(state),
-        source: 'pointer',
+        source: 'shortcut',
       });
       refreshSummary();
     },

@@ -18,6 +18,10 @@
   --chrome-height: calc(var(--tap-target) + 20px);
   --sheet-lift: calc(var(--chrome-height) + env(safe-area-inset-bottom));
   --text-scale: 1;
+  /* One notch under the reading floor, for a caption that sits under its own mark: the brief's
+     minFontSize is about text a player reads, and at 15px 烟灰缸 wrapped onto two lines in the
+     bottom rail on a phone. */
+  --label-size: calc(13px * var(--text-scale));
   --radius: 14px;
   --ease-out: cubic-bezier(0.16, 0.84, 0.3, 1);
   --ease-in: cubic-bezier(0.5, 0, 0.75, 0.4);

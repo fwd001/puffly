@@ -95,12 +95,15 @@ export const EMBER = {
 
 /** Stage layout, in normalised coordinates (SPEC.md §55). */
 export const LAYOUT: Record<'pack' | 'lighter' | 'ashtray' | 'restPivot' | 'table', Point> = {
-  pack: { x: 0.28, y: 0.87 },
+  // Everything on the table lies above the chrome line (`CHROME_CLEAR_Y` in the stage): the pill
+  // and the rail are drawn over the bottom of the scene at every window size, and a rod under
+  // them is hidden behind the button that operates it.
+  pack: { x: 0.28, y: 0.685 },
   /** Where a fresh rod lies before anyone picks it up: beside the pack, not on top of it. */
-  table: { x: 0.415, y: 0.905 },
-  lighter: { x: 0.135, y: 0.74 },
-  ashtray: { x: 0.755, y: 0.855 },
-  restPivot: { x: 0.5, y: 0.615 },
+  table: { x: 0.415, y: 0.705 },
+  lighter: { x: 0.135, y: 0.575 },
+  ashtray: { x: 0.755, y: 0.67 },
+  restPivot: { x: 0.5, y: 0.505 },
 };
 
 export const ANGLES = {

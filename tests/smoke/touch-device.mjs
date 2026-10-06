@@ -65,8 +65,10 @@ console.log(`engine: ${ENGINE}`);
 
 /** Where the tall (portrait) and wide (landscape) prop tables put things, in stage units. */
 const LAYOUTS = {
-  tall: { rod: [0.26, 0.855], lighter: [0.13, 0.655], held: [0.5, 0.58], tray: [0.72, 0.78] },
-  wide: { rod: [0.33, 0.86], lighter: [0.075, 0.66], held: [0.52, 0.5], tray: [0.815, 0.8] },
+  // The stage's own table line, lifted clear of the chrome (CHROME_CLEAR_Y in game-core): these
+  // are where the props are drawn, so a check that taps anywhere else taps empty air.
+  tall: { rod: [0.26, 0.705], lighter: [0.095, 0.49], held: [0.5, 0.52], tray: [0.735, 0.695] },
+  wide: { rod: [0.33, 0.695], lighter: [0.075, 0.47], held: [0.52, 0.45], tray: [0.815, 0.685] },
 };
 
 async function openPhone({ width, height, dpr, locale }) {

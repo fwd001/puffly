@@ -80,13 +80,15 @@ const on = (id: Phase): boolean => !props.settingsOpen && phase.value === id;
   min-width: 62px;
   min-height: 46px;
   padding: 0 8px;
+  /* A caption under a mark, not body text — and it must never wrap onto the mark's line. */
+  white-space: nowrap;
   border: 1px solid transparent;
   border-radius: 22px;
   background: transparent;
   color: var(--smoke-gray);
   font: inherit;
-  font-size: calc(15px * var(--text-scale));
-  letter-spacing: 0.06em;
+  font-size: var(--label-size);
+  letter-spacing: 0.02em;
   transition:
     color 200ms var(--ease-out),
     background-color 200ms var(--ease-out),

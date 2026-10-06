@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   STAGE_LAYOUTS,
+  CHROME_CLEAR_Y,
   computeAnchors,
   deriveSmokeCharacter,
   hitToleranceFor,
@@ -39,6 +40,27 @@ describe('stage shape decides where things live (§55)', () => {
     const wide = STAGE_LAYOUTS.wide;
     expect(wide.ashtray.x - wide.pack.x).toBeGreaterThan(tall.ashtray.x - tall.pack.x);
     expect(wide.tableEdgeY).toBeLessThan(tall.tableEdgeY);
+  });
+
+  it('no prop lies under the chrome, in any shape of stage (§ the phone heap)', () => {
+    // The pill and the rail are fixed-pixel furniture over the bottom of the scene. A rod lying
+    // below them is drawn behind the button that draws it, and nothing on the table is then
+    // tappable that the player can actually see.
+    for (const layout of Object.values(STAGE_LAYOUTS)) {
+      const points: Record<string, { x: number; y: number }> = {
+        table: layout.table,
+        pack: layout.pack,
+        lighter: layout.lighter,
+        ashtray: layout.ashtray,
+        restPivot: layout.restPivot,
+      };
+      for (const [name, point] of Object.entries(points)) {
+        expect(point.y, `${layout.id}.${name} lies under the chrome`).toBeLessThanOrEqual(
+          CHROME_CLEAR_Y,
+        );
+      }
+      expect(layout.tableEdgeY, `${layout.id}'s horizon`).toBeLessThan(CHROME_CLEAR_Y);
+    }
   });
 
   it('the engine re-lays the scene when the window changes shape', () => {

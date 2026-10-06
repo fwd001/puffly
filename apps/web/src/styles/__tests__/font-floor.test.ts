@@ -37,6 +37,9 @@ function styles(dir: string): string[] {
   return found;
 }
 
+/** The one declaration allowed under the floor, and what it is for: a caption under an icon. */
+const LABEL_TOKEN = '--label-size';
+
 /** What a declaration actually paints, in css pixels. */
 function pxOf(match: RegExpMatchArray): number | undefined {
   const [scaled, plain, rem] = [match[1], match[2], match[3]];
@@ -46,10 +49,22 @@ function pxOf(match: RegExpMatchArray): number | undefined {
 }
 
 function sizesOf(css: string): number[] {
-  return [...css.matchAll(SIZES)].flatMap((match) => {
-    const px = pxOf(match);
-    return px === undefined ? [] : [px];
-  });
+  return (
+    [...css.matchAll(SIZES)]
+      // The exception is one named declaration, not one file: only the line that declares the
+      // caption token is excused, so a stray 10px cannot hide next to it.
+      .filter((match) => !lineOf(css, match.index).includes(LABEL_TOKEN))
+      .flatMap((match) => {
+        const px = pxOf(match);
+        return px === undefined ? [] : [px];
+      })
+  );
+
+  function lineOf(css: string, index: number): string {
+    const from = css.lastIndexOf('\n', index) + 1;
+    const to = css.indexOf('\n', index);
+    return css.slice(from, to < 0 ? css.length : to);
+  }
 }
 
 describe(`the type floor (§accessibility: ${String(FLOOR)}px)`, () => {

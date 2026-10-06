@@ -62,6 +62,7 @@ export {
 } from './anchors';
 export {
   STAGE_LAYOUTS,
+  CHROME_CLEAR_Y,
   STAGE_MAX_ASPECT,
   STAGE_MIN_ASPECT,
   TOUCH_HIT_PAD,
