@@ -28,16 +28,20 @@ export const RUNG_KEYS: Record<RungUnit, CopyKey> = {
 
 /**
  * The same axes as a mark, for the cards a player only looks at. Two rooms can sit on rung `14` —
- * one counted in days, one in breaks — so a bare number is not enough to read the row by. The marks
- * are the chrome's own shapes, the same ones the rail and the shelf already wear: ◷ a break, — a
- * stick, ▭ a box. A day stays bare, because the day ladder is the axis the whole interface is
- * already counted on.
+ * one counted in days, one in breaks — so a bare number is not enough to read the row by.
+ *
+ * A mark means exactly one thing across the whole interface, which is the rule this table broke
+ * when it borrowed `—` for the draws axis: `—` is the rod everywhere else (the rail's 支 entry and
+ * the HUD's rod readout both wear it), so a smoke shape gated at `—120` read as *120 sticks* — a
+ * tier off by an order of magnitude, on the one row the brief asks to be read as tiers. A day
+ * stays bare, because the day ladder is the axis the whole interface is already counted on.
+ * `mark-alphabet.test.ts` holds the alphabet apart.
  */
 export const RUNG_MARKS: Record<RungUnit, string | null> = {
   now: null,
   day: null,
   breaks: '◷',
-  draws: '—',
+  draws: '◡',
   boxes: '▭',
 };
 
