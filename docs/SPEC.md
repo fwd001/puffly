@@ -1429,6 +1429,18 @@ Import JSON
 
 用户应该能够在没有账号的情况下拥有自己的数据。
 
+（2026-10-06 补充，按 Smoke Ritual `storage.mustSupport` 落地）三条出口都进了同一张 settings sheet：
+`⤓ 导出`、`⤒ 导入`、`⌫ 清空`。清空是**两段式**——点一次按钮变成橙色、标签换成"再点一次"，六秒之内
+再点才真的动手；离开这张 sheet 就重新计数。没有对话框，§64 那条"不弹技术味道的窗"对它同样成立。
+
+它同时落下 shell 里的写回闸门：`persistence.reset()` 之后，内存里那份还在跑的模拟再怎么写
+`saveSettings / saveProgress / putSession / saveOpenBreak` 都不会回来——否则"删除我的数据"只维持到
+下一帧，而下一帧一定来。
+
+判据分两层：`apps/web/src/services/__tests__/persistence.test.ts` 证明清空之后 `load()` 是全新玩家、
+且清空之后再写仍然空（把闸门拆掉，第二条必红）；四个记录库被清空、`meta` 里的布局标记留下，则在
+`packages/game-storage/src/__tests__/idb.test.ts`。
+
 ---
 
 52. Privacy

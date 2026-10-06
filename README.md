@@ -73,6 +73,10 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   broken one: the sheets lose every label and keep every `aria-label`, because an unnamed control
   is the one thing this product is not allowed to ship. A language never reaches the simulation —
   the rod burns the same way whichever way you read.
+- **Limit** — how many sticks a day the ring counts against, set to `—` (no line drawn) by
+  default. It is a drawing decision and nothing more: no code that runs the rod may read it, and
+  `tests/architecture.test.ts` fails the build if a pure package ever does.
+- **Data** `⤓ ⤒ ⌫` — export the save, re-import one, or erase every record on this device.
 - **Rod, room, lighter, tray** — eleven rods, seven rooms, eight props, five smoke styles. The
   eleven are the ladder of the brief: seven inhaled, three savoured, one filtered, unlocked at 0 /
   8 / 20 / 40 / 65 / 95 / 135 / 190 / 250 / 320 / 420 cumulative sticks, and the cabinet groups them
@@ -258,6 +262,12 @@ reference rather than shopfront (SPEC.md §13, §84).
 
 Data never leaves the device. No account, no login, no upload, no analytics; the save file is JSON
 you can export and re-import (SPEC.md §51, §52).
+
+Deleting it is a setting too: `⌫` in the data row erases every record on the device. It is the one
+control in the app that cannot be undone, so it asks for the same tap twice — the button turns
+amber and its word becomes `again`, and it forgets after six seconds or when you leave the sheet.
+There is no confirmation dialog, and no write from the still-running simulation comes back after the
+wipe: a reset that the next animation frame undoes is not a reset.
 
 ## Not built
 

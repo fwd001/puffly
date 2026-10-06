@@ -49,6 +49,12 @@ export interface Persistence {
   loadOpenBreak(): Promise<OpenBreak | null>;
   saveOpenBreak(record: OpenBreak): Promise<void>;
   clearOpenBreak(): Promise<void>;
+  /**
+   * §52's "delete my data". Everything the player is made of goes — profile, settings, progress,
+   * every session — and nothing the live simulation writes afterwards comes back, so a wipe is
+   * not undone by the next animation frame.
+   */
+  reset(): Promise<void>;
   download(): Promise<string>;
   restore(json: string): Promise<{ ok: boolean; errors: string[] }>;
   isDegraded(): boolean;
@@ -94,6 +100,7 @@ export function createPersistence(): Persistence {
   const primary = createIdbStorage();
   const memory = createMemoryStorage();
   let degraded = false;
+  let wiped = false;
   const storage = createFallbackStorage(primary, memory, {
     onError: (error: unknown) => {
       // §63: storage trouble must not surface as technical text. Remember it visually later.
@@ -121,12 +128,33 @@ export function createPersistence(): Persistence {
   return {
     storage,
     load,
-    saveSettings: (settings) => storage.saveSettings(settings),
-    saveProgress: (progress) => storage.saveProgress(progress),
-    putSession: (session) => storage.putSession(session),
+    saveSettings: async (settings) => {
+      if (wiped) return;
+      await storage.saveSettings(settings);
+    },
+    saveProgress: async (progress) => {
+      if (wiped) return;
+      await storage.saveProgress(progress);
+    },
+    putSession: async (session) => {
+      if (wiped) return;
+      await storage.putSession(session);
+    },
     loadOpenBreak: () => storage.loadOpenBreak(),
-    saveOpenBreak: (record) => storage.saveOpenBreak(record),
+    saveOpenBreak: async (record) => {
+      if (wiped) return;
+      await storage.saveOpenBreak(record);
+    },
     clearOpenBreak: () => storage.clearOpenBreak(),
+    /**
+     * The page keeps running after this: a player who erased everything is still holding a rod.
+     * `wiped` is what stops the live simulation from writing its way back into a save that the
+     * player just asked to have gone, and the reload is what makes the next frame honest.
+     */
+    async reset() {
+      wiped = true;
+      await storage.clear();
+    },
     async download() {
       const [profile, settings, progress, sessions] = await Promise.all([
         storage.loadProfile(),

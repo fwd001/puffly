@@ -53,6 +53,25 @@ async function readFile(event: Event): Promise<void> {
 }
 
 /**
+ * Erasing every record is the one thing here that cannot be undone, so it asks for the same tap
+ * twice instead of putting up a dialog (§64: no modal, no technical wording). Six seconds, or
+ * closing the sheet, and the button forgets that it was ever armed.
+ */
+const armed = ref(false);
+
+async function eraseAll(): Promise<void> {
+  if (!armed.value) {
+    armed.value = true;
+    window.setTimeout(() => {
+      armed.value = false;
+    }, 6000);
+    return;
+  }
+  armed.value = false;
+  await props.game.resetData();
+}
+
+/**
  * Three steps rather than a dial (§14 of the mobile brief): enough, a little, none. The ambient
  * bed keeps its own slider because wind and a room are the two sounds a player may want apart.
  */
@@ -102,7 +121,10 @@ function minutesToMs(minutes: number): number {
 watch(
   () => props.open,
   (isOpen) => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      armed.value = false;
+      return;
+    }
     void nextTick(() => root.value?.scrollTo({ top: 0 }));
   },
 );
@@ -332,6 +354,18 @@ watch(
       <button class="icon-button" :aria-label="copy.say('a11y.import')" @click="fileInput?.click()">
         ⤒
       </button>
+      <button
+        class="icon-button"
+        data-hook="erase"
+        :data-armed="armed"
+        :aria-label="copy.say(armed ? 'a11y.resetArm' : 'a11y.reset')"
+        @click="eraseAll()"
+      >
+        ⌫
+      </button>
+      <span class="arm" aria-live="polite">{{
+        word(armed ? 'settings.resetArm' : 'settings.reset')
+      }}</span>
       <span v-if="importState !== 'idle'" class="state" :class="importState" aria-hidden="true">
         {{ importState === 'ok' ? '✓' : '!' }}
       </span>
@@ -429,6 +463,19 @@ watch(
   color: var(--smoke-gray);
   font-size: calc(10px * var(--text-scale));
   letter-spacing: 0.08em;
+}
+
+/* The one control that cannot be undone asks twice, in a colour and a word, instead of putting
+   up a dialog on top of a sheet that is already a dialog-shaped thing. */
+.arm {
+  min-width: 5ch;
+  color: var(--smoke-gray);
+  font-size: calc(10px * var(--text-scale));
+  letter-spacing: 0.08em;
+}
+
+.icon-button[data-armed='true'] {
+  color: var(--ember-orange);
 }
 
 .hint-preview {

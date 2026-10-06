@@ -52,8 +52,8 @@ describe('three tiers: target language → English → icons (§9)', () => {
   });
 
   it('the core loop is spelled with icons and digits, never a quantifier', () => {
-    // §9.2: 中文量词 lives in the 图鉴 and the 档案 only. A key inside the loop that carries one
-    // is the mistake this guards against.
+    // §9.2: the stage and its chrome are icons and Arabic digits, so a key that appears there
+    // with a 中文量词 in it is the mistake this guards against. The sheets may speak.
     const quantifiers = ['支', '口', '根', '次'];
     const inLoop = KEYS.filter(
       (key) =>
@@ -69,9 +69,10 @@ describe('three tiers: target language → English → icons (§9)', () => {
         expect(chinese, `${key} = "${chinese}" uses the quantifier ${unit}`).not.toContain(unit);
       }
     }
-    // The quantifiers are in the table where the player reads a count of things — the 图鉴, the
-    // 档案, the day's own numbers — and in the spoken names, which are never read with the eyes.
-    const outside = /^(a11y|archive|shelf|reduction)\./;
+    // Where a quantifier may live: the sheets a player reads a count in (the 图鉴, the 档案, the
+    // day's own numbers), a sheet that is allowed to speak in full sentences (settings), and the
+    // spoken names no eye ever reads (a11y). §9.2 binds the stage and its three chrome pieces.
+    const outside = /^(a11y|archive|shelf|reduction|settings)\./;
     const carrying = KEYS.filter((key) => {
       const chinese = COPY['zh-CN']?.[key] ?? '';
       return quantifiers.some((unit) => chinese.includes(unit));

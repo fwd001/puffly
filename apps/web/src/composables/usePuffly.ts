@@ -208,6 +208,7 @@ export interface Puffly {
   endBreak(): void;
   exportJson(): Promise<string>;
   importJson(json: string): Promise<{ ok: boolean; errors: string[] }>;
+  resetData(): Promise<void>;
 }
 
 function prefersReducedMotion(): boolean {
@@ -867,6 +868,16 @@ export function createPuffly(): Puffly {
         refreshSummary();
       }
       return result;
+    },
+    /**
+     * §52's reset, and the one control in the app that erases something. The reload is not
+     * laziness: rebuilding the engine in place would leave the day's log, the unlocks and the
+     * ladder alive in memory, which is a wipe that a few seconds of play quietly undoes.
+     */
+    async resetData() {
+      if (!persistence) return;
+      await persistence.reset();
+      window.location.reload();
     },
   };
 }
