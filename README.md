@@ -365,16 +365,20 @@ Honest gaps, so nobody rediscovers them as bugs:
   draw was too bright (偏亮), which the same ruler located: the tube sat at 1.9 kHz, putting 3.82x
   the body's energy into the 2.4 kHz band. It sits at 1.2 kHz now and that ratio measures 2.97 at
   rest, 2.48–2.73 through a pull.
-- **Whether the smoke is _the_ smoke, and which face the words wear.** The shell's colours are the
-  brief's named baseline (SPEC.md §57), and the plume is measured as a shape now — a rising column
-  of elongation 2.4 at two seconds where it was a round cloud of 1.10 (SPEC.md §15). What those
-  numbers still do not answer is the only question that matters: is this the picture. The design's frames are reachable in a signed-in browser — S3 吸烟 is node `3:127`,
-  S4 吐烟 is `3:187`, both 390×844 — but at the zoom that fits the whole page a frame is 27×59 CSS
-  pixels (≈55×119 in a screenshot at this display's scale), and making one bigger needs real wheel or
-  keyboard input, which the editor does not accept from synthetic events. So two things are left to a
-  human eye: whether the plume reads like the frames, and whether to swap the system rounded face for
-  the baseline's Noto Sans SC + Inter Tight — a typeface change touches every screen, and I would not
-  make it blind.
+- **Whether the smoke is _the_ smoke.** The shell's colours are the brief's named baseline (SPEC.md
+  §57), and the plume is now measured where a player sees it: the whole body of smoke 2.5 seconds
+  into a break is narrower than a tenth of the stage and taller than it is wide, every one of the
+  eleven cigarettes keeps its breath inside the frame at two seconds and within 0.05 stage widths of
+  the tip sideways, and the smouldering thread is continuous from the cherry to its top
+  (`plume-shape`, `plume-on-stage`, `plume-continuity`). An earlier version of this bullet quoted an
+  elongation of 2.4 against 1.10; that number is gone on purpose — it measured how far the cloud had
+  travelled, and the cloud was travelling out of the picture. What the measurements still cannot
+  answer is the only question that matters: is this the picture. The design's frames are in a
+  signed-in browser — S3 吸烟 is node `3:127`, S4 吐烟 is `3:187`, both 390×844 — but at the zoom that
+  fits the whole page a frame is 27×59 CSS pixels, making one bigger needs real wheel or keyboard
+  input, which the editor does not accept from synthetic events, and the browser connector's command
+  queue has since stopped answering at all (three times in one session, `Tool command waited too long
+in queue`, including for a plain tab list). So the last word on the smoke is a human eye's.
 - No `LICENSE` file has been chosen for the repository yet.
 - The 12-box collection reserves three boxes for the cinnabar skin's finale (中华硬 / 黄鹤楼1916 /
   和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.
@@ -385,8 +389,14 @@ Honest gaps, so nobody rediscovers them as bugs:
   executed _as that script_. The last one was run verbatim against a known picture instead (the
   shipped function, pointed at a rendered exhale: 9806 cloud samples, neighbour difference 8.44,
   relative spread 0.294, where the old cloud measured 5.17 and 0.234), so its thresholds are
-  calibrated rather than guessed — but the script itself has not been run end to end here. Each one was checked by hand against a connected Chrome on the
+  calibrated rather than guessed — but the script itself has not been run end to end here, **and two
+  of its numbers are known stale**: the structure thresholds were set against the picture from before
+  the plume was given one shared field and one drag of its own, and the tap anchors are the unlifted
+  layout values. Both are marked where they sit in `tests/smoke/touch-device.mjs`. Each one was checked by hand against a connected Chrome on the
   dev server instead: a whole break performed through the keyboard path, the ash readings
-  (`15.7mm · 0.65g`), the reduction page's seven bars and its delta, and every visible string
-  measured at ≥ 15 px. Run the script with `PUFFLY_BROWSER=chromium` to fold those claims back into
-  CI.
+  (`15.7mm · 0.65g`), the reduction page's seven bars and its delta, and the desk column's seven
+  entries at ≥ 44px tall with their words at ≥ 15px. That last pair is the reading floor for text a
+  player reads, not a rule for every string in the shell: the bottom rail's caption is deliberately
+  one notch under it at 13px, because at 15px 烟灰缸 wrapped onto the mark's line — a decision with a
+  guard of its own (`rail-label.test.ts`), so the two sizes cannot be mistaken for each other later.
+  Run the script with `PUFFLY_BROWSER=chromium` to fold those claims back into CI.
