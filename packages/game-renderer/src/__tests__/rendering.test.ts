@@ -107,8 +107,15 @@ describe('particles (§15, §54)', () => {
   });
 
   it('drift is a wind velocity, not a slow acceleration (§6)', () => {
-    // Same burst for both pools, so the only difference is the wind it is sitting in.
-    const recipe = burst({ count: 4, speed: { min: 0, max: 0 }, lifeMs: { min: 5000, max: 5000 } });
+    // Same burst for both pools, so the only difference is the wind it is sitting in — and no
+    // turbulence, because the curl is a shared field now and the two pools drift apart into
+    // different parts of it, which would be measured here instead of the wind.
+    const recipe = burst({
+      count: 4,
+      speed: { min: 0, max: 0 },
+      lifeMs: { min: 5000, max: 5000 },
+      turbulence: 0,
+    });
     const calm = new ParticlePool(16);
     const blown = new ParticlePool(16);
     intakeBurst(recipe, calm, { densityScale: 1 });

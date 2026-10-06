@@ -129,6 +129,13 @@ break through it: any write would throw a TypeError instead of corrupting the si
   unskinned view), record every colour the renderer asks a sprite for, and compare two runs of the
   same seeded puff index-aligned. Then a difference can only have come from that layer, and "0 of 60
   sprites changed" is a number rather than an impression.
+- A shared field with a per-entity seed is not a shared field. The smoke pool sampled its curl noise
+  with each particle's own `noiseSeed`, and that argument selects a *different lattice*, not another
+  place in the same one — so two neighbours were pushed in unrelated directions, no puff ever had a
+  body, and the picture read as out-of-focus fog while every per-particle number looked correct. The
+  field still looked alive, which is why it survived: the thing to ask of a flow field is whether
+  nearby particles move *together*, so what is now measured is the cloud's shape — elongation and
+  footprint, not particle count (`plume-shape.test.ts`).
 
 ## Determinism and replay
 

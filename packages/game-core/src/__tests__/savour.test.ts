@@ -142,8 +142,11 @@ describe('the mouth and the lungs (§14, 品鉴型)', () => {
     // a ceiling on what leaves, not on what is written: authored 0.055 arrives here at ~0.086, where
     // the old 0.105 arrived at ~0.164.
     expect(cloud.radius.max).toBeLessThan(0.12);
-    // And it still has to billow, or "thinner" would only mean "a smaller cloud".
-    expect(cloud.scaleGrowth).toBeGreaterThanOrEqual(2);
+    // And "thinner" may not simply mean "a smaller cloud": the mass has to stay in the frame.
+    // This used to assert a billow (`scaleGrowth >= 2`), which was the wrong conclusion — the
+    // brief's breath is a rising column, and whether it reads as one is now measured as a shape
+    // rather than inferred from a growth number (`plume-shape.test.ts`: elongation >= 1.8,
+    // footprint <= 0.6 of a stage at two seconds).
     expect(cloud.count).toBeGreaterThan(40);
   });
 });

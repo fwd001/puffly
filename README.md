@@ -105,6 +105,14 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   What is already in the air when you switch stays as it was for a few seconds — smoke that has left
   the rod does not get a second colour. Rerun with
   `npx vitest run packages/game-renderer/src/__tests__/plume-palette.test.ts`.
+- **The smoke moves as one body.** Every particle used to sample its own noise lattice, which sounds
+  like variety and is actually a swarm: neighbours were pushed in unrelated directions, so no puff
+  had a body and the room read as out-of-focus fog (像雾, 没对上焦). They share the air now, and the
+  difference is a shape rather than an opinion — the breath went from a round cloud with the area of
+  three and a half screens to a rising column a seventh of that, and the smouldering thread from 0.19
+  to 0.009 of the stage's width. That each puff still traces its own path is asserted too, because
+  sharing a field is exactly what could have made them repeat. Rerun with
+  `npx vitest run packages/game-renderer/src/__tests__/plume-shape.test.ts`.
 - **The button does not sit on the table.** The chrome at the bottom of the screen is fixed pixels, so
   how much of the scene it eats depends on how tall the scene is: 16% of a portrait phone's height,
   34% of the same phone turned sideways, plus a 12px pad so nothing sits flush against it. A constant
@@ -335,10 +343,10 @@ Honest gaps, so nobody rediscovers them as bugs:
   `OfflineAudioContext` renders the shipped synth and its spectrum can be compared before and after a
   change — that is how the draw's tube-to-body balance and its spectral movement were tuned (§26).
   What that cannot settle is whether it sounds right. Nobody has listened to these numbers.
-- **Whether the smoke is _the_ smoke, and which face the words wear.** The shell's colours are now
-  the brief's named baseline (SPEC.md §57), and the plume's thinness, structure and colour are all
-  measured (SPEC.md §15) — but none of those numbers answers the only question that matters: is this
-  the picture. The design's frames are reachable in a signed-in browser — S3 吸烟 is node `3:127`,
+- **Whether the smoke is _the_ smoke, and which face the words wear.** The shell's colours are the
+  brief's named baseline (SPEC.md §57), and the plume is measured as a shape now — a rising column
+  of elongation 2.4 at two seconds where it was a round cloud of 1.10 (SPEC.md §15). What those
+  numbers still do not answer is the only question that matters: is this the picture. The design's frames are reachable in a signed-in browser — S3 吸烟 is node `3:127`,
   S4 吐烟 is `3:187`, both 390×844 — but at the zoom that fits the whole page a frame is 27×59 CSS
   pixels (≈55×119 in a screenshot at this display's scale), and making one bigger needs real wheel or
   keyboard input, which the editor does not accept from synthetic events. So two things are left to a

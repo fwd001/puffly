@@ -178,10 +178,18 @@ export class ParticlePool {
       }
 
       const age = 1 - particle.life / particle.maxLife;
+      // One field for the whole room. `curl2`'s seed picks a different noise *lattice*, not a
+      // different place in the same one, so handing every particle its own seed — which is what
+      // this did — means two neighbours standing side by side are pushed in unrelated directions.
+      // That is not turbulence, it is a swarm: the column has no body to it, and the eye reads
+      // fog that is out of focus (像雾, 没对上焦). Coherence comes from sharing the air; the
+      // individual texture comes from where in the field each puff happens to sit, plus a
+      // sub-cell offset so particles at the same point are not locked to one another.
+      const jitter = ((particle.noiseSeed & 255) / 255) * 0.12;
       const swirl = curl2(
-        particle.x * fieldScale + timeSeconds * 0.12,
+        particle.x * fieldScale + timeSeconds * 0.12 + jitter,
         particle.y * fieldScale - timeSeconds * 0.2,
-        particle.noiseSeed,
+        0,
       );
 
       // Turbulence is the acceleration; the wind is the air the particle is sitting in.

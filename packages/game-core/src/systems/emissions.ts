@@ -225,20 +225,20 @@ export function exhaleBurst(
   return makeBurst(rt, {
     kind: 'exhale',
     origin: rt.state.cigarette.pose.tip,
-    // The design's breath is a stack of rounded overlapping puffs. Rendered and looked at, the
-    // first attempt at this — 66 lobes up to 0.105 wide at alpha 0.5 — summed to a solid white ball
-    // over the cherry. So: more lobes, each smaller and much thinner, with the billow left to
-    // `scaleGrowth`. Structure comes from variance, not from opacity.
-    count: 34 + Math.round(70 * intensity),
+    // The brief's breath is a *rising* plume: it leaves the mouth in a narrow body and thins as it
+    // goes. Two wrong turns got here — 66 wide lobes summed into a white ball, then the fix for
+    // that, which spread the same light over even more, even wider puffs and read as fog
+    // (像雾, 没对上焦). A line needs more bodies on a narrower road, not fewer on a wider one.
+    count: 44 + Math.round(86 * intensity),
     directionDeg: tipAngle(rt) + 8 + releaseSteer(rt),
-    spreadDeg: 52,
-    speed: [0.012 * ease, (0.055 + 0.07 * intensity) * ease],
-    radius: [0.018, 0.055],
+    spreadDeg: 13,
+    speed: [0.01 * ease, (0.028 + 0.04 * intensity) * ease],
+    radius: [0.01, 0.03],
     lifeMs: [3600 * slow, 8200 * slow],
     alphaPeak: 0.08 + 0.1 * intensity,
-    rise: smoke.riseSpeed * modifier.riseSpeed * (0.7 + intensity * 0.8) * ease,
-    turbulence: smoke.turbulence * modifier.turbulence * (0.85 + intensity * 0.8),
-    scaleGrowth: 2.9,
+    rise: smoke.riseSpeed * modifier.riseSpeed * (1.3 + intensity * 1.3) * ease,
+    turbulence: smoke.turbulence * modifier.turbulence * (0.3 + intensity * 0.35),
+    scaleGrowth: 1.8,
     heat: clamp01(intensity * 0.35),
   });
 }
@@ -251,16 +251,17 @@ export function driftBurst(rt: EngineRuntime, count = 18): Burst {
     origin: rt.state.cigarette.pose.tip,
     count,
     directionDeg: tipAngle(rt),
-    spreadDeg: 40,
-    speed: [0.006, 0.03],
-    // The lazy column is the thing the player watches for three minutes, and it was thinner
-    // than the breath that made it: 0.007-0.028 units growing only 1.7x.
-    radius: [0.011, 0.042],
+    // A smouldering cherry throws a thread, not a cloud. This column is what the player watches
+    // for three minutes, and it had drifted to 40 degrees of spread with lobes up to 0.042
+    // growing 2.6x — which is the fog the picture does not have.
+    spreadDeg: 4,
+    speed: [0.003, 0.008],
+    radius: [0.005, 0.013],
     lifeMs: [3200, 7800],
-    alphaPeak: 0.16,
-    rise: smoke.riseSpeed,
-    turbulence: smoke.turbulence,
-    scaleGrowth: 2.6,
+    alphaPeak: 0.18,
+    rise: smoke.riseSpeed * 1.35,
+    turbulence: smoke.turbulence * 0.22,
+    scaleGrowth: 1.3,
   });
 }
 
