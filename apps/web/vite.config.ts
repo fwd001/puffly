@@ -33,8 +33,9 @@ export default defineConfig({
         scope: '.',
         display: 'standalone',
         orientation: 'any',
-        background_color: '#121317',
-        theme_color: '#121317',
+        // The launch background is the picture's own 底色 (附录 C 视觉基线), not a second colour.
+        background_color: '#0b0a09',
+        theme_color: '#0b0a09',
         icons: [
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
           { src: 'icon-maskable.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },

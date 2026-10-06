@@ -322,13 +322,16 @@ Honest gaps, so nobody rediscovers them as bugs:
   `OfflineAudioContext` renders the shipped synth and its spectrum can be compared before and after a
   change — that is how the draw's tube-to-body balance and its spectral movement were tuned (§26).
   What that cannot settle is whether it sounds right. Nobody has listened to these numbers.
-- **Whether the smoke is _the_ smoke.** The plume's thinness, structure and colour are all measured
-  now (SPEC.md §15), and not one of those numbers answers the only question that matters: is this the
-  picture. The design's frames are reachable in a signed-in browser — S3 吸烟 is node `3:127`, S4 吐烟
-  is `3:187`, both 390×844 — but at the zoom that fits the whole page a frame is 27×59 CSS pixels
-  (≈55×119 in a screenshot at this display's scale), and
-  making one bigger needs real wheel or keyboard input, which the editor does not accept from
-  synthetic events. That last look has not been had by anyone.
+- **Whether the smoke is _the_ smoke, and which face the words wear.** The shell's colours are now
+  the brief's named baseline (SPEC.md §57), and the plume's thinness, structure and colour are all
+  measured (SPEC.md §15) — but none of those numbers answers the only question that matters: is this
+  the picture. The design's frames are reachable in a signed-in browser — S3 吸烟 is node `3:127`,
+  S4 吐烟 is `3:187`, both 390×844 — but at the zoom that fits the whole page a frame is 27×59 CSS
+  pixels (≈55×119 in a screenshot at this display's scale), and making one bigger needs real wheel or
+  keyboard input, which the editor does not accept from synthetic events. So two things are left to a
+  human eye: whether the plume reads like the frames, and whether to swap the system rounded face for
+  the baseline's Noto Sans SC + Inter Tight — a typeface change touches every screen, and I would not
+  make it blind.
 - No `LICENSE` file has been chosen for the repository yet.
 - The 12-box collection reserves three boxes for the cinnabar skin's finale (中华硬 / 黄鹤楼1916 /
   和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.

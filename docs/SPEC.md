@@ -1750,6 +1750,29 @@ smoke gray
 
 火焰是主要视觉焦点。
 
+这五个词在交接文档附录 C「视觉基线」里是有数值的，界面壳子现在逐一对齐（本轮之前壳子用的是
+我自己选的四个十六进制值，画布上的炭头却是基线里的 #FF8A3D —— 于是**主操作按钮比它所描述的那点火
+更红**，而这两样在同一个屏幕上）：
+
+| 词 | 基线 | 落在 |
+| --- | --- | --- |
+| deep charcoal（底色） | `#0B0A09` | `--deep-charcoal`，同时是 PWA 的 `background_color` / `theme_color` |
+| soft white（正文） | `#F2EDE6` | `--soft-white` |
+| ember orange（余烬橙） | `#FF8A3D` | `--ember-orange` |
+| cool（冷色·减量/水） | `#A8D4E0` | `--cool-blue`（本轮起成为 token，此前只是组件里一个字面量兜底） |
+| warm gray（次级） | `#7E746A` | `--warm-gray`，**只用于分隔线** |
+
+**一处有意不照抄**：`#7E746A` 压在 `#0B0A09` 上是 4.31:1，而 §5.4 要求正文 ≥ WCAG AA（15px 的
+标签算正文）——同一份文档的两条自己打架，于是取能读的那一条：标签继续用 `--smoke-gray`（`#C4C6CD`）。
+这条取舍有判据钉住（`apps/web/src/__tests__/visual-baseline.test.ts`：四个 token 等于表中数值、
+manifest 那两个颜色等于底色、所有落在底色上的文字色 ≥ 4.5、而 `--warm-gray` 实测 < 4.5 且 ≥ 3）。
+两条单点变异各自把红落在该落的那几格上：把 `--ember-orange` 改回旧值只红"等于表中数值"那一条；
+把 `--warm-gray` 改回旧值红两条（数值 + 那条 3:1 的下界）。
+
+字体这一行**没有**照抄：基线写 Noto Sans SC + Inter Tight，壳子用的是系统圆体
+（§56 的 soft 那一支）。换字体会动到每一屏的字，而这一轮我没有能看画面的浏览器，
+所以留给眼睛决定，不留给猜测。
+
 ---
 
 58. Lighting

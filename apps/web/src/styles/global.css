@@ -1,12 +1,20 @@
 /* Design contract for the shell: SPEC.md §56-61.
-   Cinematic + soft + slightly stylized. Restrained colour, the flame is the focus. */
+   Cinematic + soft + slightly stylized. Restrained colour, the flame is the focus.
+
+   The four values below are the brief's 视觉基线 (附录 C) verbatim: 底色 #0B0A09, 正文 #F2EDE6,
+   余烬橙 #FF8A3D, 次级 #7E746A. The ember in the chrome and the ember on the canvas are now the
+   same colour — the pill used to be a hotter orange than the cherry it described. */
 
 :root {
-  --deep-charcoal: #121317;
-  --warm-gray: #5e5852;
-  --soft-white: #e8e4dc;
-  --ember-orange: #ff6a1a;
+  --deep-charcoal: #0b0a09;
+  --warm-gray: #7e746a;
+  --soft-white: #f2ede6;
+  --ember-orange: #ff8a3d;
   --ember-core: #ffd696;
+  /* 冷色（减量/水）— named in the same table as the four above. */
+  --cool-blue: #a8d4e0;
+  /* Not the baseline's 次级文字: #7E746A on #0B0A09 is 4.3:1, and this token paints 15px labels,
+     which §5.4 holds to AA. The design's own two clauses conflict here, and the readable one wins. */
   --smoke-gray: #c4c6cd;
   --ash-gray: #7e7e82;
 
