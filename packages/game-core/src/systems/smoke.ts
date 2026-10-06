@@ -79,13 +79,18 @@ export function tickSmoke(rt: EngineRuntime, dtMs: number): void {
 
   field.density = approach(field.density, densityTarget(rt), lit ? 5.5 : 1.4, dtMs);
 
-  field.turbulence =
+  // Turbulence is a slow weather, not a per-frame dice. Rolled fresh every 16 ms it made the
+  // whole field shiver in place — the "background keeps wobbling" a player notices within a
+  // second of opening the app, and the one thing standing smoke never does. The sample stays,
+  // so the replay still consumes the same numbers; what changes is how fast it is allowed to.
+  const turbulenceTarget =
     profile.turbulence *
     modifier.turbulence *
     style.swirl *
     shape.turbulence *
     (1 + boost.turbulence) *
     (0.85 + rt.rng.range(0, 0.3));
+  field.turbulence = approach(field.turbulence, turbulenceTarget, 1.1, dtMs);
 
   // Rain and heavy air put a lid on the rise (§25: weather mainly changes smoke).
   field.riseSpeed =

@@ -116,6 +116,16 @@ one, including `SESSION_START`/`SESSION_END`, which replay re-issues at the same
 `rendering.test.ts` adds the visual half of the same promise: the same `Burst` seed expands into the
 same particle layout, so a reproduced bug looks like the bug.
 
+The other half of that promise is a *counting* rule, and it constrains how the world may be made
+calmer: a per-frame dice roll is allowed to stop being read as a value, but not to stop being
+drawn. `tickWorld` still samples `wind.variance` every frame and `tickSmoke` still rolls its ±0.3
+turbulence jitter — the sample is now the *target* of an `approach()` rather than the field itself,
+which is what removes the shiver (§22) without touching how many draws a frame consumes. Note what
+guards this and what it does not: `replay.test.ts` compares the replayed event **type sequence and
+length**, not the rng call count, so it catches a shifted sequence only because shifted draws pick
+different events. Removing a draw is the mistake the rule forbids precisely because nothing would
+say so loudly.
+
 A break the app never got to watch is the one place the wall clock is allowed to overrule the
 simulation. `openBreakSnapshot()` writes down the burn position and the moment the cherry caught;
 the next boot hands that record back and `restoreOpenBreak(record, now)` spends

@@ -175,6 +175,17 @@ rod has burnt to wherever that clock says it should be — and a break that woul
 while the phone was away comes back finished and counted, rather than waiting for someone to
 notice it.
 
+The room is meant to keep moving while you are not touching anything — a draught picking up, the
+light changing, a swirl in the plume. What it must not do is _tremble_. Two of those numbers were
+being re-rolled from scratch every frame at 60 Hz, which is a jitter with no cause behind it: the
+smoke in the background leaned one way and then the other, and a still scene never looked still.
+They are now sampled the same way but _approached_ rather than assigned, so the wind arrives at its
+changes instead of switching on them. Measured on the same seed over thirty seconds, the largest
+one-frame change in the wind went from 0.159 to 0.00064 and in the smoke's turbulence from 0.311 to
+0.0033; on a real phone screen, the average per-frame pixel difference in a patch of pure background
+went from 0.150 to about 0.02. Calm, not frozen — the same test also fails if the field stops
+drifting altogether, because a dead world is not a restful one.
+
 **The row, the pill and the rail**
 
 The chrome is three things, and all three are readings of the same state machine rather than three

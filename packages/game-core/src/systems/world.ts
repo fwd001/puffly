@@ -8,7 +8,7 @@
  *    environment is data, not code (§23, §77).
  */
 
-import { clamp01, lerp, type Rng } from '@puffly/shared';
+import { approach, clamp01, lerp, type Rng } from '@puffly/shared';
 import { TIME_OF_DAY_HOURS, WORLD } from '../constants';
 import { emit, record, setState } from '../emit';
 import { isLit } from '../stateMachine';
@@ -296,7 +296,7 @@ function fireWorldEvent(rt: EngineRuntime, gapScale: number): void {
   rt.timers.nextWorldEventMs = rt.state.nowMs + gap;
 }
 
-export function tickWorld(rt: EngineRuntime, _dtMs: number): void {
+export function tickWorld(rt: EngineRuntime, dtMs: number): void {
   const now = rt.state.nowMs;
   const world = rt.state.world;
   const boost: WorldBoost = { wind: 0, turbulence: 0, flash: 0, shadow: 0, ambient: 0, rain: 0 };
@@ -346,14 +346,19 @@ export function tickWorld(rt: EngineRuntime, _dtMs: number): void {
         ? 1.4
         : 1;
 
-  const gust = rt.rng.range(-wind.variance, wind.variance) * 0.4;
+  // The sample is taken every frame — the replay's numbers must not change — but the wind only
+  // follows it slowly. Rolled straight into `world.wind` and the bearing at 60 Hz, this was the
+  // shiver the whole background had: the drift vector leaned one way and then the other with no
+  // weather behind it, so nothing on screen was ever at rest.
+  const gustSample = rt.rng.range(-wind.variance, wind.variance) * 0.4;
+  rt.windGust = approach(rt.windGust, gustSample, 0.45, dtMs);
   world.wind = Math.max(
     0,
-    wind.base * weatherScale * (1 + boost.wind * 1.8) + gust + boost.wind * 0.25,
+    wind.base * weatherScale * (1 + boost.wind * 1.8) + rt.windGust + boost.wind * 0.25,
   );
   // A gust also swings the bearing a little, which is what makes smoke feel pushed.
   world.windDirectionDeg =
-    wind.directionDeg + boost.wind * 24 * (boost.wind > 0.6 ? 1 : 0.4) + gust * 8;
+    wind.directionDeg + boost.wind * 24 * (boost.wind > 0.6 ? 1 : 0.4) + rt.windGust * 8;
 
   const light: LightingField = world.light;
   const rainDarkening = clamp01(boost.rain) * 0.14;

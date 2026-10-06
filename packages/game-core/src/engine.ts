@@ -304,6 +304,7 @@ export function createEngine(options: EngineOptions): GameEngine {
     activeEvents: [],
     worldBoost: createWorldBoost(),
     smokeEmissionCarry: 0,
+    windGust: 0,
     pendingDiscardMethod: null,
     pendingInputs: [],
   };

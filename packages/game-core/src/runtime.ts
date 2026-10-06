@@ -128,6 +128,11 @@ export interface EngineRuntime {
   worldBoost: WorldBoost;
   /** Fractional particle budget so the ambient column stays even (§15). */
   smokeEmissionCarry: number;
+  /**
+   * The wind's current gust, eased. A gust is a minute of weather rather than a frame of dice,
+   * and holding it here is what lets the scene rest instead of shivering (§66).
+   */
+  windGust: number;
 }
 
 /** Summed contribution of live world events (SPEC.md §21-23, §25). */
