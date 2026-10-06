@@ -146,6 +146,10 @@ that split from rotting back into an app:
   simulation that picked words could burn differently on two machines and would break §71's replay;
   and right-to-left mirrors the sheets (logical CSS properties only) and never the stage, because
   the rod burns the same way whichever way you read;
+- **the stage's box sizes the canvas, not the window.** `resize()` reads the stage element's own
+  rect and lets `visualViewport` only take space away (the mobile chrome case), so the desk column
+  can take 260px out of the scene without the canvas sliding underneath it — hit-testing, the stage
+  aspect and the renderer all keep agreeing on one box;
 - **a sheet takes the handle's place.** The pill is the scene's gesture handle, and it sits exactly
   where a sheet's rows are: opening any sheet folds the pill away (the rail stays, because it is
   how the sheet closes). The archive card is not a sheet, so a rod held mid-draw keeps its handle;

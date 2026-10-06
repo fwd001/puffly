@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { createPuffly } from './composables/usePuffly';
 import { ANCHOR_LOCALE, STATE_KEYS } from './i18n';
+import type { Destination } from './rail';
 import type { ArchiveFacts } from './composables/usePuffly';
 import HudBar from './components/HudBar.vue';
 import CtaPill from './components/CtaPill.vue';
@@ -10,12 +11,15 @@ import ArchiveCard from './components/ArchiveCard.vue';
 import SettingsSheet from './components/SettingsSheet.vue';
 import SessionSheet from './components/SessionSheet.vue';
 import CollectionSheet from './components/CollectionSheet.vue';
+import DataRail from './components/DataRail.vue';
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const game = createPuffly();
 /** The three sheets the rail and the head-up row can call up. The menu is gone: the rail is the menu. */
-type SheetName = 'none' | 'break' | 'shelf' | 'settings';
+type SheetName = 'none' | Destination;
 const sheet = ref<SheetName>('none');
+/** Which part of a sheet the player asked for — S10's sidebar entries land on a section, not just a sheet. */
+const section = ref<string | null>(null);
 
 /**
  * S17's card, and whether the player pinned it. Pinning is the only reason tier three exists:
@@ -30,6 +34,7 @@ watch(
   (folded) => {
     if (!folded) return;
     sheet.value = 'none';
+    section.value = null;
     archivePinned.value = false;
     archiveFacts.value = null;
   },
@@ -84,8 +89,10 @@ onMounted(() => {
   if (canvas.value) void game.attach(canvas.value);
 });
 
-function openSheet(next: SheetName): void {
-  sheet.value = sheet.value === next ? 'none' : next;
+function openSheet(next: SheetName, nextSection: string | null = null): void {
+  const same = sheet.value === next && section.value === nextSection;
+  sheet.value = same ? 'none' : next;
+  section.value = same ? null : nextSection;
 }
 </script>
 
@@ -138,9 +145,17 @@ function openSheet(next: SheetName): void {
       @settings="openSheet('settings')"
     />
 
-    <SessionSheet :open="sheet === 'break'" :game="game" @close="sheet = 'none'" />
+    <DataRail :game="game" :sheet="sheet" :section="section" @go="openSheet" />
+
+    <SessionSheet
+      :open="sheet === 'break'"
+      :section="section"
+      :game="game"
+      @close="sheet = 'none'"
+    />
     <CollectionSheet
       :open="sheet === 'shelf'"
+      :section="section"
       :game="game"
       @archive="archiveFacts = game.archiveOf($event)"
       @close="sheet = 'none'"
@@ -153,6 +168,13 @@ function openSheet(next: SheetName): void {
 .stage {
   position: fixed;
   inset: 0;
+}
+
+/* The desk: the column takes its 260px out of the scene rather than over it (S10). */
+@media (min-width: 860px) {
+  .stage {
+    inset-inline-end: 260px;
+  }
 }
 
 canvas {

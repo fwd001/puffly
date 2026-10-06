@@ -561,11 +561,17 @@ export function createPuffly(): Puffly {
     Math.min(window.devicePixelRatio || 1, coarsePointer() ? MAX_DPR_COARSE : MAX_DPR);
 
   const resize = (canvas: HTMLCanvasElement): void => {
-    // On a phone the layout viewport can be shorter than the visual one while the browser
-    // chrome slides away; `visualViewport` is the height the player actually has (§66).
+    // The stage's own box is the authority. On the desk the scene gives 260px to the data column,
+    // and a canvas measured off the window would slide underneath it.
+    const box = canvas.parentElement?.getBoundingClientRect();
+    const laidW = Math.round(box?.width || canvas.clientWidth || 640);
+    const laidH = Math.round(box?.height || canvas.clientHeight || 960);
+    // On a phone the layout viewport can be taller than the visual one while the browser chrome
+    // slides away, so `visualViewport` is the room the player actually has (§66) — it may take
+    // space away from the stage, never hand the canvas more than the stage owns.
     const visual = typeof window === 'undefined' ? null : window.visualViewport;
-    const cssWidth = Math.round(visual?.width || canvas.clientWidth || 640);
-    const cssHeight = Math.round(visual?.height || canvas.clientHeight || 960);
+    const cssWidth = visual === null ? laidW : Math.min(laidW, Math.round(visual.width));
+    const cssHeight = visual === null ? laidH : Math.min(laidH, Math.round(visual.height));
     const dpr = dprFor();
     canvas.width = Math.round(cssWidth * dpr);
     canvas.height = Math.round(cssHeight * dpr);

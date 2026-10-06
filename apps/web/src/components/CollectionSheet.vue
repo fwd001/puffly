@@ -24,7 +24,15 @@ import ArchiveTile from './ArchiveTile.vue';
 import { PACKS, SKINS } from '@puffly/game-content';
 import { shelfCount, shelvesOf } from '../shelf';
 
-const props = defineProps<{ open: boolean; game: Puffly }>();
+const props = defineProps<{
+  open: boolean;
+  game: Puffly;
+  /** Which group the player asked for — S10's sidebar lands on a section, not just on a sheet. */
+  section?: string | null;
+}>();
+
+/** The groups the sheet owns, and the only values `section` is allowed to name. */
+const SECTIONS = ['rods', 'packs', 'skins', 'kit'] as const;
 const emit = defineEmits<{ close: []; archive: [id: string] }>();
 
 const copy = computed(() => props.game.copy.value);
@@ -102,6 +110,24 @@ function use(item: CollectionItem): void {
 
 const root = ref<HTMLElement | null>(null);
 watch(
+  () => [props.open, props.section] as const,
+  ([open, section]) => {
+    if (
+      !open ||
+      section === undefined ||
+      !SECTIONS.includes(section as (typeof SECTIONS)[number])
+    ) {
+      return;
+    }
+    void nextTick(() =>
+      root.value
+        ?.querySelector(`[data-group="${section}"]`)
+        ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+    );
+  },
+);
+
+watch(
   () => props.open,
   (isOpen) => {
     if (!isOpen) return;
@@ -126,7 +152,7 @@ watch(
       </button>
     </header>
 
-    <div v-for="shelf in shelves" :key="shelf.kind" class="group">
+    <div v-for="shelf in shelves" :key="shelf.kind" class="group" data-group="rods">
       <p v-if="copy.t('shelf.rods') !== null" class="kind">
         {{ copy.t(`shelf.kind.${shelf.kind}` as 'shelf.kind.inhale') }}
       </p>
@@ -151,7 +177,7 @@ watch(
       {{ copy.t('shelf.hint', { total: String(rods.length) }) }}
     </p>
 
-    <div class="group">
+    <div class="group" data-group="packs">
       <p v-if="copy.t('shelf.packs') !== null" class="kind">
         {{ copy.t('shelf.packs') }}
         <span class="digits">{{ collected.size }} / {{ String(packs.length) }}</span>
@@ -181,7 +207,7 @@ watch(
       </div>
     </div>
 
-    <div class="group">
+    <div class="group" data-group="skins">
       <p v-if="copy.t('shelf.skins') !== null" class="kind">{{ copy.t('shelf.skins') }}</p>
       <div class="skins">
         <button
@@ -212,6 +238,7 @@ watch(
       v-for="shelf in kit"
       :key="shelf.category"
       class="group"
+      data-group="kit"
       role="group"
       :aria-label="copy.say('shelf.kit')"
     >

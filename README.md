@@ -198,6 +198,12 @@ ways to navigate:
 - **the rail** along the bottom — three phases and settings. The phases are indicators: the
   cigarette lights one of them, and no finger is required or invited.
 
+On a desk-width window the same chrome gains a fourth piece: a standing 260px column on the inline-end
+with the seven destinations and the day's numbers in it, and the scene shrinks to what is left rather
+than being covered. It is a second density of one set of facts — the panel in that column is the very
+component the break sheet renders, and each entry opens the same sheet the chrome opens, landing on
+the group it names.
+
 The row's numbers are the stage's only numbers, and they live in the row rather than on the scene
 because a measurement of the simulation is not a thing to tap. Two of its cells are buttons: the
 stick mark opens the shelf, the clock opens the break. A new unlock is a dot on the stick mark —
