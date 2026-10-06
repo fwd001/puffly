@@ -8,7 +8,7 @@ import {
 import { FIXTURE } from '../../../game-core/src/__tests__/fixture';
 import { CIGARETTE_LENGTH, LAYOUT } from '@puffly/game-core';
 import { ParticlePool } from '../particles';
-import { FIELD_SCALE, intakeBurst } from '../intake';
+import { FIELD_SCALE, intakeBurst, SMOKE_DRAG } from '../intake';
 import { curl2, fbm2, noise2, wander } from '../noise';
 import { createViewport } from '../viewport';
 import { createCanvasRenderer } from '../renderer';
@@ -59,6 +59,7 @@ describe('particles (§15, §54)', () => {
       turbulence: 1,
       rise: 0.2,
       gravity: 0,
+      drag: SMOKE_DRAG,
       tint: [10, 20, 30],
       heat: 0.5,
       depth: 0.5,

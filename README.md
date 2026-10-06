@@ -109,11 +109,22 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
 - **The smoke moves as one body.** Every particle used to sample its own noise lattice, which sounds
   like variety and is actually a swarm: neighbours were pushed in unrelated directions, so no puff
   had a body and the room read as out-of-focus fog (像雾, 没对上焦). They share the air now, and the
-  difference is a shape rather than an opinion — the breath went from a round cloud with the area of
-  three and a half screens to a rising column a seventh of that, and the smouldering thread from 0.19
-  to 0.009 of the stage's width. That each puff still traces its own path is asserted too, because
-  sharing a field is exactly what could have made them repeat. Rerun with
+  difference is a shape rather than an opinion — the whole plume 2.5 seconds into a break is measured
+  narrower than a tenth of the stage and taller than it is wide, and putting the per-particle lattice
+  back reddens that assertion on the spot (1 red, 81 green in the package). That each puff still traces
+  its own path is asserted too, because sharing a field
+  is exactly what could have made them repeat. Rerun with
   `npx vitest run packages/game-renderer/src/__tests__/plume-shape.test.ts`.
+- **The smoke stays in the room.** Fixing the shape did not fix the picture, so the next step was to
+  rasterize a real frame — every sprite the renderer asked to blit, composited with the profile
+  `sprites.ts` bakes — and look at it. It showed what no shape metric could: of the 698 sprites in one
+  frame, 50 of them were on screen. The rest had left. Air drag in the pool was a single 0.9/s borrowed
+  from ash, and for an aerosol that is an order of magnitude too gentle: every one of the eleven
+  cigarettes had its exhaled cloud entirely outside the stage two seconds after the breath, which is
+  the same defect the report described as 烟会到左上角. Smoke now has its own drag (12/s) and ash keeps
+  0.9/s, and no recipe number moved — the styles are still distinguishable, from a breath that barely
+  stirs to one that crosses a third of the frame. Rerun with
+  `npx vitest run packages/game-renderer/src/__tests__/plume-on-stage.test.ts`.
 - **The button does not sit on the table.** The chrome at the bottom of the screen is fixed pixels, so
   how much of the scene it eats depends on how tall the scene is: 16% of a portrait phone's height,
   34% of the same phone turned sideways, plus a 12px pad so nothing sits flush against it. A constant

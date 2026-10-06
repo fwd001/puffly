@@ -134,8 +134,23 @@ break through it: any write would throw a TypeError instead of corrupting the si
   place in the same one — so two neighbours were pushed in unrelated directions, no puff ever had a
   body, and the picture read as out-of-focus fog while every per-particle number looked correct. The
   field still looked alive, which is why it survived: the thing to ask of a flow field is whether
-  nearby particles move *together*, so what is now measured is the cloud's shape — elongation and
-  footprint, not particle count (`plume-shape.test.ts`).
+  nearby particles move *together*, so what is now measured is the plume's shape where the player
+  actually sees it — every burst the scene has aired, in one pool, narrowed and stretched — rather
+  than one burst's own tally, and not particle count (`plume-shape.test.ts`).
+- A shape metric can measure travel and call it shape. The elongation that "proved" the shared field
+  worked was really measuring how far the cloud had gone: anything that moves fast is stretched. The
+  plume passed it while the rendered frame showed something else entirely. What found that was not a
+  better metric but a picture — record the draw list the renderer hands the canvas (the fake context
+  already logs every blit, and a recording sprite provider tags each sprite with the colour and blur
+  it was baked for), composite those discs off-screen, and look. One frame said it: 698 sprites asked
+  for, 50 of them on screen.
+- One constant shared by two materials is wrong for one of them. Air drag in the particle pool was a
+  single 0.9/s, which is about right for a flake of ash and an order of magnitude too gentle for an
+  aerosol; terminal velocity is rise/drag, so smoke crossed the whole stage in under two seconds and
+  left every breath off-screen. The fix moved the constant onto the particle, chosen from the burst
+  kind — not onto the eleven recipes, and not onto the content table, so the styles stayed
+  distinguishable. When a number is shared, ask first which kind of thing it was actually measured
+  on (`intake.ts:SMOKE_DRAG`, `plume-on-stage.test.ts`).
 
 ## Determinism and replay
 

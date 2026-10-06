@@ -33,6 +33,21 @@ export interface IntakeOptions {
  */
 const MATERIAL_BURSTS: ReadonlySet<BurstKind> = new Set(['ember', 'ash', 'impact']);
 
+/**
+ * How fast still air brings each kind of particle back to rest, per second.
+ *
+ * Smoke is an aerosol: its relaxation time is far below a frame, so what the player sees is the
+ * buoyancy it is left with. The number that mattered here used to be 0.9 for everything, which
+ * is roughly right for a flake of ash and an order of magnitude too gentle for smoke — at that
+ * drag the exhaled cloud reached a terminal speed of four to eleven tenths of a stage height per
+ * second and was outside the frame before the player had finished the breath.
+ */
+export const SMOKE_DRAG = 12;
+export const MATERIAL_DRAG = 0.9;
+
+const dragFor = (kind: BurstKind): number =>
+  MATERIAL_BURSTS.has(kind) ? MATERIAL_DRAG : SMOKE_DRAG;
+
 const tintFor = (burst: Burst, plumeTint: Rgb | undefined): Rgb =>
   plumeTint && !MATERIAL_BURSTS.has(burst.kind) ? plumeTint : burst.tint;
 
@@ -69,6 +84,7 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       turbulence: burst.turbulence,
       rise: burst.rise * rng.range(0.75, 1.25),
       gravity: burst.gravity,
+      drag: dragFor(burst.kind),
       tint: tintFor(burst, options.plumeTint),
       heat: burst.heat * rng.range(0.6, 1),
       // Depth is sampled, not derived from index, so a puff never bands into layers.

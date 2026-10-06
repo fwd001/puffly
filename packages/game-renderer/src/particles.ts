@@ -33,6 +33,11 @@ export interface Particle {
   turbulence: number;
   rise: number;
   gravity: number;
+  /**
+   * How hard still air drags this particle back to rest, per second. Smoke and ash are not the
+   * same object: a micron of aerosol relaxes in a fraction of a second, a flake of ash does not.
+   */
+  drag: number;
   tint: Rgb;
   heat: number;
   /** 0 = far away and dim, 1 = at the front of the frame. Lets smoke read as volume. */
@@ -60,6 +65,7 @@ export interface SpawnInit {
   turbulence: number;
   rise: number;
   gravity: number;
+  drag: number;
   tint: Rgb;
   heat: number;
   depth: number;
@@ -86,6 +92,7 @@ const EMPTY: Particle = {
   turbulence: 0,
   rise: 0,
   gravity: 0,
+  drag: 0.9,
   tint: [200, 200, 200],
   heat: 0,
   depth: 0.5,
@@ -142,6 +149,7 @@ export class ParticlePool {
     slot.turbulence = init.turbulence;
     slot.rise = init.rise;
     slot.gravity = init.gravity;
+    slot.drag = init.drag;
     slot.tint = init.tint;
     slot.heat = init.heat;
     slot.depth = init.depth;
@@ -196,9 +204,14 @@ export class ParticlePool {
       particle.vx += swirl.vx * particle.turbulence * dt;
       particle.vy += (swirl.vy * particle.turbulence - particle.rise + particle.gravity) * dt;
 
-      // Air drags smoke back to still; without this it accelerates into streaks.
-      particle.vx *= 1 - 0.9 * dt;
-      particle.vy *= 1 - 0.9 * dt;
+      // Air drags a particle back to still; without this it accelerates into streaks. The rate is
+      // the particle's own, because smoke and ash are different objects in the same air: an
+      // aerosol relaxes in a fraction of a second, a flake of ash takes a second or more. One
+      // shared constant had to be wrong for one of them, and for smoke it was wrong by an order
+      // of magnitude — which is what put the whole breath outside the frame in under two seconds.
+      const damp = Math.max(0, 1 - particle.drag * dt);
+      particle.vx *= damp;
+      particle.vy *= damp;
 
       particle.px = particle.x;
       particle.py = particle.y;

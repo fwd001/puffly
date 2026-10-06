@@ -510,6 +510,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
               turbulence: particle.turbulence,
               rise: particle.rise,
               gravity: particle.gravity,
+              drag: particle.drag,
               tint: particle.tint,
               heat: particle.heat,
               depth: particle.depth,
