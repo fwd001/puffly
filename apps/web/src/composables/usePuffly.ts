@@ -515,7 +515,6 @@ export function createPuffly(): Puffly {
         void persistence?.saveSettings(settings.value).catch(() => undefined);
       }
     } else if (type === SessionEventType.ASH) haptic([9, 26, 9]);
-    else if (type === SessionEventType.ASH) haptic([9, 26, 9]);
     else if (type === SessionEventType.EXTINGUISH) haptic(64);
     else if (type === SessionEventType.DISCARD) haptic([14, 40, 20]);
 
