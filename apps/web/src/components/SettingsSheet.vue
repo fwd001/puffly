@@ -10,7 +10,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import type { QualityMode } from '@puffly/game-core';
 import type { Puffly } from '../composables/usePuffly';
-import { LANGUAGES, type CopyKey } from '../i18n';
+import { coverageOf, LANGUAGES, type CopyKey } from '../i18n';
 
 const props = defineProps<{ open: boolean; game: Puffly }>();
 const emit = defineEmits<{ close: [] }>();
@@ -241,13 +241,18 @@ watch(
         class="choice"
         :data-language="choice.code"
         :aria-pressed="languageCode === choice.code"
-        :aria-label="`${copy.say('a11y.language')}: ${choice.endonym}`"
+        :aria-label="`${copy.say('a11y.language')}: ${choice.endonym}${
+          coverageOf(choice.code) === null ? '' : ` (${coverageOf(choice.code)})`
+        }`"
         @click="setLanguage(choice.code)"
       >
         <span class="glyph" aria-hidden="true">{{ choice.glyph }}</span>
         <!-- A language names itself; only `auto` and `icons` are things the current language says. -->
         <span v-if="word('settings.language') !== null" class="sub">{{
           choice.copyKey === undefined ? choice.endonym : word(choice.copyKey)
+        }}</span>
+        <span v-if="coverageOf(choice.code) !== null" class="part">{{
+          coverageOf(choice.code)
         }}</span>
       </button>
     </div>
@@ -463,6 +468,15 @@ watch(
   color: var(--smoke-gray);
   font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.08em;
+}
+
+/* Same size as the name it qualifies — this is a number about the label, not a third voice in the
+   row. Digits carry their own meaning, so it reads in every tier including icons-only. */
+.choice .part {
+  color: var(--smoke-gray);
+  font-size: calc(15px * var(--text-scale));
+  letter-spacing: 0.08em;
+  opacity: 0.62;
 }
 
 /* The one control that cannot be undone asks twice, in a colour and a word, instead of putting

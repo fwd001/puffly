@@ -15,6 +15,23 @@ export { CTA_KEYS, ctaKeyFor, HINT_KEYS, LANGUAGES, STATE_KEYS, type LanguageCho
 /** English is the anchor every key is defined against, and the tag `icons` still reads under. */
 export const ANCHOR_LOCALE = 'en';
 
+/** How many strings the anchor carries: the denominator every other tier is measured against. */
+export const TIER_TOTAL = Object.keys(COPY[ANCHOR_LOCALE] ?? {}).length;
+
+/**
+ * `4 / 139` for a tier that is offered but not finished; `null` for one that is.
+ *
+ * A language button spells its name in its own script, and العربية reads as a promise. §9 lets a
+ * partial table fall back to English — that part is the design — but the row may not hide a
+ * three-percent table behind an endonym. Digits, so the answer reads in every tier.
+ */
+export function coverageOf(code: string): string | null {
+  const table = COPY[code];
+  if (!table) return null;
+  const done = Object.keys(table).length;
+  return done >= TIER_TOTAL ? null : `${String(done)} / ${String(TIER_TOTAL)}`;
+}
+
 /** The languages with a table of their own; `icons` is a tier, not a language. */
 const SPOKEN: readonly LocaleCode[] = LOCALES.filter((code) => code !== 'icons');
 
