@@ -287,7 +287,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       // frames do not have.
       const hot = particle.heat * clamp01(1 - particle.age * 5);
       const tint = tintFor(particle.tint, hot, field.visibility);
-      const sprite = sprites.soft(tint);
+      const sprite = sprites.soft(tint, style.blur);
       const depthScale = 0.72 + particle.depth * 0.5;
       // Wider and dimer per particle: the same light spread over more overlapping puffs is what
       // turns a jar of bubbles into a body of smoke (§16).

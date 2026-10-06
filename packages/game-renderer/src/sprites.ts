@@ -4,12 +4,11 @@
  * A smoke particle is a radial-gradient sprite blitted with alpha, which is the only way
  * to draw a thousand of them at 60 FPS (§54). Creating a gradient per particle per frame
  * would be the classic way this kind of app dies, so gradients are baked once per tint and
- * reused. Blur is faked by the sprite's own falloff rather than `ctx.filter`, which is
- * both slow and missing on some engines (§58: soft light scattering, not a neon glow).
+ * reused. Blur is the sprite's own falloff rather than `ctx.filter`, which is both slow and
+ * missing on some engines (§58: soft light scattering, not a neon glow).
  */
 
-import type { Rgb } from '@puffly/shared';
-import { mixRgb } from '@puffly/shared';
+import { clamp, mixRgb, type Rgb } from '@puffly/shared';
 
 /** The slice of a 2D context a sprite tile actually needs, so a stub can stand in. */
 export interface SpriteContext2D {
@@ -40,13 +39,18 @@ export type SpriteImage = CanvasImageSource & {
 export type SpriteCanvasFactory = (size: number) => SpriteImage | null;
 
 export interface SpriteProvider {
-  /** A soft disc in the given colour, from a cache keyed by a quantised tint. */
-  soft(tint: Rgb): SpriteImage | null;
+  /**
+   * A soft disc in the given colour, from a cache keyed by a quantised tint and a quantised
+   * falloff. `blur` is the smoke style's own softness (§21): 1 is the profile this shipped
+   * before, higher spreads the density outward, lower gathers it into a crisper core.
+   */
+  soft(tint: Rgb, blur?: number): SpriteImage | null;
   readonly size: number;
   clear(): void;
 }
 
-const cacheKey = (tint: Rgb): string => `${tint[0] >> 4}-${tint[1] >> 4}-${tint[2] >> 4}`;
+const cacheKey = (tint: Rgb, blur: number): string =>
+  `${tint[0] >> 4}-${tint[1] >> 4}-${tint[2] >> 4}-${Math.round(clamp(blur, 0.4, 2.5) * 8)}`;
 
 /**
  * `defaultSpriteFactory` is the only place this package touches `document`, and it is
@@ -68,20 +72,20 @@ export function createSpriteProvider(
 ): SpriteProvider {
   const cache = new Map<string, SpriteImage>();
 
-  const bake = (tint: Rgb): SpriteImage | null => {
+  const bake = (tint: Rgb, blur: number): SpriteImage | null => {
     const image = factory(size);
     if (!image) return null;
-    drawInto(image, tint, size);
+    drawInto(image, tint, size, blur);
     return image;
   };
 
   return {
     size,
-    soft(tint) {
-      const key = cacheKey(tint);
+    soft(tint, blur = 1) {
+      const key = cacheKey(tint, blur);
       const cached = cache.get(key);
       if (cached) return cached;
-      const baked = bake(tint);
+      const baked = bake(tint, blur);
       if (!baked) return null;
       cache.set(key, baked);
       return baked;
@@ -95,18 +99,42 @@ export function createSpriteProvider(
 /**
  * The sprite itself: transparent rim, soft core. `mixRgb` toward white at the centre is
  * what makes dense smoke read as lit from inside rather than as grey blobs (§58).
+ *
+ * The smoke style's `blur` is the shape of that falloff, not a filter: a puff is denser
+ * toward its middle by an amount its own author set, so the stops come from a profile
+ * `exp(-(r/sigma)^2)` whose width is the blur.
+ *
+ * `SIGMA_AT_ONE` is deliberately tighter than the four stops this file shipped before
+ * (0.95 / 0.5 / 0.12 / 0, which the curve reproduces at sigma 0.56). At that width every
+ * rod looked the same and the column read as fog — 像雾, 没对上焦 — and a wisp only looks
+ * in focus when its own edge is steeper than the blob it is drawn from.
  */
-function drawInto(image: SpriteImage, tint: Rgb, size: number): void {
+const SIGMA_AT_ONE = 0.42;
+const PROFILE_RADII = [0, 0.45, 0.78, 1] as const;
+
+function profile(blur: number): number[] {
+  const sigma = SIGMA_AT_ONE * clamp(blur, 0.4, 2.5);
+  return PROFILE_RADII.map((radius) => Math.exp(-((radius / sigma) ** 2)));
+}
+
+function drawInto(image: SpriteImage, tint: Rgb, size: number, blur: number): void {
   const context = image.getContext?.('2d');
   if (!context) return;
 
   const half = size / 2;
   const gradient = context.createRadialGradient(half, half, 0, half, half, half);
   const core = mixRgb(tint, [255, 255, 255], 0.22);
-  gradient.addColorStop(0, `rgba(${core[0]}, ${core[1]}, ${core[2]}, 0.95)`);
-  gradient.addColorStop(0.45, `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, 0.5)`);
-  gradient.addColorStop(0.78, `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, 0.12)`);
-  gradient.addColorStop(1, `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, 0)`);
+  const [peak = 0, middle = 0, outer = 0, rim = 0] = profile(blur);
+  gradient.addColorStop(0, `rgba(${core[0]}, ${core[1]}, ${core[2]}, ${(0.95 * peak).toFixed(3)})`);
+  gradient.addColorStop(
+    0.45,
+    `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, ${(0.95 * middle).toFixed(3)})`,
+  );
+  gradient.addColorStop(
+    0.78,
+    `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, ${(0.95 * outer).toFixed(3)})`,
+  );
+  gradient.addColorStop(1, `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, ${(0.95 * rim).toFixed(3)})`);
   context.fillStyle = gradient;
   context.fillRect(0, 0, size, size);
 }
