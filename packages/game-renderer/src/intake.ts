@@ -57,7 +57,9 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       heat: burst.heat * rng.range(0.6, 1),
       // Depth is sampled, not derived from index, so a puff never bands into layers.
       depth: rng.range(0.25, 1),
-      spark: burst.kind === 'ember' || (burst.heat > 0.7 && rng.next() < 0.22),
+      // Only a struck flint throws sparks. Hot smoke is still smoke: promoting a fifth of the
+      // cherry's puff to an additive streak is what put a line of light bulbs up the ribbon.
+      spark: burst.kind === 'ember',
     });
     if (particle) spawned += 1;
   }

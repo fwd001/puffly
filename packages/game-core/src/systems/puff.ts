@@ -54,8 +54,11 @@ export function tickPuff(rt: EngineRuntime, dtMs: number): void {
   puff.progress = shaped;
   puff.intensity = clamp(lerp(profile.intensityMin, profile.intensityMax, shaped), 0, 1);
 
-  // A held draw leaks a little at the cherry the whole time it is held.
-  if (rt.rng.bool(clamp01(dtMs / 1000) * 6 * (0.3 + puff.intensity))) {
+  // A held draw leaks at the cherry the whole time it is held — and it leaks *continuously*.
+  // Four times the rate at a quarter of the particles per burst is the same smoke per second,
+  // but spread over time instead of dropped in clumps: the design's ribbon is one unbroken line,
+  // and clumps are what made it read as a string of puffs.
+  if (rt.rng.bool(clamp01(dtMs / 1000) * 26 * (0.3 + puff.intensity))) {
     emit(rt, { kind: 'burst', atMs: rt.state.nowMs, burst: puffBurst(rt) });
   }
 }

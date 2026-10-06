@@ -281,7 +281,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         return;
       }
 
-      const tint = tintFor(particle.tint, particle.heat, field.visibility);
+      // Heat is a moment, not a property of the particle: a puff leaves the cherry hot and is
+      // only warm air for the first fifth of its life. Held open for the whole life, additive
+      // blending turns a ribbon of smoke into a string of lights — which is what the design's
+      // frames do not have.
+      const hot = particle.heat * clamp01(1 - particle.age * 5);
+      const tint = tintFor(particle.tint, hot, field.visibility);
       const sprite = sprites.soft(tint);
       const depthScale = 0.72 + particle.depth * 0.5;
       // Wider and dimer per particle: the same light spread over more overlapping puffs is what
@@ -303,7 +308,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       );
       if (alpha <= 0.004) return;
 
-      const isHot = particle.heat > 0.25;
+      const isHot = hot > 0.3;
       ctx.globalCompositeOperation = isHot ? 'lighter' : 'source-over';
       ctx.globalAlpha = alpha;
       ctx.translate(centre.x, centre.y);

@@ -189,18 +189,23 @@ function releaseSteer(rt: EngineRuntime): number {
 export function puffBurst(rt: EngineRuntime): Burst {
   const smoke = rt.cigarette.smokeProfile;
   const intensity = rt.state.cigarette.puff.intensity;
+  // The cherry's smoke in the design is a ribbon, not a haze: it leaves the tip almost straight
+  // up, stays narrow for most of its life, and only wanders at the top. A wide spread, a fast
+  // lateral speed and a high turbulence are what turned it into fog.
   return makeBurst(rt, {
     kind: 'puff',
     origin: rt.state.cigarette.pose.tip,
-    count: 10 + Math.round(26 * intensity),
+    count: 3 + Math.round(6 * intensity),
     directionDeg: tipAngle(rt),
-    spreadDeg: 34,
-    speed: [0.012, 0.05],
-    radius: [0.008, 0.028],
-    lifeMs: [900, 2200],
-    alphaPeak: 0.22 + 0.3 * intensity,
-    rise: smoke.riseSpeed * (0.5 + intensity),
-    turbulence: smoke.turbulence * 1.1,
+    spreadDeg: 11,
+    speed: [0.004, 0.022],
+    radius: [0.005, 0.014],
+    lifeMs: [1600, 3400],
+    // Dim per particle: the ribbon is built by overlap, and an opaque particle shows its own edge.
+    alphaPeak: 0.09 + 0.16 * intensity,
+    rise: smoke.riseSpeed * (0.95 + 1.45 * intensity),
+    turbulence: smoke.turbulence * 0.5,
+    scaleGrowth: 1.25,
     heat: clamp01(rt.state.cigarette.ember.brightness),
   });
 }
@@ -220,16 +225,18 @@ export function exhaleBurst(
   return makeBurst(rt, {
     kind: 'exhale',
     origin: rt.state.cigarette.pose.tip,
-    count: 34 + Math.round(86 * intensity),
+    // Fewer, far larger lobes: the design's breath is a stack of rounded overlapping puffs, and
+    // a hundred small ones reads as mist in front of a light.
+    count: 20 + Math.round(46 * intensity),
     directionDeg: tipAngle(rt) + 8 + releaseSteer(rt),
-    spreadDeg: 66,
-    speed: [0.02 * ease, (0.09 + 0.1 * intensity) * ease],
-    radius: [0.014, 0.052],
-    lifeMs: [2600 * slow, 6400 * slow],
-    alphaPeak: 0.2 + 0.26 * intensity,
-    rise: smoke.riseSpeed * modifier.riseSpeed * (0.8 + intensity * 0.9) * ease,
-    turbulence: smoke.turbulence * modifier.turbulence * (0.9 + intensity),
-    scaleGrowth: 2.2,
+    spreadDeg: 52,
+    speed: [0.012 * ease, (0.055 + 0.07 * intensity) * ease],
+    radius: [0.03, 0.105],
+    lifeMs: [3600 * slow, 8200 * slow],
+    alphaPeak: 0.24 + 0.3 * intensity,
+    rise: smoke.riseSpeed * modifier.riseSpeed * (0.7 + intensity * 0.8) * ease,
+    turbulence: smoke.turbulence * modifier.turbulence * (0.85 + intensity * 0.8),
+    scaleGrowth: 2.9,
     heat: clamp01(intensity * 0.35),
   });
 }

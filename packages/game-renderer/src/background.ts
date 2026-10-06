@@ -108,7 +108,12 @@ export function drawBackground(
 
   // Exposure and warmth are applied to the palette rather than as a filter overlay, so a
   // dark scene stays dark instead of turning grey (§57: colour must stay restrained).
-  const exposure = 0.55 + light.ambient * 0.85;
+  //
+  // The ceiling is deliberately low. The design's frames are near-black with the smoke as the
+  // light thing in them, and at the old exposure a room came out mid-grey, which left the plume
+  // with nothing to be bright against — the single biggest reason the smoke did not read as the
+  // mock-up's does.
+  const exposure = 0.34 + light.ambient * 0.46;
   const cool = mixRgb([210, 224, 240], [255, 232, 200], light.warmth);
   const skyTop = scale(background.sky[0], exposure, cool);
   const skyBottom = scale(background.sky[1], exposure * 0.95, cool);
@@ -166,7 +171,7 @@ export function drawBackground(
     Math.max(w, h) * 0.78,
   );
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, `rgba(0,0,0,${(0.45 + (1 - light.ambient) * 0.3).toFixed(3)})`);
+  vignette.addColorStop(1, `rgba(0,0,0,${(0.55 + (1 - light.ambient) * 0.3).toFixed(3)})`);
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
 }

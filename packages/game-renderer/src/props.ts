@@ -410,11 +410,13 @@ function drawEmber(
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const glowRadius = viewport.len(ember.glowRadius) * (1 + ember.flare * 0.6);
+  // The cherry lights the air around it, but the design's frame keeps that halo small: what
+  // carries the light is the smoke above it, not a bloom the size of the table.
+  const glowRadius = viewport.len(ember.glowRadius) * 0.55 * (1 + ember.flare * 0.5);
   if (glowRadius > 0.5) {
     const glow = ctx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, glowRadius);
-    glow.addColorStop(0, rgbToCss(cherry, clamp01(0.55 * total)));
-    glow.addColorStop(0.4, rgbToCss(cherry, clamp01(0.22 * total)));
+    glow.addColorStop(0, rgbToCss(cherry, clamp01(0.5 * total)));
+    glow.addColorStop(0.4, rgbToCss(cherry, clamp01(0.15 * total)));
     glow.addColorStop(1, rgbToCss(cherry, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
