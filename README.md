@@ -87,9 +87,10 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   a guard keeps anything un-tappable off the anchors the interaction layer carries (SPEC.md §49).
 - **The rooms** — the seven places a break can happen are a ladder of their own, not colour chips on
   the props row: a card is the room's own light, its name, and the number of the rung that opens it
-  (`3`, `7`, `14`, `21`, `30` days). One room is counted in breaks instead, and says so with the
-  break mark — `◷14` — because two cards printing a bare `14` would be the same door twice. Days
-  carry no mark: the day ladder is the axis the whole interface already counts on. What the number
+  (`3`, `7`, `14`, `21`, `30`, `45` days — one axis, the one the whole interface already counts
+  on). A room counted in breaks would print `◷14` beside a day's bare `14`, because two cards
+  printing the same number would be the same door twice; nothing ships on that axis now, and a test
+  keeps the mark honest anyway. What the number
   _counts_ is never printed, only spoken (`第 14 天` / `14 breaks`), so the row survives the wordless
   tier as digits and marks. It lives under `skins` in the sidebar, because changing the background
   has always had two halves — the four palette layers and the room. Rerun the rungs with

@@ -248,7 +248,7 @@ export const ENVIRONMENTS: Environment[] = [
       morning: { lighting: { ambient: 0.6, warmth: 0.42 } },
       'late-night': { lighting: { ambient: 0.2, warmth: 0.3 }, wind: { base: 0.3 } },
     },
-    unlock: { kind: 'sessions', count: 14 },
+    unlock: { kind: 'day', day: 45 },
   },
   {
     id: 'late-night-desk',

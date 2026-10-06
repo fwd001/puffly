@@ -60,6 +60,24 @@ describe('the rooms are a set with a ladder (§23, §37)', () => {
     expect(new Set(shown).size).toBe(shown.length);
   });
 
+  it('stands on one axis now, and still tells a count from a day if one ever returns', () => {
+    // Mountain was the last room counted in breaks; it sits on day 45 now, so the row is one
+    // ladder and every number on it means the same thing.
+    for (const room of rooms()) {
+      expect(['now', 'day'], `${room.id} is counted on another axis`).toContain(
+        rungOf(room.unlock).unit,
+      );
+    }
+    // The break mark is kept because a room may be counted in breaks again, and then a bare 14
+    // would be the same door twice. Nothing in the shipped content exercises it, so this does.
+    const base = rooms()[0] as CollectionItem;
+    const day = rungShown({ ...base, id: 'by-day', unlock: { kind: 'day', day: 14 } });
+    const breaks = rungShown({ ...base, id: 'by-breaks', unlock: { kind: 'sessions', count: 14 } });
+    expect(day).toBe('14');
+    expect(breaks).toBe('\u25f714');
+    expect(breaks).not.toBe(day);
+  });
+
   it('counts the set as entered / total, and the total is the seven the brief fixes', () => {
     const all = rooms();
     expect(rungCount(all, [])).toBe(`0 / ${String(all.length)}`);
