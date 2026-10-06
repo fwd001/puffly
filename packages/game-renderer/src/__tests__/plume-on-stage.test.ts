@@ -24,6 +24,8 @@ const STEP = 1000 / 60;
 interface Cloud {
   /** Share of the live particles still inside the stage box. */
   inFrame: number;
+  /** How far the cloud's centre has slid sideways, in stage widths. */
+  driftX: number;
   /** Mean alpha, against the brightest particle still in the air. */
   meanAlpha: number;
   peakAlpha: number;
@@ -45,6 +47,7 @@ function breathOf(cigaretteId: string): (seconds: number) => Cloud | null {
 
   const pool = new ParticlePool(1400);
   intakeBurst(burst, pool, { densityScale: 1 });
+  const origin: Burst['origin'] = (burst as Burst).origin;
   let elapsed = 0;
 
   return (seconds: number) => {
@@ -57,15 +60,22 @@ function breathOf(cigaretteId: string): (seconds: number) => Cloud | null {
     let inside = 0;
     let sum = 0;
     let peak = 0;
+    let sumX = 0;
     pool.forEachActive((particle) => {
       live += 1;
+      sumX += particle.x;
       // The stage box is the unit the whole engine works in, so 0..1 is the frame itself.
       if (particle.y >= 0 && particle.y <= 1 && particle.x >= 0 && particle.x <= 1) inside += 1;
       sum += particle.alpha;
       peak = Math.max(peak, particle.alpha);
     });
     if (live === 0) return null;
-    return { inFrame: inside / live, meanAlpha: sum / live, peakAlpha: peak };
+    return {
+      inFrame: inside / live,
+      driftX: sumX / live - origin.x,
+      meanAlpha: sum / live,
+      peakAlpha: peak,
+    };
   };
 }
 
@@ -89,6 +99,11 @@ describe('the breath stays on the stage while it is lit (§15)', () => {
     // Half as bright as its own brightest particle is still bright: the player can see it.
     const stillLit = atFour.meanAlpha > 0.45 * atFour.peakAlpha;
     if (!stillLit) return;
+    // Sideways first: 「点击抽烟的那个按钮 那个烟会到左上角」 is the same defect seen horizontally, and
+    // at the old damping the cloud slid 0.145 of a stage leftward on its way out of the frame. The
+    // two rules fail together there, so the narrower one is asserted first — otherwise the frame
+    // check aborts the test and this one never gets to say anything.
+    expect(Math.abs(atFour.driftX), `${id} ran sideways off the tip`).toBeLessThanOrEqual(0.05);
     expect(atFour.inFrame, `${id} left the frame while lit`).toBeGreaterThanOrEqual(0.5);
   });
 });
