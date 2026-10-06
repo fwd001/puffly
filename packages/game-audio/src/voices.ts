@@ -605,13 +605,13 @@ const BEDS: Partial<Record<AudioVoiceId, BedRecipe>> = {
     // single-stage bed, a series bandpass made the draw darker, because it starves the very band it
     // means to emphasise. The lift is deliberately small — at +9 dB this bed went 19x top-heavy
     // (tube/body 4.4 -> 19) and 48% louder, which is a hiss with a new coat of paint.
-    duct: { type: 'peaking', hz: 1900, q: 0.9, boostDb: 3 },
+    duct: { type: 'peaking', hz: 1200, q: 0.9, boostDb: 2 },
     rumble: { flavor: 'brown', seconds: 3.4, hz: 300, q: 0.7, gain: 0.28 },
     lfoHz: 0.32,
     lfoDepth: 140,
     flutter: [
-      { hz: 7.3, depth: 260 },
-      { hz: 17.9, depth: 90 },
+      { hz: 7.3, depth: 170 },
+      { hz: 17.9, depth: 60 },
     ],
   },
   crackle: {

@@ -53,8 +53,12 @@ describe('the draw is air pulled through a tube (§26)', () => {
 
     expect(soft).toBeGreaterThan(600);
     expect(hard).toBeGreaterThan(soft);
-    // A rod, not a whistle: the formant stays inside the range a paper column actually speaks in.
-    expect(hard).toBeLessThan(2400);
+    // A rod, not a whistle. The ceiling used to be 2400, which sat just above the 2379 this
+    // shipped at — a line drawn around the thing it was meant to stop, so it guarded nothing and
+    // the draw stayed bright until someone listened. 1500 is below the 2.4 kHz band that reads as
+    // hiss: rendered offline, pulling the duct down took the 2.4 kHz energy against the 900 Hz
+    // body from 3.82x to 2.97x at rest and 2.48x mid-pull, with the flutter unchanged.
+    expect(hard).toBeLessThan(1500);
   });
 
   it('wobbles that duct with two rates that never line up', () => {
@@ -62,7 +66,12 @@ describe('the draw is air pulled through a tube (§26)', () => {
     h.frame(makeState(held(0.6)));
     const waves = modulators(h, 'bed.draw.draw:duct');
     expect(waves).toHaveLength(2);
+    // Depth is relative or it goes shrill as the base comes down: ±260 Hz around 1900 is a 14%
+    // wobble, and the same 260 around 1200 would be a 22% one.
+    const base = h.ctx.param('bed.draw.draw:duct', 'frequency')?.value ?? 0;
+    expect(base).toBeGreaterThan(0);
     for (const wave of waves) {
+      expect(wave.depth / base).toBeLessThanOrEqual(0.15);
       // Turbulence band: fast enough to read as flutter, far enough from a tone to stay air.
       expect(wave.hz).toBeGreaterThan(4);
       expect(wave.hz).toBeLessThan(30);

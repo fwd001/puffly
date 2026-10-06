@@ -325,7 +325,7 @@ export function bedTargets(
       cutoff: 300 + intensity * 1500 + density * 260,
       // And the rod has a voice of its own above that body: the formant climbs as the pull hardens,
       // so a sip and a real draw are two different tubes rather than one tube at two volumes.
-      formant: 1450 + intensity * 820 + density * 150,
+      formant: 950 + intensity * 330 + density * 90,
     },
     flame: {
       gain: flame * (0.35 + flame * 0.65),

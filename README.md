@@ -342,7 +342,10 @@ Honest gaps, so nobody rediscovers them as bugs:
   measurable: `createAudioEngine` takes an injected context, so pointing it at an
   `OfflineAudioContext` renders the shipped synth and its spectrum can be compared before and after a
   change — that is how the draw's tube-to-body balance and its spectral movement were tuned (§26).
-  What that cannot settle is whether it sounds right. Nobody has listened to these numbers.
+  What that cannot settle is whether it sounds _right_. Someone has now listened once and said the
+  draw was too bright (偏亮), which the same ruler located: the tube sat at 1.9 kHz, putting 3.82x
+  the body's energy into the 2.4 kHz band. It sits at 1.2 kHz now and that ratio measures 2.97 at
+  rest, 2.48–2.73 through a pull.
 - **Whether the smoke is _the_ smoke, and which face the words wear.** The shell's colours are the
   brief's named baseline (SPEC.md §57), and the plume is measured as a shape now — a rising column
   of elongation 2.4 at two seconds where it was a round cloud of 1.10 (SPEC.md §15). What those
