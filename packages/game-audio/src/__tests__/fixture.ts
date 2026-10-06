@@ -288,6 +288,7 @@ export const BUNDLE: ContentBundle = {
         durationMax: 900,
         savourMs: 0,
         loadPerPuff: 0.24,
+        exhaleMs: 0,
       },
       smokeProfile: { density: 1, turbulence: 1, riseSpeed: 0.3, dispersion: 1 },
       emberProfile: { brightness: 0.8, flicker: 0.1, flareChance: 0 },

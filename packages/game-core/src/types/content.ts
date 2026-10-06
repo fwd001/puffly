@@ -34,6 +34,12 @@ export interface CigaretteType {
      * burn. `0` is a draw that never reaches the lungs (Smoke Ritual 品鉴型: 无肺阻力反馈).
      */
     loadPerPuff: number;
+    /**
+     * How long the released smoke is breathed out over. `0` is an inhaled draw, which leaves in one
+     * rush; anything else is 缓缓吐出 — the same cloud, given a longer life and less speed, so it
+     * comes out of the mouth rather than being pushed out of the lungs.
+     */
+    exhaleMs: number;
   };
 
   smokeProfile: {

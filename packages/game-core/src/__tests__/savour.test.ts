@@ -18,7 +18,12 @@ const MOUTH: ContentBundle = {
     rod.id === 'test-rod'
       ? {
           ...rod,
-          puffProfile: { ...rod.puffProfile, savourMs: MOUTHFUL_MS, loadPerPuff: 0 },
+          puffProfile: {
+            ...rod.puffProfile,
+            savourMs: MOUTHFUL_MS,
+            loadPerPuff: 0,
+            exhaleMs: 2500,
+          },
           archive: { ...rod.archive, kind: 'savor' as const },
         }
       : rod,
@@ -96,5 +101,24 @@ describe('the mouth and the lungs (§14, 品鉴型)', () => {
     // The residue is what the burn and the cherry read (BURN.loadRateMultiplier, the ember's
     // brightness), so a mouthed rod keeps its tempo and an inhaled one does not.
     expect(threeDraws(harness())).toBeGreaterThan(0.2);
+  });
+
+  it('a mouthed draw is breathed out slowly where an inhaled one is pushed out (§14 缓缓吐出)', () => {
+    // Both are drawn past their own fill point, so the two clouds leave at the same intensity and
+    // the only thing that can differ is how they go.
+    const released = (content: ContentBundle, ms: number): Burst => {
+      const h = harness({ content });
+      lit(h);
+      h.press('cigarette');
+      h.run(ms);
+      h.release('cigarette');
+      const burst = burstsOf(h, 'exhale').at(-1);
+      if (burst === undefined) throw new Error('no exhale burst was emitted');
+      return burst;
+    };
+    const lung = released(FIXTURE, 1300);
+    const mouth = released(MOUTH, 2600);
+    expect(mouth.lifeMs.max).toBeGreaterThan(lung.lifeMs.max * 1.2);
+    expect(mouth.speed.max).toBeLessThan(lung.speed.max * 0.95);
   });
 });

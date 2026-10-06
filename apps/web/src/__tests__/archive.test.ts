@@ -100,10 +100,16 @@ describe('brands stay in the archive (§ redlines.noAdvertising)', () => {
       const mouthed = rod.archive.kind === 'savor';
       // Both directions, so a rod cannot be filed as a cigar and inhaled like a cigarette — or
       // the reverse: a new savour rod has to say the hold, and a new one that inhales must not.
-      expect(rod.puffProfile.savourMs > 0, `${rod.id} holds its smoke`).toBe(mouthed);
-      expect(rod.puffProfile.loadPerPuff === 0, `${rod.id} leaves no lung resistance`).toBe(
-        mouthed,
-      );
+      const draw = {
+        holdsItsSmoke: rod.puffProfile.savourMs > 0,
+        leavesNoLungResistance: rod.puffProfile.loadPerPuff === 0,
+        breathesOutSlowly: rod.puffProfile.exhaleMs > 0,
+      };
+      expect(draw, rod.id).toEqual({
+        holdsItsSmoke: mouthed,
+        leavesNoLungResistance: mouthed,
+        breathesOutSlowly: mouthed,
+      });
     }
     // The three are the ladder's own shape: 小雪茄 / 雪茄 / 斗烟.
     const savoured = DEFAULT_CONTENT.cigarettes

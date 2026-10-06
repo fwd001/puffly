@@ -212,17 +212,22 @@ export function exhaleBurst(
 ): Burst {
   const smoke = rt.cigarette.smokeProfile;
   const modifier = rt.environment.smokeModifier;
+  // 缓缓吐出: a draw that was held in the mouth leaves slowly rather than being pushed out of the
+  // lungs. The same cloud, given a longer life and less speed and lift — content decides how slow.
+  const spread = rt.cigarette.puffProfile.exhaleMs;
+  const slow = spread > 0 ? 1 + spread / 2500 : 1;
+  const ease = spread > 0 ? 1 / slow : 1;
   return makeBurst(rt, {
     kind: 'exhale',
     origin: rt.state.cigarette.pose.tip,
     count: 34 + Math.round(86 * intensity),
     directionDeg: tipAngle(rt) + 8 + releaseSteer(rt),
     spreadDeg: 66,
-    speed: [0.02, 0.09 + 0.1 * intensity],
+    speed: [0.02 * ease, (0.09 + 0.1 * intensity) * ease],
     radius: [0.014, 0.052],
-    lifeMs: [2600, 6400],
+    lifeMs: [2600 * slow, 6400 * slow],
     alphaPeak: 0.2 + 0.26 * intensity,
-    rise: smoke.riseSpeed * modifier.riseSpeed * (0.8 + intensity * 0.9),
+    rise: smoke.riseSpeed * modifier.riseSpeed * (0.8 + intensity * 0.9) * ease,
     turbulence: smoke.turbulence * modifier.turbulence * (0.9 + intensity),
     scaleGrowth: 2.2,
     heat: clamp01(intensity * 0.35),
