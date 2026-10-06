@@ -248,6 +248,9 @@ function drawInterior(
   horizon: Rgb,
 ): void {
   const { cssWidth: w, cssHeight: h, stage } = viewport;
+  // The warm colour of the light the room is lit by. It arrives through `style.scene` so a skin
+  // can repaint it, and it is the only place the table's colour was decided.
+  const poolLight = state.style.scene.pool;
   const wall = mixRgb(horizon, silhouette, 0.5);
   ctx.fillStyle = rgbToCss(wall, 0.85);
   ctx.fillRect(0, 0, w, h * 0.7);
@@ -259,7 +262,7 @@ function drawInterior(
   const pool = ctx.createRadialGradient(lx, ly, 0, lx, ly, Math.max(w, h) * 0.45);
   pool.addColorStop(
     0,
-    rgbToCss(mixRgb(wall, [255, 236, 208], 0.5), 0.35 * (0.4 + state.world.light.ambient)),
+    rgbToCss(mixRgb(wall, poolLight, 0.5), 0.35 * (0.4 + state.world.light.ambient)),
   );
   pool.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = pool;
@@ -285,8 +288,8 @@ function drawInterior(
   const reach = Math.max(80, stage.width * 0.8);
   const pool2 = ctx.createRadialGradient(px, py, 0, px, py, reach);
   const strength = 0.26 + state.world.light.ambient * 0.34;
-  pool2.addColorStop(0, rgbToCss(mixRgb(silhouette, [255, 226, 186], 0.62), strength));
-  pool2.addColorStop(0.5, rgbToCss(mixRgb(silhouette, [255, 226, 186], 0.3), strength * 0.5));
+  pool2.addColorStop(0, rgbToCss(mixRgb(silhouette, poolLight, 0.62), strength));
+  pool2.addColorStop(0.5, rgbToCss(mixRgb(silhouette, poolLight, 0.3), strength * 0.5));
   pool2.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = pool2;
   ctx.fillRect(0, edge, w, h - edge);

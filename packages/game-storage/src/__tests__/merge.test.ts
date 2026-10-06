@@ -189,6 +189,7 @@ describe('mergeSaveFiles: the rest of the save (§37, §51, §52)', () => {
     // Importing on a second device is the same statement of taste: neither the rod in the hand
     // nor the language asked for may reset on the way through a merge.
     expect(save.settings.language).toBe('zh-CN');
+    expect(save.settings.skin).toBe('copper');
     expect(save.settings.selection?.cigarette).toBe('long-thin');
     // and the other way round, the current profile is the older one
     expect(mergeSaveFiles(incoming, current).summary.profileIdSource).toBe('current');

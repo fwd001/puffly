@@ -8,6 +8,7 @@ import { SAVE_SCHEMA_VERSION, SessionEventType, type SaveFile } from '@puffly/ga
 import { exportSaveFile, parseSaveFile, serializeSaveFile } from '../save';
 import {
   isRecord,
+  readProgress,
   readSession,
   readSettings,
   validateSaveFile,
@@ -256,6 +257,19 @@ describe('parseSaveFile: hostile input never throws (§63)', () => {
  * else is a player's choice lost on the next reload, and the memory adapter — which hands the
  * stored object back untouched — would keep it, so the two paths must agree.
  */
+it('keeps the boxes in the collection, because the last skin is gated on them (§ S19)', () => {
+  const errors: string[] = [];
+  const kept = readProgress(makeProgress(), 'progress', errors);
+  expect(errors).toEqual([]);
+  expect(kept?.collectedPacks).toEqual(['box-a', 'box-b']);
+  const bare = readProgress(
+    { ...JSON.parse(JSON.stringify(makeProgress())), collectedPacks: undefined },
+    'progress',
+    errors,
+  );
+  expect(bare && 'collectedPacks' in bare).toBe(false);
+});
+
 describe('what a reader keeps (§64, §49)', () => {
   const selection = {
     cigarette: 'long-thin',
@@ -267,13 +281,14 @@ describe('what a reader keeps (§64, §49)', () => {
   it("keeps the item in the player's hand and the words they asked for", () => {
     const errors: string[] = [];
     const kept = readSettings(
-      { ...makeSettings(), selection, language: 'zh-CN' },
+      { ...makeSettings(), selection, language: 'zh-CN', skin: 'copper' },
       'settings',
       errors,
     );
     expect(errors).toEqual([]);
     expect(kept?.selection).toEqual(selection);
     expect(kept?.language).toBe('zh-CN');
+    expect(kept?.skin).toBe('copper');
   });
 
   it('leaves an untouched preference absent, so the shell still asks the device', () => {
@@ -281,6 +296,7 @@ describe('what a reader keeps (§64, §49)', () => {
     const plain = readSettings(makeSettings(), 'settings', errors);
     expect(errors).toEqual([]);
     expect(plain && 'language' in plain).toBe(false);
+    expect(plain && 'skin' in plain).toBe(false);
     expect(plain && 'selection' in plain).toBe(false);
   });
 
@@ -297,11 +313,12 @@ describe('what a reader keeps (§64, §49)', () => {
 
   it('round-trips a saved break through an export and back', () => {
     const save = makeSave();
-    save.settings = { ...makeSettings(), selection, language: 'ar' };
+    save.settings = { ...makeSettings(), selection, language: 'ar', skin: 'copper' };
     const parsed = parseSaveFile(serializeSaveFile(save));
     if (!parsed.ok) throw new Error(`unexpected problems: ${parsed.errors.join(' | ')}`);
     expect(parsed.save.settings.selection).toEqual(selection);
     expect(parsed.save.settings.language).toBe('ar');
+    expect(parsed.save.settings.skin).toBe('copper');
   });
 
   it('keeps a pinch in the replay, because a two-finger close is an input like any other (§49)', () => {

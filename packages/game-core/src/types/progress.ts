@@ -40,6 +40,12 @@ export interface Progress {
   puffs: number;
   ashDropped: number;
   /**
+   * The cigarette boxes in the collection (§ S19). Optional because a save written before the
+   * cabinet existed has none: an empty collection is a fact, not a missing field, and the last
+   * skin is gated on it.
+   */
+  collectedPacks?: string[];
+  /**
    * Consecutive-day count. `cravings handled` is deliberately absent: it is derived
    * from stored sessions by `@puffly/game-statistics` rather than double-booked here
    * (SPEC.md §70).

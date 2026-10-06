@@ -255,6 +255,12 @@ export interface StageAnchors {
  */
 export interface SceneStyle {
   cigarette: { paper: Rgb; band: Rgb; filter: Rgb; ash: Rgb };
+  /**
+   * The two colours the renderer used to carry in its own source: the cherry's hot core and the
+   * pool of light the table sits in. They live here so a skin (§ S15) has somewhere to write —
+   * four layers, all of them colour, none of them a number the simulation reads.
+   */
+  scene: { ember: Rgb; pool: Rgb };
   lighter: { flameHeight: number; hue: Rgb; sparkles: number };
   ashtray: { base: Rgb; rim: Rgb; reflect: number };
   smoke: { opacity: number; blur: number; swirl: number };
@@ -294,4 +300,10 @@ export interface CollectionSnapshot {
   unlocked: Record<string, string[]>;
   /** Items that just unlocked: fade them in, never a dialog (§39, §62). */
   fresh: string[];
+  /**
+   * S18: which skins the ladder has let through. Kept apart from `unlocked` because a skin is
+   * never collected — it is applied, and the thing that gates it is the same rule read against a
+   * different ledger (§6.1).
+   */
+  unlockedSkins: string[];
 }

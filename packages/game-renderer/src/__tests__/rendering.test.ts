@@ -303,7 +303,13 @@ describe('renderer as an adapter (§48)', () => {
       height: 600,
       dpr: 1,
       sprites,
-      settings: { reducedMotion: true, quality: 'auto', contrast: 'normal', visualCues: false },
+      settings: {
+        reducedMotion: true,
+        quality: 'auto',
+        contrast: 'normal',
+        visualCues: false,
+        skin: null,
+      },
     });
     const loud = createCanvasRenderer({
       ctx: fake.ctx,
@@ -311,7 +317,13 @@ describe('renderer as an adapter (§48)', () => {
       height: 600,
       dpr: 1,
       sprites,
-      settings: { reducedMotion: false, quality: 'high', contrast: 'normal', visualCues: false },
+      settings: {
+        reducedMotion: false,
+        quality: 'high',
+        contrast: 'normal',
+        visualCues: false,
+        skin: null,
+      },
     });
     expect(calm.poolCapacity()).toBeLessThan(loud.poolCapacity());
 
@@ -332,7 +344,13 @@ describe('renderer as an adapter (§48)', () => {
         height: 1200,
         dpr: 2,
         sprites: { size: 16, soft: () => fakeSprite(16), clear: () => undefined },
-        settings: { reducedMotion: false, quality: 'high', contrast, visualCues: false },
+        settings: {
+          reducedMotion: false,
+          quality: 'high',
+          contrast,
+          visualCues: false,
+          skin: null,
+        },
       });
 
       const engine = createEngine({
@@ -561,7 +579,13 @@ describe('scene feedback (§19, §20, §60)', () => {
         height: 1200,
         dpr: 1,
         sprites: { size: 16, soft: () => fakeSprite(16), clear: () => undefined },
-        settings: { reducedMotion: false, quality: 'high', contrast: 'normal', visualCues },
+        settings: {
+          reducedMotion: false,
+          quality: 'high',
+          contrast: 'normal',
+          visualCues,
+          skin: null,
+        },
       });
       const view = snapshotView();
       renderer.render(view, 16);

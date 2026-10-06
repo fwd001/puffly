@@ -70,6 +70,8 @@ export function ruleSatisfied(rule: UnlockRule, progress: Progress): boolean {
       return progress.sessions >= rule.count;
     case 'puffs':
       return progress.puffs >= rule.count;
+    case 'packs':
+      return (progress.collectedPacks ?? []).length >= rule.count;
     default:
       return false;
   }
@@ -102,7 +104,13 @@ export function collectionSnapshot(
       (visible[item.category] ??= []).push(item.id);
     }
   }
-  return { unlocked: visible, fresh: known };
+  return {
+    unlocked: visible,
+    fresh: known,
+    unlockedSkins: bundle.skins
+      .filter((skin) => ruleSatisfied(skin.unlock, progress))
+      .map((skin) => skin.id),
+  };
 }
 
 /**

@@ -297,7 +297,8 @@ export function createEmptyProgress(startedAt: number, dayKey: string): Progress
 
 export function emptyCollection(): CollectionSnapshot {
   const unlocked = {} as Record<CollectionCategoryValue, string[]>;
-  return { unlocked, fresh: [] };
+  // Recomputed from the bundle on the first tick; nothing is unlocked at zero.
+  return { unlocked, fresh: [], unlockedSkins: [] };
 }
 
 export function projectProgress(progress: Progress, smokeFreeDays: number): ProgressSnapshot {

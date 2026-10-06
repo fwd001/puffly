@@ -21,6 +21,7 @@ import { DEFAULT_CONTENT } from '@puffly/game-content';
 import { rgbToCss } from '@puffly/shared';
 import type { Puffly } from '../composables/usePuffly';
 import ArchiveTile from './ArchiveTile.vue';
+import { SKINS } from '@puffly/game-content';
 import { shelfCount, shelvesOf } from '../shelf';
 
 const props = defineProps<{ open: boolean; game: Puffly }>();
@@ -56,6 +57,13 @@ const SELECTION_KEY: Partial<Record<CollectionCategoryValue, keyof Selection>> =
 };
 
 const fresh = computed(() => new Set(props.game.summary.value.fresh));
+
+/** S18: a skin is four bars, and that is the whole of what a card can show about it. */
+const skins = SKINS;
+const worn = computed(() => props.game.settings.value.skin ?? 'night');
+const unlockedSkins = computed(
+  () => new Set(props.game.summary.value.state?.collection.unlockedSkins ?? []),
+);
 
 function isUnlocked(item: CollectionItem): boolean {
   return (props.game.unlocked.value[item.category] ?? []).includes(item.id);
@@ -130,6 +138,31 @@ watch(
     <p v-if="copy.t('shelf.hint') !== null" class="hint">
       {{ copy.t('shelf.hint', { total: String(rods.length) }) }}
     </p>
+
+    <div class="group">
+      <p v-if="copy.t('shelf.skins') !== null" class="kind">{{ copy.t('shelf.skins') }}</p>
+      <div class="skins">
+        <button
+          v-for="skin in skins"
+          :key="skin.id"
+          class="skin"
+          :data-skin="skin.id"
+          :data-locked="!unlockedSkins.has(skin.id)"
+          :data-selected="worn === skin.id"
+          :aria-pressed="worn === skin.id"
+          :aria-label="copy.say('a11y.skin', { name: skin.name })"
+          @click="unlockedSkins.has(skin.id) && game.setSettings({ skin: skin.id })"
+        >
+          <span class="layers" aria-hidden="true">
+            <span
+              v-for="layer in ['paper', 'ember', 'smoke', 'pool']"
+              :key="layer"
+              :style="{ background: rgbToCss(skin.palette[layer as 'paper']) }"
+            />
+          </span>
+        </button>
+      </div>
+    </div>
 
     <div v-for="shelf in kit" :key="shelf.category" class="group">
       <div class="shelf-mark" aria-hidden="true">{{ shelf.glyph }}</div>
@@ -212,6 +245,44 @@ watch(
 
 .swatch {
   overflow: hidden;
+}
+
+.skins {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+}
+
+.skin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+}
+
+.layers {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.layers span {
+  height: 7px;
+  border-radius: 3px;
+}
+
+.skin[data-locked='true'] {
+  opacity: 0.34;
+}
+
+.skin[data-selected='true'] {
+  border-color: var(--ember-orange);
+  background: color-mix(in oklab, var(--ember-orange) 12%, transparent);
 }
 
 .chip {

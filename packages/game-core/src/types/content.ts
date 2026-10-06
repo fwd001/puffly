@@ -78,7 +78,9 @@ export type UnlockRule =
   | { kind: 'default' }
   | { kind: 'day'; day: number }
   | { kind: 'sessions'; count: number }
-  | { kind: 'puffs'; count: number };
+  | { kind: 'puffs'; count: number }
+  /** The last skin is gated on the collection, not on volume: 12 boxes, however long it takes. */
+  | { kind: 'packs'; count: number };
 
 /**
  * How a rod's smoke behaves as a body of air, not just how much of it there is (§13):
@@ -258,8 +260,25 @@ export interface EmberModifier {
 }
 
 /** Everything the game needs to exist; §77 means adding content is adding data. */
+/**
+ * A skin is four colours and nothing else (§ redlines.skinIsCosmetic). The four layers are the
+ * only thing it may touch — paper, ember, plume and the pool of light on the table — because a
+ * palette that could also move a duration would turn cosmetics into difficulty, which is the
+ * single easiest way to ruin this product.
+ */
+/** The four layers a skin may repaint, and the whole of what it may do. */
+export type SkinPalette = SkinContent['palette'];
+
+export interface SkinContent {
+  id: string;
+  name: string;
+  palette: { paper: Rgb; ember: Rgb; smoke: Rgb; pool: Rgb };
+  unlock: UnlockRule;
+}
+
 export interface ContentBundle {
   cigarettes: CigaretteContent[];
+  skins: SkinContent[];
   environments: Environment[];
   lighters: LighterContent[];
   ashtrays: AshtrayContent[];

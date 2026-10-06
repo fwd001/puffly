@@ -164,6 +164,9 @@ function assembleStyle(
   smokeStyle: SmokeStyleContent,
 ): SceneStyle {
   return {
+    // The brief's visual baseline: an ember at #FF8A3D over a #FFE2BA pool. A skin may repaint
+    // both; nothing else in the scene reads them as anything but colour.
+    scene: { ember: [255, 138, 61], pool: [255, 226, 186] },
     cigarette: {
       paper: cigarette.palette.paper,
       band: cigarette.palette.band,

@@ -116,6 +116,8 @@ export const EN = {
 
   /** S17's archive card. Tier 2 is what the rod measures; tier 3 is where the ≈ figures live. */
   /** S8's cabinet: the ladder, its count, and the two lines that explain how to read it. */
+  'shelf.skins': 'skins',
+  'a11y.skin': 'skin {name}',
   'shelf.rods': 'the ladder',
   'shelf.kit': 'the rest of the table',
   'shelf.hint': 'swipe up for all {total} · hold a card for its archive',
@@ -241,6 +243,8 @@ const ZH: Table = {
   'state.extinguished': '已经灭了',
   'state.discarded': '在烟灰缸里',
 
+  'shelf.skins': '皮肤',
+  'a11y.skin': '皮肤 {name}',
   'shelf.rods': '烟种',
   'shelf.kit': '桌上其余',
   'shelf.hint': '下滑查看全部 {total} 款 · 长按卡片查档案',

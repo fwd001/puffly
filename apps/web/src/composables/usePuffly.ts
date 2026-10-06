@@ -29,6 +29,7 @@ import {
   createViewport,
   defaultSpriteFactory,
   type PufflyRenderer,
+  type RendererSettings,
 } from '@puffly/game-renderer';
 import {
   deriveJourney,
@@ -48,6 +49,7 @@ import {
   createSurfaceGuard,
   targetForAffordance,
 } from './useInputAdapters';
+import type { SkinPalette } from '@puffly/game-core';
 import { HINT_KEYS, createI18n, resolveLocale, type I18n, type LocaleCode } from '../i18n';
 import { phaseOf, type Phase } from '../phase';
 
@@ -319,14 +321,27 @@ export function createPuffly(): Puffly {
   const effectiveQuality = (): QualityMode =>
     settings.value.quality === 'auto' ? autoTier : settings.value.quality;
 
+  /** The palette the applied skin asks for; `null` leaves the scene as the content made it. */
+  const skinPalette = (): SkinPalette | null =>
+    content.bundle.skins.find((skin) => skin.id === settings.value.skin)?.palette ?? null;
+
+  /**
+   * One place assembles what the renderer is told. Three call sites used to spell four fields out
+   * by hand, which is how a fifth field gets applied by the loop and forgotten by the resize.
+   */
+  const rendererSettings = (
+    quality: QualityMode = effectiveQuality(),
+  ): Pick<RendererSettings, 'reducedMotion' | 'quality' | 'contrast' | 'skin'> => ({
+    reducedMotion: settings.value.reducedMotion,
+    quality,
+    contrast: settings.value.contrast,
+    skin: skinPalette(),
+  });
+
   const applyEffectiveQuality = (): void => {
     const quality = effectiveQuality();
     engine?.setSettings({ ...settings.value, quality });
-    renderer?.setSettings({
-      reducedMotion: settings.value.reducedMotion,
-      quality,
-      contrast: settings.value.contrast,
-    });
+    renderer?.setSettings(rendererSettings(quality));
   };
 
   /**
@@ -591,9 +606,7 @@ export function createPuffly(): Puffly {
         height: canvas.clientHeight || 960,
         dpr: dprFor(),
         settings: {
-          reducedMotion: settings.value.reducedMotion,
-          quality: effectiveQuality(),
-          contrast: settings.value.contrast,
+          ...rendererSettings(),
           // The loop below owns this from the first beat; starting where it starts means the two
           // can never disagree about who is carrying the cues (§63).
           visualCues: false,
@@ -762,11 +775,7 @@ export function createPuffly(): Puffly {
       settings.value = { ...settings.value, ...patch };
       if (patch.quality === 'auto') autoTier = startingTier();
       engine?.setSettings({ ...settings.value, quality: effectiveQuality() });
-      renderer?.setSettings({
-        reducedMotion: settings.value.reducedMotion,
-        quality: effectiveQuality(),
-        contrast: settings.value.contrast,
-      });
+      renderer?.setSettings(rendererSettings());
       audio?.setSettings(settings.value);
       const root = document.documentElement;
       if (root) {

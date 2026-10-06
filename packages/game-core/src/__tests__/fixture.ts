@@ -196,4 +196,5 @@ export const FIXTURE: ContentBundle = {
       unlock: { kind: 'default' },
     },
   ],
+  skins: [],
 };

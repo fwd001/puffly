@@ -201,6 +201,7 @@ export function makeChosenSettings(nowMs = at(5, 9, 0)): Settings {
       ashtray: 'stone',
     },
     language: 'zh-CN',
+    skin: 'copper',
   };
 }
 
@@ -243,6 +244,7 @@ export function makeProgress(overrides: Partial<Progress> = {}): Progress {
       sounds: [],
     },
     acknowledgedUnlocks: ['cigarettes:test-rod'],
+    collectedPacks: ['box-a', 'box-b'],
     lastActiveDayKey: '2026-01-08',
     activeDays: ['2026-01-05', '2026-01-06', '2026-01-08'],
     ...overrides,

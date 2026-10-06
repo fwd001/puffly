@@ -91,6 +91,9 @@ export function cloneSettings(settings: Settings): Settings {
   if (typeof settings.language === 'string' && settings.language.length > 0) {
     copy.language = settings.language;
   }
+  if (typeof settings.skin === 'string' && settings.skin.length > 0) {
+    copy.skin = settings.skin;
+  }
   return copy;
 }
 
@@ -116,6 +119,9 @@ export function cloneProgress(progress: Progress): Progress {
       [CollectionCategory.SOUNDS]: [...(progress.unlocked[CollectionCategory.SOUNDS] ?? [])],
     },
     acknowledgedUnlocks: [...progress.acknowledgedUnlocks],
+    ...(progress.collectedPacks === undefined
+      ? {}
+      : { collectedPacks: [...progress.collectedPacks] }),
     lastActiveDayKey: progress.lastActiveDayKey,
     activeDays: [...progress.activeDays],
   };

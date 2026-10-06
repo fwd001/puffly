@@ -912,6 +912,35 @@ const hintCentre = async (page) => {
     `${lockedRod} → ${JSON.stringify({ ...heldLocked, before })}`,
   );
 
+  // S18: the skins row is four bars per card, one of them is worn, and a locked one is inert.
+  const skins = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.skin')];
+    return {
+      cards: cards.length,
+      layers: Math.max(...cards.map((card) => card.querySelectorAll('.layers span').length)),
+      worn: cards
+        .filter((card) => card.dataset.selected === 'true')
+        .map((card) => card.dataset.skin),
+      locked: cards.filter((card) => card.dataset.locked === 'true').length,
+    };
+  });
+  check(
+    'a skin is four colour layers, and exactly one is worn',
+    skins.cards === 6 && skins.layers === 4 && skins.worn.length === 1 && skins.locked === 5,
+    JSON.stringify(skins),
+  );
+
+  await page.locator('.skin[data-locked="true"]').first().click();
+  await page.waitForTimeout(320);
+  const stillWorn = await page.evaluate(() =>
+    [...document.querySelectorAll('.skin[data-selected="true"]')].map((el) => el.dataset.skin),
+  );
+  check(
+    'a skin you have not met cannot be worn',
+    stillWorn.length === 1 && stillWorn[0] === skins.worn[0],
+    JSON.stringify(stillWorn),
+  );
+
   check('chrome: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 }

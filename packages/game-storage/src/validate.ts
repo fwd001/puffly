@@ -207,15 +207,17 @@ function optionalSelection(
  */
 const MAX_LANGUAGE_LENGTH = 20;
 
-function optionalLanguage(
+/** One short, non-empty token: a language tag, a skin id, nothing longer than an id could be. */
+function optionalToken(
   source: Record<string, unknown>,
+  key: string,
   path: string,
   errors: ValidationErrors,
 ): string | undefined {
-  const value: unknown = source['language'];
+  const value: unknown = source[key];
   if (value === undefined) return undefined;
   if (typeof value !== 'string' || value.length === 0 || value.length > MAX_LANGUAGE_LENGTH) {
-    fail(errors, `${path}.language`, 'expected a short language tag or nothing at all');
+    fail(errors, `${path}.${key}`, 'expected a short token or nothing at all');
     return undefined;
   }
   return value;
@@ -518,6 +520,7 @@ export function readProgress(
   const longestStreakDays = requireInteger(record, 'longestStreakDays', path, errors);
   const lastActiveDayKey: unknown = record['lastActiveDayKey'];
   const acknowledgedUnlocks = optionalStringArray(record, 'acknowledgedUnlocks', path, errors);
+  const collectedPacks = optionalStringArray(record, 'collectedPacks', path, errors);
   const activeDays = optionalStringArray(record, 'activeDays', path, errors);
 
   if (version !== null && version !== 1) {
@@ -598,6 +601,7 @@ export function readProgress(
       [CollectionCategory.SOUNDS]: readList(CollectionCategory.SOUNDS),
     },
     acknowledgedUnlocks,
+    ...(collectedPacks === undefined ? {} : { collectedPacks }),
     lastActiveDayKey,
     activeDays,
   };
@@ -635,7 +639,8 @@ export function readSettings(
   // A save written before §28's hint word existed has no opinion about it: the default stands.
   const hints = booleanWithDefault(record, 'hints', true, path, errors);
   const selection = optionalSelection(record, path, errors);
-  const language = optionalLanguage(record, path, errors);
+  const language = optionalToken(record, 'language', path, errors);
+  const skin = optionalToken(record, 'skin', path, errors);
 
   if (
     volume === null ||
@@ -677,6 +682,7 @@ export function readSettings(
   if (quitAnchor !== undefined) settings.quitAnchorTimestamp = quitAnchor;
   if (selection !== undefined) settings.selection = selection;
   if (language !== undefined) settings.language = language;
+  if (skin !== undefined) settings.skin = skin;
   return settings;
 }
 

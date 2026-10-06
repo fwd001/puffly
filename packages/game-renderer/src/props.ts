@@ -406,7 +406,7 @@ function drawEmber(
 
   const centre = { x: rodLength, y: 0 };
   const hot = mixRgb([120, 40, 24], [255, 228, 168], ember.temperature);
-  const cherry = mixRgb(hot, [255, 96, 24], 0.6);
+  const cherry = mixRgb(hot, state.style.scene.ember, 0.6);
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';

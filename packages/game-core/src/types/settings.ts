@@ -31,6 +31,11 @@ export interface Settings {
    * changing shape (§47).
    */
   language?: string;
+  /**
+   * S18: the id of the applied skin. The core stores it and never reads it, exactly as with the
+   * language — a palette is not something the simulation is allowed to notice (§6.1).
+   */
+  skin?: string;
   utcOffsetMinutes: number;
   /** §33: the player's own anchor for smoke-free days. Never inferred as a claim (§84). */
   quitAnchorTimestamp?: number;

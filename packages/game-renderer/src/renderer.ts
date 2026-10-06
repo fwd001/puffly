@@ -17,6 +17,7 @@ import type {
   GameStateView,
   QualityMode,
   RendererAdapter,
+  SkinPalette,
 } from '@puffly/game-core';
 import { FIELD_SCALE, budgetFor, intakeBurst } from './intake';
 import { ParticlePool, type Particle } from './particles';
@@ -56,6 +57,12 @@ export interface RendererSettings {
    * scene says what the mix would have said instead of going quiet on one channel.
    */
   visualCues: boolean;
+  /**
+   * S15: the four layers of a skin, or `null` for the scene as the content made it. A renderer
+   * setting and not a simulation one, because a skin may not move a number — the view it produces
+   * differs from the state only in colour.
+   */
+  skin: SkinPalette | null;
 }
 
 export interface CanvasRendererOptions {
@@ -79,6 +86,24 @@ export interface PufflyRenderer extends RendererAdapter {
 }
 
 const TINT_CACHE_LIMIT = 32;
+
+/**
+ * The state as a skin sees it: four colours swapped, everything else the same object. No draw site
+ * learns that a skin exists, which is what keeps the redline true by construction — there is no
+ * branch here that could reach a duration, a count or a temperature.
+ */
+export function applySkin(view: GameStateView, skin: SkinPalette | null): GameStateView {
+  if (skin === null) return view;
+  return {
+    ...view,
+    style: {
+      ...view.style,
+      scene: { ember: skin.ember, pool: skin.pool },
+      cigarette: { ...view.style.cigarette, paper: skin.paper },
+    },
+    smoke: { ...view.smoke, tint: skin.smoke },
+  };
+}
 
 function densityScaleFor(settings: RendererSettings): number {
   if (settings.reducedMotion) return 0.28;
@@ -200,6 +225,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     quality: 'auto',
     contrast: 'normal',
     visualCues: false,
+    skin: null,
     ...options.settings,
   };
   const grainTile = options.grainTile ?? null;
@@ -399,7 +425,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
   };
 
   const renderer: PufflyRenderer = {
-    render(state, dtMs) {
+    render(incoming, dtMs) {
+      const state = applySkin(incoming, settings.skin);
       lastView = state;
       const frame = Math.max(0, Math.min(dtMs, MAX_FRAME_MS));
       clockMs += frame;
