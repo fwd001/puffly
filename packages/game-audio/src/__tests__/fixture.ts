@@ -291,6 +291,7 @@ export const BUNDLE: ContentBundle = {
         centerTempC: [700, 800],
         puffs: { target: 3, min: 2, max: 4 },
       },
+      archive: { zhName: '测试烟支', kind: 'inhale' },
       eventPool: [],
       palette: {
         paper: [238, 233, 222],

@@ -57,6 +57,19 @@ export interface CigaretteType {
     puffs: { target: number; min: number; max: number };
   };
 
+  /**
+   * What the archive (S17) says about this rod. Deliberately two names and nothing more: the
+   * numbers the card shows are the ones above (`physical`, `burnDuration`), its 场合 come from
+   * `environmentBias`, and a fictional rod has no published market data to quote. §10 forbids
+   * inventing any, so inventing none is the field's whole design.
+   */
+  archive: {
+    /** The rod's own name in the language the archive is read in (§9.2: 量词 lives here). */
+    zhName: string;
+    /** Which of the three interaction families it belongs to: inhaled, savoured, filtered. */
+    kind: 'inhale' | 'savor' | 'filter';
+  };
+
   eventPool: string[];
 }
 

@@ -823,6 +823,43 @@ const hintCentre = async (page) => {
     `lit=${lit.arc} drawing=${drawing.arc} alt=${drawing.alt}`,
   );
 
+  // S17: a short hold on the stick mark opens the archive over the scene, and the tap that
+  // follows the same pointer must not also open the shelf behind it.
+  const mark = page.locator('.hud [data-hook="category"]');
+  await mark.dispatchEvent('pointerdown', { pointerType: 'touch' });
+  await page.waitForTimeout(760);
+  await mark.dispatchEvent('pointerup', { pointerType: 'touch' });
+  await mark.dispatchEvent('click');
+  await page.waitForTimeout(340);
+  const card = await page.evaluate(() => {
+    const el = document.querySelector('[data-hook="archive"]');
+    return {
+      cells: [...(el?.querySelectorAll('.cells dd') ?? [])].map((n) =>
+        (n.textContent ?? '').trim(),
+      ),
+      tier3: el?.querySelectorAll('.scenes, .range').length ?? -1,
+      sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
+    };
+  });
+  check(
+    'a short hold opens the archive at tier two, without also opening the shelf',
+    card.cells.length === 3 && card.tier3 === 0 && card.sheets === 0,
+    JSON.stringify(card),
+  );
+
+  await page.locator('[data-hook="pin"]').click();
+  await page.waitForTimeout(300);
+  const pinned = await page.evaluate(() => ({
+    tier3: document.querySelectorAll('[data-hook="archive"] .scenes, [data-hook="archive"] .range')
+      .length,
+    approx: (document.querySelector('.archive .range')?.textContent ?? '').includes('\u2248'),
+  }));
+  check(
+    'pinning the card earns tier three, and its estimate carries the \u2248',
+    pinned.tier3 === 2 && pinned.approx,
+    JSON.stringify(pinned),
+  );
+
   check('chrome: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 }

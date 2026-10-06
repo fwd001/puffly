@@ -12,7 +12,43 @@ import { computed } from 'vue';
 import type { Puffly } from '../composables/usePuffly';
 
 const props = defineProps<{ game: Puffly }>();
-const emit = defineEmits<{ shelf: []; break: [] }>();
+const emit = defineEmits<{ shelf: []; break: []; archive: [] }>();
+
+/**
+ * The stick mark is two controls: a tap opens the shelf, a hold of 0.6 s opens the archive card
+ * (§ archive.invoke — the same threshold the 图鉴 cards will use). `held` is what keeps the click
+ * that follows a real pointer up from firing the tap as well; a keyboard Enter has no pointer
+ * down behind it, so it still reaches the shelf.
+ */
+const ARCHIVE_HOLD_MS = 600;
+let holdTimer = 0;
+let held = false;
+
+function markDown(): void {
+  window.clearTimeout(holdTimer);
+  held = false;
+  holdTimer = window.setTimeout(() => {
+    held = true;
+    emit('archive');
+  }, ARCHIVE_HOLD_MS);
+}
+
+function markCancel(): void {
+  window.clearTimeout(holdTimer);
+}
+
+/** On a mouse the same card is summoned by resting the pointer on it (§ archive.invoke.pc). */
+function markEnter(event: PointerEvent): void {
+  if (event.pointerType === 'mouse') markDown();
+}
+
+function markClick(): void {
+  if (held) {
+    held = false;
+    return;
+  }
+  emit('shelf');
+}
 
 const copy = computed(() => props.game.copy.value);
 const summary = computed(() => props.game.summary.value);
@@ -101,7 +137,12 @@ const reading = computed(() => {
       class="cat"
       data-hook="category"
       :aria-label="copy.say('a11y.hud.category')"
-      @click="emit('shelf')"
+      @pointerdown="markDown"
+      @pointerup="markCancel"
+      @pointerleave="markCancel"
+      @pointercancel="markCancel"
+      @pointerenter="markEnter"
+      @click="markClick"
     >
       <span aria-hidden="true">{{ MARKS.rod }}</span>
       <!-- Unread unlocks: the only reason this row ever asks for attention. -->

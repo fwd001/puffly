@@ -82,6 +82,7 @@ export const EN = {
   'a11y.hud.ash': 'ash column',
   'a11y.hud.ashMass': 'ash so far',
   'a11y.hud.category': 'which rod this is',
+  'a11y.archive': 'the archive for this rod',
   'a11y.pill': 'the big action: {word}',
   'a11y.smokeOption': 'smoke {word}',
   'a11y.sheetBreak': 'Break',
@@ -112,6 +113,16 @@ export const EN = {
   'state.extinguishing': 'putting it out',
   'state.extinguished': 'out',
   'state.discarded': 'in the tray',
+
+  /** S17's archive card. Tier 2 is what the rod measures; tier 3 is where the ≈ figures live. */
+  'archive.duration': 'per stick',
+  'archive.puffs': 'draws',
+  'archive.temp': 'cherry',
+  'archive.scenes': 'when',
+  'archive.range': '≈10–15 a day, published range',
+  'archive.pin': 'keep open',
+  'archive.unitMin': 'min',
+  'archive.unitTemp': '°C',
 
   'unit.stick': 'stick',
   'unit.puff': 'puff',
@@ -188,6 +199,7 @@ const ZH: Table = {
   'a11y.hud.ash': '灰柱长度',
   'a11y.hud.ashMass': '已经生成的灰',
   'a11y.hud.category': '这是哪一根',
+  'a11y.archive': '这根烟的档案',
   'a11y.pill': '主操作：{word}',
   'a11y.smokeOption': '烟雾 {word}',
   'a11y.sheetBreak': '这次休息',
@@ -218,6 +230,15 @@ const ZH: Table = {
   'state.extinguishing': '正在掐灭',
   'state.extinguished': '已经灭了',
   'state.discarded': '在烟灰缸里',
+
+  'archive.duration': '单支时长',
+  'archive.puffs': '口数',
+  'archive.temp': '中心温度',
+  'archive.scenes': '场合',
+  'archive.range': '≈10–15 支/日 · 公开调查口径',
+  'archive.pin': '钉住',
+  'archive.unitMin': '分钟',
+  'archive.unitTemp': '°C',
 
   'unit.stick': '支',
   'unit.puff': '口',

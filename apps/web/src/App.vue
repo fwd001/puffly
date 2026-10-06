@@ -5,6 +5,7 @@ import { ANCHOR_LOCALE, STATE_KEYS } from './i18n';
 import HudBar from './components/HudBar.vue';
 import CtaPill from './components/CtaPill.vue';
 import TabRail from './components/TabRail.vue';
+import ArchiveCard from './components/ArchiveCard.vue';
 import SettingsSheet from './components/SettingsSheet.vue';
 import SessionSheet from './components/SessionSheet.vue';
 import CollectionSheet from './components/CollectionSheet.vue';
@@ -15,11 +16,21 @@ const game = createPuffly();
 type SheetName = 'none' | 'break' | 'shelf' | 'settings';
 const sheet = ref<SheetName>('none');
 
+/**
+ * S17's card, and whether the player pinned it. Pinning is the only reason tier three exists:
+ * a held card that disappears when the finger moves is a tooltip, not an archive.
+ */
+const archiveOpen = ref(false);
+const archivePinned = ref(false);
+
 // A swipe down folds the interface, and a sheet left open is the loudest part of it.
 watch(
   () => game.summary.value.state?.ui.chromeFolded ?? false,
   (folded) => {
-    if (folded) sheet.value = 'none';
+    if (!folded) return;
+    sheet.value = 'none';
+    archivePinned.value = false;
+    archiveOpen.value = false;
   },
 );
 
@@ -89,7 +100,26 @@ function openSheet(next: SheetName): void {
       {{ summary.hint?.word }}
     </p>
 
-    <HudBar v-show="chrome" :game="game" @shelf="openSheet('shelf')" @break="openSheet('break')" />
+    <HudBar
+      v-show="chrome"
+      :game="game"
+      @shelf="openSheet('shelf')"
+      @break="openSheet('break')"
+      @archive="archiveOpen = true"
+    />
+
+    <ArchiveCard
+      v-if="archiveOpen"
+      :game="game"
+      :pinned="archivePinned"
+      @close="
+        () => {
+          archiveOpen = false;
+          archivePinned = false;
+        }
+      "
+      @pin="archivePinned = $event"
+    />
 
     <CtaPill v-show="chrome" :game="game" />
 

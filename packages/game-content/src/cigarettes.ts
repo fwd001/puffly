@@ -30,6 +30,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [700, 800],
       puffs: { target: 12, min: 8, max: 15 },
     },
+    archive: { zhName: '原生卷烟', kind: 'inhale' },
     eventPool: ASHY_EVENTS,
     palette: {
       paper: rgb(238, 233, 222),
@@ -58,6 +59,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [690, 780],
       puffs: { target: 11, min: 8, max: 14 },
     },
+    archive: { zhName: '细支淡烟', kind: 'inhale' },
     eventPool: COMMON_EVENTS,
     palette: {
       paper: rgb(246, 246, 248),
@@ -86,6 +88,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [720, 800],
       puffs: { target: 13, min: 9, max: 16 },
     },
+    archive: { zhName: '深色短支', kind: 'inhale' },
     eventPool: STORMY_EVENTS,
     palette: {
       paper: rgb(196, 198, 210),
@@ -113,6 +116,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [690, 790],
       puffs: { target: 14, min: 10, max: 18 },
     },
+    archive: { zhName: '长支慢燃', kind: 'inhale' },
     eventPool: ASHY_EVENTS,
     palette: {
       paper: rgb(240, 238, 232),
@@ -141,6 +145,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [740, 800],
       puffs: { target: 13, min: 9, max: 16 },
     },
+    archive: { zhName: '烈性短支', kind: 'inhale' },
     eventPool: STORMY_EVENTS,
     palette: {
       paper: rgb(232, 206, 176),
@@ -169,6 +174,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [660, 740],
       puffs: { target: 10, min: 7, max: 13 },
     },
+    archive: { zhName: '粗支厚烟', kind: 'inhale' },
     eventPool: [...COMMON_EVENTS, 'smoke_swirl', 'rain'],
     palette: {
       paper: rgb(228, 234, 236),

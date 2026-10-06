@@ -116,6 +116,24 @@ export interface HintWord {
   y: number;
 }
 
+/**
+ * What S17's archive card says about the rod in the hand. Everything here is content or the
+ * rod's own arithmetic: the card has no number that the simulation did not already have, and
+ * the one estimate it quotes carries its own ≈ and its own source (§10).
+ */
+export interface ArchiveFacts {
+  name: string;
+  zhName: string;
+  kind: 'inhale' | 'savor' | 'filter';
+  /** Minutes for the whole stick, to a tenth: the middle of this rod's own burn range. */
+  minutes: string;
+  puffs: number;
+  tempLow: number;
+  tempHigh: number;
+  /** 场合, named by the rooms the content says this rod belongs in. */
+  scenes: string[];
+}
+
 export interface Summary {
   state: GameStateView | null;
   clock: string;
@@ -147,6 +165,8 @@ export interface Puffly {
   locale: ComputedRef<LocaleCode>;
   /** Every word the shell is allowed to use, resolved once so all of them agree (§9). */
   copy: ComputedRef<I18n>;
+  /** S17's card data for whatever is burning right now. */
+  archive: ComputedRef<ArchiveFacts | null>;
   stats: Ref<Statistics>;
   today: Ref<TodayView | null>;
   journey: Ref<JourneyStop[]>;
@@ -225,6 +245,29 @@ export function createPuffly(): Puffly {
     resolveLocale(settings.value.language, deviceLanguages()),
   );
   const copy = computed<I18n>(() => createI18n(locale.value));
+
+  /** The rod in the hand, described for S17's card. Follows the simulation, not the picker. */
+  const archive = computed<ArchiveFacts | null>(() => {
+    const id =
+      summary.value.state?.cigarette.typeId ??
+      settings.value.selection?.cigarette ??
+      DEFAULT_IDS.cigarette;
+    const rod = content.cigarettes().find((entry) => entry.id === id);
+    if (!rod) return null;
+    const middle = (rod.burnDuration.min + rod.burnDuration.max) / 2;
+    return {
+      name: rod.name,
+      zhName: rod.archive.zhName,
+      kind: rod.archive.kind,
+      minutes: (middle / 60_000).toFixed(1),
+      puffs: rod.physical.puffs.target,
+      tempLow: rod.physical.centerTempC[0],
+      tempHigh: rod.physical.centerTempC[1],
+      scenes: rod.environmentBias
+        .map((envId) => content.environments().find((env) => env.id === envId)?.name)
+        .filter((name): name is string => typeof name === 'string'),
+    };
+  });
 
   /**
    * A vibration is the one feedback a phone can give that a monitor cannot (§30). It marks the
@@ -684,6 +727,7 @@ export function createPuffly(): Puffly {
     settings,
     locale,
     copy,
+    archive,
     stats,
     today,
     journey,

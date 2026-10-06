@@ -23,6 +23,7 @@ export const FIXTURE: ContentBundle = {
         centerTempC: [700, 800],
         puffs: { target: 3, min: 2, max: 4 },
       },
+      archive: { zhName: '测试烟支', kind: 'inhale' },
       eventPool: ['wind', 'ember_flare', 'ash_fall', 'smoke_swirl', 'light_change'],
       palette: {
         paper: [238, 233, 222],
@@ -51,6 +52,7 @@ export const FIXTURE: ContentBundle = {
         centerTempC: [690, 790],
         puffs: { target: 5, min: 3, max: 7 },
       },
+      archive: { zhName: '测试烟支', kind: 'inhale' },
       eventPool: ['wind', 'ambient_event'],
       palette: {
         paper: [246, 246, 248],
