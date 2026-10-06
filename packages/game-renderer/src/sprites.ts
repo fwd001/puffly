@@ -109,10 +109,10 @@ export function createSpriteProvider(
  * rod looked the same and the column read as fog — 像雾, 没对上焦 — and a wisp only looks
  * in focus when its own edge is steeper than the blob it is drawn from.
  */
-const SIGMA_AT_ONE = 0.42;
-const PROFILE_RADII = [0, 0.45, 0.78, 1] as const;
+export const SIGMA_AT_ONE = 0.42;
+export const PROFILE_RADII = [0, 0.45, 0.78, 1] as const;
 
-function profile(blur: number): number[] {
+export function profile(blur: number): number[] {
   const sigma = SIGMA_AT_ONE * clamp(blur, 0.4, 2.5);
   return PROFILE_RADII.map((radius) => Math.exp(-((radius / sigma) ** 2)));
 }
