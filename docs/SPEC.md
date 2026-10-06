@@ -1670,6 +1670,22 @@ logical coordinates
 device pixel ratio
 adaptive scaling
 
+（2026-10-06 补充）"logical coordinates" 的意思是**同一份归一化坐标喂给画和点两边**——这条破过一次，
+而且是在手机上：`LighterSnapshot.at` 在引擎构造时从**默认布局**抄了一份，之后再没人更新它，
+而命中锚点（`anchors.lighter`）走的是当前布局。于是在 390×844 上打火机被画在桌面版该在的位置：
+**离它的可点锚点 63px、离烟盒只剩 9.8px**——玩家看见的就是"打火机压在红盒子上，点了没反应"。
+现在 `at` 这个字段整个删掉了，画与点都只读 `state.stage.layout.lighter`（一个事实一个家）。
+
+判据：`packages/game-renderer/src/__tests__/prop-placement.test.ts`。关键是它**不问布局在哪里**——
+它调真的 `drawLighter`，从假画布记下的路径坐标里把画出来的盒子读回来，再要求锚点落在这个盒子内。
+第一版不是这样写的：它拿 `lighterBox(vp.px(layout.lighter))` 自己算，于是把 `drawLighter` 里的位置
+改回那个坏值时**一条都不红**（自己量出来的：mutation survived, 0 red）。改成读真实调用之后，
+同一个 mutation 红两条。另一条按 12 种设备形状（320×568 到 2560×1080，含横屏手机）钉住
+"打火机与烟盒至少留半个触摸目标（24px）的空隙"——坏的那版在 390×844 上只剩 9.8px。
+
+复跑（不需要浏览器，rAF 不参与）：`npx vitest run packages/game-renderer`。
+修完之后 390×844 实测空隙 74.7px、锚点落在画出的盒子内。
+
 ---
 
 56. Visual Style

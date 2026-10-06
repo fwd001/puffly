@@ -33,7 +33,16 @@ export {
   type SpriteProvider,
 } from './sprites';
 export { curl2, fbm2, noise2, wander } from './noise';
-export { drawAshtray, drawCigarette, drawLighter, drawPack } from './props';
+export {
+  drawAshtray,
+  drawCigarette,
+  drawLighter,
+  drawPack,
+  LIGHTER_SIZE,
+  PACK_SIZE,
+  lighterBox,
+  packBox,
+} from './props';
 export { drawBackground } from './background';
 export { drawEffects, EffectList, type EffectKind, type SceneEffect } from './effects';
 export { clearWeatherCache, drawDust, drawRain } from './weather';

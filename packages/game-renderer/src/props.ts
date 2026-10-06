@@ -94,14 +94,35 @@ export function drawAshtray(
   ctx.restore();
 }
 
+/**
+ * How big the two left-hand props are drawn, in stage units. Exported because the promise that
+ * keeps them apart is checked against these numbers: a size that only the draw function knows is a
+ * size no test can reason about.
+ */
+export const LIGHTER_SIZE = { width: 0.05, height: 0.075 } as const;
+export const PACK_SIZE = { width: 0.095, height: 0.062 } as const;
+
+/** The lighter's case hangs above its anchor; the pack is centred on its own. */
+export const lighterBox = (at: { x: number; y: number }, len: (v: number) => number) => {
+  const w = len(LIGHTER_SIZE.width);
+  const h = len(LIGHTER_SIZE.height);
+  return { x0: at.x - w / 2, x1: at.x + w / 2, y0: at.y - h * 0.3, y1: at.y + h * 0.7 };
+};
+
+export const packBox = (centre: { x: number; y: number }, len: (v: number) => number) => {
+  const w = len(PACK_SIZE.width);
+  const h = len(PACK_SIZE.height);
+  return { x0: centre.x - w / 2, x1: centre.x + w / 2, y0: centre.y - h / 2, y1: centre.y + h / 2 };
+};
+
 export function drawPack(
   ctx: CanvasRenderingContext2D,
   state: GameStateView,
   viewport: Viewport,
 ): void {
   const centre = viewport.px(state.stage.layout.pack);
-  const w = viewport.len(0.095);
-  const h = viewport.len(0.062);
+  const w = viewport.len(PACK_SIZE.width);
+  const h = viewport.len(PACK_SIZE.height);
   const band = state.style.cigarette.band;
   const paper = state.style.cigarette.paper;
 
@@ -149,9 +170,9 @@ export function drawLighter(
   state: GameStateView,
   viewport: Viewport,
 ): void {
-  const at = viewport.px(state.lighter.at);
-  const bodyW = viewport.len(0.05);
-  const bodyH = viewport.len(0.075);
+  const at = viewport.px(state.stage.layout.lighter);
+  const bodyW = viewport.len(LIGHTER_SIZE.width);
+  const bodyH = viewport.len(LIGHTER_SIZE.height);
   const flame = state.lighter.flame;
   const sputter = state.lighter.sputter;
   const top = at.y - bodyH * 0.3;

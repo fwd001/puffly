@@ -201,7 +201,6 @@ export interface WorldSnapshot {
 
 export interface LighterSnapshot {
   typeId: string;
-  at: Point;
   engaged: boolean;
   /** 0..1 flame size while held. */
   flame: number;

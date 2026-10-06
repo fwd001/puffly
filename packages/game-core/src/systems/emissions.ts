@@ -378,7 +378,7 @@ export function discardImpactBurst(rt: EngineRuntime): Burst {
 export function lighterBurst(rt: EngineRuntime): Burst {
   return makeBurst(rt, {
     kind: 'lighter',
-    origin: rt.state.lighter.at,
+    origin: rt.state.stage.layout.lighter,
     count: 6,
     directionDeg: -90,
     spreadDeg: 60,

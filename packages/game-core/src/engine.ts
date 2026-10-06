@@ -252,7 +252,6 @@ export function createEngine(options: EngineOptions): GameEngine {
     world: createWorldState(environment, timeOfDay, weather),
     lighter: {
       typeId: lighter.id,
-      at: { ...LAYOUT.lighter },
       engaged: false,
       flame: 0,
       heldMs: 0,

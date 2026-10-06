@@ -91,6 +91,15 @@ break through it: any write would throw a TypeError instead of corrupting the si
   with `LighterContent.failureChance`.
 - The ashtray catch radius, the flick threshold and the particle budget are each named once and
   read from there.
+- A fact that is derived from something else is not also stored. `LighterSnapshot` carried an `at`
+  point copied from the default layout at construction; the hit anchor was recomputed from the live
+  layout every time the stage changed shape, so on a phone the lighter was drawn 63px from where a
+  tap would land and on top of the pack. The field is gone and both sides read
+  `state.stage.layout.lighter`. A stored copy is only safe with a writer, and this one had none —
+  which is also why no test failed: nothing read the field, so nothing could notice it was stale.
+  The guard reads the draw call's emitted coordinates back rather than asking the layout where the
+  prop is (`prop-placement.test.ts`), because the weaker version of that test passed on the broken
+  build.
 - A rebuild-by-hand drops every field it does not name, so it may only drop one it has a replacement
   for. Two instances, one shape: `readSettings` and `cloneSettings` both rebuild `Settings` from a
   typed-out list of keys, which is how a player's chosen item and their chosen language came to
