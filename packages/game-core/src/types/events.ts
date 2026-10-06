@@ -30,6 +30,8 @@ export const SessionEventType = {
   CRAVING: 'CRAVING',
   TRIGGER: 'TRIGGER',
   UNLOCK: 'UNLOCK',
+  /** A box entered the collection: a fact about the archive, not the scene. */
+  PACK: 'pack',
 } as const;
 
 export type SessionEventTypeValue = (typeof SessionEventType)[keyof typeof SessionEventType];

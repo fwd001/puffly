@@ -5,6 +5,7 @@
  * the log keeps enough to replay from (§71).
  */
 
+import { rollPack } from './packs';
 import { record } from './emit';
 import { SessionEventType } from './types/events';
 import { clamp } from '@puffly/shared';
@@ -77,6 +78,23 @@ export function closeSession(rt: EngineRuntime): Session | null {
   };
 
   rt.progress.sessions += 1;
+  // A box is a fact about a stick that was actually smoked: a break that ran its length with the
+  // rod unlit is a break spent doing something else.
+  const smoked = completed && log.events.some((event) => event.type === SessionEventType.LIGHT);
+  if (smoked) {
+    // A finished stick leaves a box behind, and the roll comes from the session's own generator:
+    // replaying the break has to hand back the same collection (§71).
+    const box = rollPack(
+      rt.rng,
+      rt.content.bundle.packs,
+      rt.progress.collectedPacks ?? [],
+      rt.progress.sessions,
+    );
+    if (box !== null) {
+      rt.progress.collectedPacks = [...(rt.progress.collectedPacks ?? []), box.id];
+      record(rt, SessionEventType.PACK, { packId: box.id, tier: box.tier });
+    }
+  }
   rt.session = null;
   return session;
 }

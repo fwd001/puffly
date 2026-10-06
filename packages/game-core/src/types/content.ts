@@ -260,6 +260,25 @@ export interface EmberModifier {
 }
 
 /** Everything the game needs to exist; §77 means adding content is adding data. */
+/** Which of the three price tiers a box belongs to (§ packs.tiers). */
+export type PackTier = 'low' | 'mid' | 'high';
+
+/**
+ * One slot of the collection (S16, S19): a name in an archive, never an object in the scene.
+ * A brand may be named here and nowhere else — no mark, no packaging, no comparison, no ranking,
+ * no recommendation, no health claim (§ redlines.noAdvertising).
+ */
+export interface PackContent {
+  id: string;
+  tier: PackTier;
+  /** Empty for a slot the brief leaves unfilled. It reads as a gap, not as a guess. */
+  brand: string;
+  /** Always carrying its ≈: a published range, not a price this product knows. */
+  priceCny: string;
+  /** Held out of the random pool: the finale the last skin is gated on. */
+  reserved: boolean;
+}
+
 /**
  * A skin is four colours and nothing else (§ redlines.skinIsCosmetic). The four layers are the
  * only thing it may touch — paper, ember, plume and the pool of light on the table — because a
@@ -284,4 +303,5 @@ export interface ContentBundle {
   ashtrays: AshtrayContent[];
   smokeStyles: SmokeStyleContent[];
   soundProfiles: SoundProfileContent[];
+  packs: PackContent[];
 }

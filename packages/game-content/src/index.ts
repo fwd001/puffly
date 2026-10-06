@@ -9,6 +9,7 @@ import { createContentLookup, type ContentBundle, type ContentLookup } from '@pu
 import { CIGARETTES } from './cigarettes';
 import { ENVIRONMENTS } from './environments';
 import { ASHTRAYS, LIGHTERS } from './props';
+import { PACKS } from './packs';
 import { SKINS } from './skins';
 import { SMOKE_STYLES, SOUND_PROFILES } from './textures';
 
@@ -20,6 +21,7 @@ export const DEFAULT_CONTENT: ContentBundle = {
   smokeStyles: SMOKE_STYLES,
   soundProfiles: SOUND_PROFILES,
   skins: SKINS,
+  packs: PACKS,
 };
 
 export const DEFAULT_IDS = {
@@ -37,5 +39,6 @@ export * from './cigarettes';
 export * from './environments';
 export * from './props';
 export * from './skins';
+export * from './packs';
 export * from './textures';
 export { buildCollectionItems, COLLECTION_ORDER, ALL_ITEMS } from './collection';

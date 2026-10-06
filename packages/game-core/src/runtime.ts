@@ -306,6 +306,7 @@ export function projectProgress(progress: Progress, smokeFreeDays: number): Prog
     dayNumber: progress.dayNumber,
     smokeFreeDays,
     sessionCount: progress.sessions,
+    collectedPacks: [...(progress.collectedPacks ?? [])],
     puffs: progress.puffs,
     ashDropped: progress.ashDropped,
   };

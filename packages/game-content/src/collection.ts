@@ -10,6 +10,7 @@ import { CollectionCategory, type CollectionItem, type ContentBundle } from '@pu
 import { CIGARETTES } from './cigarettes';
 import { ENVIRONMENTS } from './environments';
 import { ASHTRAYS, LIGHTERS } from './props';
+import { PACKS } from './packs';
 import { SKINS } from './skins';
 import { SMOKE_STYLES, SOUND_PROFILES } from './textures';
 
@@ -102,4 +103,5 @@ export const ALL_ITEMS: ContentBundle = {
   smokeStyles: SMOKE_STYLES,
   soundProfiles: SOUND_PROFILES,
   skins: SKINS,
+  packs: PACKS,
 };

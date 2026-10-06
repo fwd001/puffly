@@ -21,7 +21,7 @@ import { DEFAULT_CONTENT } from '@puffly/game-content';
 import { rgbToCss } from '@puffly/shared';
 import type { Puffly } from '../composables/usePuffly';
 import ArchiveTile from './ArchiveTile.vue';
-import { SKINS } from '@puffly/game-content';
+import { PACKS, SKINS } from '@puffly/game-content';
 import { shelfCount, shelvesOf } from '../shelf';
 
 const props = defineProps<{ open: boolean; game: Puffly }>();
@@ -57,6 +57,10 @@ const SELECTION_KEY: Partial<Record<CollectionCategoryValue, keyof Selection>> =
 };
 
 const fresh = computed(() => new Set(props.game.summary.value.fresh));
+
+/** S19: the twelve boxes. A collected one is a name in the archive; the rest are gaps. */
+const packs = PACKS;
+const collected = computed(() => new Set(props.game.progressPacks.value));
 
 /** S18: a skin is four bars, and that is the whole of what a card can show about it. */
 const skins = SKINS;
@@ -121,8 +125,8 @@ watch(
       <div class="tiles">
         <ArchiveTile
           v-for="rod in shelf.rods"
-          :key="rod.id"
           :id="rod.id"
+          :key="rod.id"
           :name="rod.name"
           :zh-name="rod.archive.zhName"
           :swatch="rgbToCss(rod.palette.paper)"
@@ -138,6 +142,36 @@ watch(
     <p v-if="copy.t('shelf.hint') !== null" class="hint">
       {{ copy.t('shelf.hint', { total: String(rods.length) }) }}
     </p>
+
+    <div class="group">
+      <p v-if="copy.t('shelf.packs') !== null" class="kind">
+        {{ copy.t('shelf.packs') }}
+        <span class="digits">{{ collected.size }} / {{ String(packs.length) }}</span>
+      </p>
+      <div class="boxes">
+        <button
+          v-for="box in packs"
+          :key="box.id"
+          class="box"
+          :data-pack="box.id"
+          :data-collected="collected.has(box.id)"
+          :aria-label="
+            collected.has(box.id)
+              ? copy.say('a11y.boxFound', { brand: box.brand, price: box.priceCny })
+              : copy.say('a11y.boxEmpty')
+          "
+          @click="collected.has(box.id) && emit('archive', box.id)"
+        >
+          <span class="tier" aria-hidden="true">{{
+            box.tier === 'low' ? '·' : box.tier === 'mid' ? '••' : '✦'
+          }}</span>
+          <span v-if="copy.t('shelf.packs') !== null && collected.has(box.id)" class="brand">{{
+            box.brand
+          }}</span>
+          <span v-if="collected.has(box.id)" class="price digits">{{ box.priceCny }}</span>
+        </button>
+      </div>
+    </div>
 
     <div class="group">
       <p v-if="copy.t('shelf.skins') !== null" class="kind">{{ copy.t('shelf.skins') }}</p>
@@ -245,6 +279,44 @@ watch(
 
 .swatch {
   overflow: hidden;
+}
+
+.boxes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 6px;
+}
+
+.box {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 52px;
+  padding: 7px 8px;
+  border: 1px solid var(--chrome-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--smoke-gray);
+  font: inherit;
+  text-align: start;
+}
+
+.box[data-collected='true'] {
+  color: var(--soft-white);
+  border-color: color-mix(in oklab, var(--ember-orange) 40%, transparent);
+}
+
+.box .brand {
+  font-size: calc(12px * var(--text-scale));
+}
+
+.box .price {
+  color: var(--ember-core);
+  font-size: calc(11px * var(--text-scale));
+}
+
+.box:not([data-collected='true']) {
+  opacity: 0.4;
 }
 
 .skins {

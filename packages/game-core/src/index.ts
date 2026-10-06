@@ -33,6 +33,8 @@ export {
   type AmbientSignals,
 } from './stateMachine';
 
+export { rollPack } from './packs';
+
 export {
   ASH,
   ANGLES,

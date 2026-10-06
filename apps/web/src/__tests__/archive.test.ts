@@ -5,7 +5,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CONTENT } from '@puffly/game-content';
+import { readFileSync } from 'node:fs';
+import { DEFAULT_CONTENT, PACKS } from '@puffly/game-content';
 import { COPY, type CopyKey } from '../i18n';
 
 /** §dataHonesty: a range without its ≈ is a claim, not an estimate. */
@@ -51,6 +52,46 @@ describe('the archive data rules (§10, §13)', () => {
     for (const rod of DEFAULT_CONTENT.cigarettes) {
       const text = `${rod.name} ${rod.archive.zhName}`;
       for (const brand of brands) expect(text, rod.id).not.toContain(brand);
+    }
+  });
+});
+/**
+ * The other half of §13: a brand is archive data, so it must not be able to leak into the loop.
+ * Checked against the shipped source of the three chrome pieces and the copy table's loop keys,
+ * because "we only show brands in the cabinet" is the kind of sentence that decays into a bug.
+ */
+describe('brands stay in the archive (§ redlines.noAdvertising)', () => {
+  const brands = PACKS.filter((pack) => pack.brand !== '').map((pack) => pack.brand);
+
+  it('the loop chrome never names a brand', () => {
+    const loop = [
+      'components/HudBar.vue',
+      'components/CtaPill.vue',
+      'components/TabRail.vue',
+      'components/ArchiveCard.vue',
+      'App.vue',
+    ];
+    for (const file of loop) {
+      const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+      for (const brand of brands) expect(source, file).not.toContain(brand);
+    }
+  });
+
+  it('the words the loop can show carry no brand and no price', () => {
+    const keys = Object.keys(COPY.en ?? {}).filter(
+      (key) =>
+        key.startsWith('hint.') ||
+        key.startsWith('cta.') ||
+        key.startsWith('tab.') ||
+        key.startsWith('state.'),
+    );
+    expect(keys.length).toBeGreaterThan(15);
+    for (const key of keys) {
+      for (const locale of ['en', 'zh-CN'] as const) {
+        const value = COPY[locale]?.[key as CopyKey] ?? '';
+        for (const brand of brands) expect(value, `${locale}:${key}`).not.toContain(brand);
+        expect(value, `${locale}:${key}`).not.toMatch(/\u2248\s?\d/);
+      }
     }
   });
 });

@@ -294,6 +294,8 @@ export interface ProgressSnapshot {
   sessionCount: number;
   puffs: number;
   ashDropped: number;
+  /** The boxes the collection holds, mirrored for the cabinet (S19). */
+  collectedPacks: string[];
 }
 
 export interface CollectionSnapshot {

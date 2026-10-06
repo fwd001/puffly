@@ -376,4 +376,5 @@ export const BUNDLE: ContentBundle = {
   ],
   soundProfiles: PROFILES,
   skins: [],
+  packs: [],
 };

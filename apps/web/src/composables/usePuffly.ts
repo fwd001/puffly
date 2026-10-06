@@ -167,6 +167,8 @@ export interface Puffly {
   locale: ComputedRef<LocaleCode>;
   /** Every word the shell is allowed to use, resolved once so all of them agree (§9). */
   copy: ComputedRef<I18n>;
+  /** The boxes in the collection, newest last. */
+  progressPacks: ComputedRef<string[]>;
   /** S17's card data for whatever is burning right now. */
   archive: ComputedRef<ArchiveFacts | null>;
   /** The same card for any rod in the cabinet, asked for by id. */
@@ -268,6 +270,10 @@ export function createPuffly(): Puffly {
         .filter((name): name is string => typeof name === 'string'),
     };
   };
+
+  const progressPacks = computed<string[]>(() => [
+    ...(summary.value.state?.progress.collectedPacks ?? []),
+  ]);
 
   const archive = computed<ArchiveFacts | null>(() =>
     archiveOf(
@@ -748,6 +754,7 @@ export function createPuffly(): Puffly {
     copy,
     archive,
     archiveOf,
+    progressPacks,
     stats,
     today,
     journey,
