@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { COPY, announce, isRtl, resolveLocale, translate } from '../index';
+import { COPY, announce, ctaKeyFor, isRtl, resolveLocale, translate } from '../index';
 import { EN, type CopyKey } from '../copy';
 
 const KEYS = Object.keys(EN) as CopyKey[];
@@ -101,5 +101,22 @@ describe('which language a player ends up with', () => {
     expect(resolveLocale('th-TH', ['th-TH'])).toBe('en');
     // The anchor is a language with a complete table, not the tier that says nothing.
     expect(announce(resolveLocale(undefined, ['de-DE']), 'tab.puff')).toBe('inhale');
+  });
+});
+
+/** §14 and Smoke Ritual's 品鉴型: the verb has to match the draw the rod asks for. */
+describe('the pill names the draw the rod actually wants', () => {
+  it('a mouthed draw is never called an inhalation, and only that one verb moves', () => {
+    expect(ctaKeyFor('puff', 0)).toBe('cta.puff');
+    expect(ctaKeyFor('puff', 2000)).toBe('cta.savour');
+    expect(ctaKeyFor('flick', 2000)).toBe('cta.flick');
+    expect(ctaKeyFor('none', 2000)).toBeUndefined();
+  });
+
+  it('both verbs are shipped in every spoken language, because a label is a translation anchor', () => {
+    for (const key of ['cta.puff', 'cta.savour'] as const) {
+      expect(typeof COPY['en']?.[key], key).toBe('string');
+      expect(typeof COPY['zh-CN']?.[key], key).toBe('string');
+    }
   });
 });

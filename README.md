@@ -188,7 +188,12 @@ ways to navigate:
 - **the pill** above the rail — the same gesture the scene accepts, as a handle. It says `pick up`,
   `light it`, `inhale`, `flick the ash`, `put it out`. Holding it draws; tapping it decides. The
   short label stays on purpose: it is the anchor a translation hangs on, so a rail of pure marks
-  would leave localisation with nothing to hold.
+  would leave localisation with nothing to hold. It is not always `inhale`, though: pick up a
+  cigarillo, a cigar or a pipe and the handle reads `savour`, because those three are smoked from
+  the mouth — the draw fills on a fixed two seconds instead of on the rod's own draw length, the
+  ring follows that filling, and nothing carries over into the next draw. The pill learns this
+  from the rod's measurement (`savourMs`), not from a list of categories the shell would have to
+  keep true.
 - **the rail** along the bottom — three phases and settings. The phases are indicators: the
   cigarette lights one of them, and no finger is required or invited.
 
@@ -279,3 +284,13 @@ Honest gaps, so nobody rediscovers them as bugs:
 - Sound is synthesised from oscillators, filtered noise and envelopes. There are no samples, so a
   voice is only as close to the real object as its filter and envelope make it.
 - No `LICENSE` file has been chosen for the repository yet.
+- A savour draw is exhaled in one cloud, sized by what was held in the mouth. The brief's 缓缓
+  吐出 asks for that cloud to be drawn out _slowly_ as its own parameter; the mouthful scales its
+  size today, and nothing yet stretches its lifetime.
+- The 12-box collection reserves three boxes for the cinnabar skin's finale (中华硬 / 黄鹤楼1916 /
+  和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.
+- The touch check below is the one gate that has not been re-run on this machine since its browser
+  binaries left the local cache: the sections written this round (the row, the pill, the rail, the
+  archive's three densities, the cabinet ladder, the skins, the boxes, the three language tiers) are
+  therefore unverified _in a browser_, and each of them is also asserted at source or engine level.
+  Run it with `PUFFLY_BROWSER=chromium` once a browser is available.

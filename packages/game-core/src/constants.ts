@@ -56,7 +56,6 @@ export const BURN = {
 export const PUFF = {
   /** Holds get stronger sub-linearly: a 2s hold is not twice a 1s hold (§14). */
   intensityCurve: 0.7,
-  loadPerPuff: 0.24,
   /** Calms down between puffs so `RESTING` is a real rest (§8). */
   loadDecayPerSecond: 0.18,
 } as const;

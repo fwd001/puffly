@@ -94,4 +94,21 @@ describe('brands stay in the archive (§ redlines.noAdvertising)', () => {
       }
     }
   });
+
+  it('the family a rod is filed in and the draw it asks for are one fact (§14, 品鉴型)', () => {
+    for (const rod of DEFAULT_CONTENT.cigarettes) {
+      const mouthed = rod.archive.kind === 'savor';
+      // Both directions, so a rod cannot be filed as a cigar and inhaled like a cigarette — or
+      // the reverse: a new savour rod has to say the hold, and a new one that inhales must not.
+      expect(rod.puffProfile.savourMs > 0, `${rod.id} holds its smoke`).toBe(mouthed);
+      expect(rod.puffProfile.loadPerPuff === 0, `${rod.id} leaves no lung resistance`).toBe(
+        mouthed,
+      );
+    }
+    // The three are the ladder's own shape: 小雪茄 / 雪茄 / 斗烟.
+    const savoured = DEFAULT_CONTENT.cigarettes
+      .filter((rod) => rod.archive.kind === 'savor')
+      .map((rod) => rod.id);
+    expect(savoured.sort()).toEqual(['cigar', 'cigarillo', 'pipe']);
+  });
 });

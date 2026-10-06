@@ -43,9 +43,15 @@ export function tickPuff(rt: EngineRuntime, dtMs: number): void {
   rt.timers.puffMs += dtMs;
   puff.heldMs += dtMs;
   const planned = Math.max(1, rt.timers.puffPlannedMs);
-  puff.progress = clamp01(rt.timers.puffMs / planned);
-  // Sub-linear so a long hold reads as " fuller", not "twice as much" (§14).
-  const shaped = Math.pow(puff.progress, PUFF.intensityCurve);
+  // Two families of draw, both authored in content rather than branched on here: an inhaled one
+  // keeps filling for as long as the hand holds it, sub-linearly, so a 2s hold is not twice a 1s
+  // hold (§14). A mouthed one fills on its own fixed rhythm and then holds — 含住两秒 — and
+  // `progress` carries that shape so the ring draws the mouth rather than the clock.
+  const shaped =
+    profile.savourMs > 0
+      ? clamp01(puff.heldMs / profile.savourMs)
+      : Math.pow(clamp01(rt.timers.puffMs / planned), PUFF.intensityCurve);
+  puff.progress = shaped;
   puff.intensity = clamp(lerp(profile.intensityMin, profile.intensityMax, shaped), 0, 1);
 
   // A held draw leaks a little at the cherry the whole time it is held.
@@ -58,11 +64,12 @@ export function endPuff(rt: EngineRuntime): void {
   const puff = rt.state.cigarette.puff;
   if (!puff.active) return;
   const intensity = puff.intensity;
+  const profile = rt.cigarette.puffProfile;
 
   puff.active = false;
   puff.sinceReleaseMs = 0;
   puff.count += 1;
-  puff.load = clamp01(puff.load + intensity * PUFF.loadPerPuff);
+  puff.load = clamp01(puff.load + intensity * profile.loadPerPuff);
   rt.state.cigarette.ember.flare = Math.max(rt.state.cigarette.ember.flare, intensity * 0.55);
 
   emit(rt, { kind: 'burst', atMs: rt.state.nowMs, burst: exhaleBurst(rt, intensity) });

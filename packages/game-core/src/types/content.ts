@@ -21,6 +21,19 @@ export interface CigaretteType {
     intensityMax: number;
     durationMin: number;
     durationMax: number;
+    /**
+     * How long the smoke is meant to be held. `0` is an inhaled draw, whose body keeps arriving
+     * sub-linearly for as long as the hand holds it (§14 — a 2s hold is not twice a 1s hold).
+     * Any other number is a draw that stays in the mouth (Smoke Ritual 品鉴型: 含住 2 秒再缓缓
+     * 吐出): it fills on that fixed rhythm rather than on the rod's jittered draw length, and the
+     * ring follows the mouth rather than the clock.
+     */
+    savourMs: number;
+    /**
+     * How much resistance one draw leaves behind for the next — a hotter cherry and a faster
+     * burn. `0` is a draw that never reaches the lungs (Smoke Ritual 品鉴型: 无肺阻力反馈).
+     */
+    loadPerPuff: number;
   };
 
   smokeProfile: {

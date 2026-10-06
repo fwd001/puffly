@@ -215,6 +215,7 @@ export function deriveReadouts(
     // Ash is what the burn has already turned into, whether it is still leaning on the rod or
     // lying in the tray — so it only ever grows, and a finished stick reports its full figure.
     ashGrams: Math.round(clamp01(1 - rodRemaining) * ashGrams * 100) / 100,
+    savourMs: type.puffProfile.savourMs,
   };
 }
 

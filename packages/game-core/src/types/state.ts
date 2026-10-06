@@ -125,6 +125,12 @@ export interface Readouts {
   rodMm: number;
   /** Grammes of ash this stick has made so far, whether it is still leaning on the rod or in the tray. */
   ashGrams: number;
+  /**
+   * How long this rod wants its smoke held in the mouth, in milliseconds — `0` for a rod that is
+   * inhaled. It is a measurement of the rod rather than a mode, so the pill can name the gesture
+   * the way the rod asks for it without the interface being told which category it is holding.
+   */
+  savourMs: number;
 }
 
 export interface CigaretteSnapshot {

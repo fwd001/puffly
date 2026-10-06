@@ -32,6 +32,7 @@ export const EN = {
   'cta.pick': 'pick up',
   'cta.lighter': 'light it',
   'cta.puff': 'inhale',
+  'cta.savour': 'savour',
   'cta.flick': 'flick the ash',
   'cta.extinguish': 'put it out',
   'cta.discard': 'drop it in',
@@ -184,6 +185,7 @@ const ZH: Table = {
   'cta.pick': '拿起',
   'cta.lighter': '点着',
   'cta.puff': '吸入',
+  'cta.savour': '含住',
   'cta.flick': '磕灰',
   'cta.extinguish': '掐灭',
   'cta.discard': '丢进去',
@@ -354,6 +356,16 @@ export const CTA_KEYS: Record<string, CopyKey> = {
   extinguish: 'cta.extinguish',
   discard: 'cta.discard',
 };
+
+/**
+ * The verb the handle actually wears. A draw that stays in the mouth is not an inhalation, and the
+ * rod says so with its own measurement (`readouts.savourMs`) rather than with a category the
+ * shell would have to keep in step (Smoke Ritual 品鉴型: 含住 2 秒再缓缓吐出, 不入肺).
+ */
+export function ctaKeyFor(affordance: string, savourMs: number): CopyKey | undefined {
+  if (affordance === 'puff' && savourMs > 0) return 'cta.savour';
+  return CTA_KEYS[affordance];
+}
 
 /** §4: what a screen reader hears, keyed off `GameState.cigarette.state`. */ export const STATE_KEYS: Record<
   string,

@@ -26,6 +26,7 @@ describe('readouts (§9.2: the ring, the millimetres, the grams)', () => {
       ashMm: 0,
       rodMm: 84,
       ashGrams: 0,
+      savourMs: 0,
     });
   });
 

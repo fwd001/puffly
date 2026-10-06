@@ -9,7 +9,7 @@
  */
 import { computed, ref } from 'vue';
 import type { Puffly } from '../composables/usePuffly';
-import { CTA_KEYS } from '../i18n';
+import { ctaKeyFor } from '../i18n';
 import { isSustained } from '../phase';
 
 const props = defineProps<{ game: Puffly }>();
@@ -20,8 +20,14 @@ const affordance = computed(() => summary.value.affordance);
 const sustained = computed(() => isSustained(affordance.value));
 const held = ref(false);
 
+/**
+ * Which verb the handle shows is the rod's own measurement, not a category the interface keeps a
+ * list of: `ctaKeyFor` is the one place that knows a mouthed draw is not an inhalation.
+ */
+const savourMs = computed(() => summary.value.state?.cigarette.readouts.savourMs ?? 0);
+
 const label = computed(() => {
-  const key = CTA_KEYS[affordance.value];
+  const key = ctaKeyFor(affordance.value, savourMs.value);
   return key === undefined ? null : copy.value.t(key);
 });
 
