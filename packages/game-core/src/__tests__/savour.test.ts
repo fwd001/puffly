@@ -121,4 +121,29 @@ describe('the mouth and the lungs (§14, 品鉴型)', () => {
     expect(mouth.lifeMs.max).toBeGreaterThan(lung.lifeMs.max * 1.2);
     expect(mouth.speed.max).toBeLessThan(lung.speed.max * 0.95);
   });
+
+  it('the breathed cloud stays see-through, because smoke is not a light (§15)', () => {
+    const h = harness({ content: MOUTH });
+    lit(h);
+    h.press('cigarette');
+    h.run(2600);
+    h.release('cigarette');
+    const cloud = burstsOf(h, 'exhale').at(-1);
+    if (cloud === undefined) throw new Error('no exhale burst was emitted');
+
+    // Rendered and measured, the authored numbers made the breath a uniform bright sheet: 22999
+    // samples above luminance 90 across the plume band with a neighbour-to-neighbour difference of
+    // 5.17. After this change the same moment measures 9806 samples and a difference of 8.44 — a
+    // cloud with light and dark in it rather than haze laid over the picture. What is asserted here
+    // is the shape that produced it: a lobe may not buy its presence with opacity, so the mass has
+    // to come from how many lobes there are and how far they grow.
+    expect(cloud.alphaPeak).toBeLessThan(0.25);
+    // The emitted radius is the authored one times the rod's plume scale and its jitter, so this is
+    // a ceiling on what leaves, not on what is written: authored 0.055 arrives here at ~0.086, where
+    // the old 0.105 arrived at ~0.164.
+    expect(cloud.radius.max).toBeLessThan(0.12);
+    // And it still has to billow, or "thinner" would only mean "a smaller cloud".
+    expect(cloud.scaleGrowth).toBeGreaterThanOrEqual(2);
+    expect(cloud.count).toBeGreaterThan(40);
+  });
 });

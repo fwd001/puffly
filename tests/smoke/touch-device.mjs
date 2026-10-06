@@ -196,6 +196,60 @@ const airSample = (page) =>
     return lum;
   });
 
+/**
+ * How the breath in the air is *shaped*, not just how bright it got.
+ *
+ * A cloud can cover the band and still be one flat sheet of haze — which is what the exhale
+ * measured before its lobes were re-authored (neighbour-to-neighbour difference 5.17, relative
+ * spread 0.234). Structure is what the design's breath has: light and dark inside the same mass
+ * (8.44 and 0.294 after). Both are read over the same band `airSample` uses.
+ */
+const cloudStructure = (page) =>
+  page.evaluate(() => {
+    const canvas = document.querySelector('canvas');
+    const scale = canvas.width / canvas.clientWidth;
+    const ctx = canvas.getContext('2d');
+    const image = ctx.getImageData(
+      0,
+      Math.round(canvas.getBoundingClientRect().height * 0.25 * scale),
+      canvas.width,
+      Math.round(canvas.getBoundingClientRect().height * 0.35 * scale),
+    );
+    const d = image.data;
+    const lumAt = (row, col) => {
+      const i = (row * image.width + col) * 4;
+      return 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    };
+    const cloud = [];
+    for (let row = 0; row < image.height; row += 2) {
+      for (let col = 0; col < image.width; col += 2) {
+        const value = lumAt(row, col);
+        if (value > 90) cloud.push(value);
+      }
+    }
+    const mean = cloud.length ? cloud.reduce((a, b) => a + b, 0) / cloud.length : 0;
+    const sd = Math.sqrt(
+      cloud.length ? cloud.reduce((a, b) => a + (b - mean) ** 2, 0) / cloud.length : 0,
+    );
+    let edge = 0;
+    let pairs = 0;
+    for (let row = 0; row < image.height; row += 4) {
+      for (let col = 4; col < image.width; col += 4) {
+        const a = lumAt(row, col);
+        const b = lumAt(row, col - 4);
+        if (a > 90 || b > 90) {
+          edge += Math.abs(a - b);
+          pairs += 1;
+        }
+      }
+    }
+    return {
+      cloudSamples: cloud.length,
+      neighbourContrast: pairs ? edge / pairs : 0,
+      spread: mean ? sd / mean : 0,
+    };
+  });
+
 /** How much of the band a breath actually rewrote. */
 function breathDelta(before, after) {
   let moved = 0;
@@ -425,6 +479,16 @@ const hintCentre = async (page) => {
     'a drawn breath rewrites the air above the table',
     breath.movedRatio > 0.05 && breath.meanRise > 1,
     `${(breath.movedRatio * 100).toFixed(1)}% of the band changed, mean rise ${breath.meanRise.toFixed(1)}`,
+  );
+  // Brightness alone would pass on a flat sheet of haze, which is exactly what the exhale used to
+  // be. Both shape signals have to be missing before this calls a failure: one of them drifting on
+  // a different rod or a different canvas width is not the regression, a cloud with no light and
+  // dark inside it is.
+  const shape = await cloudStructure(page);
+  check(
+    'the breath has light and dark inside it, not just brightness',
+    shape.neighbourContrast >= 6.5 || shape.spread >= 0.26,
+    `neighbour difference ${shape.neighbourContrast.toFixed(2)}, relative spread ${shape.spread.toFixed(3)}, ${String(shape.cloudSamples)} cloud samples`,
   );
   check(
     'the rod is still in hand, not in the tray',

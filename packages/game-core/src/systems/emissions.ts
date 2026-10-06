@@ -225,15 +225,17 @@ export function exhaleBurst(
   return makeBurst(rt, {
     kind: 'exhale',
     origin: rt.state.cigarette.pose.tip,
-    // Fewer, far larger lobes: the design's breath is a stack of rounded overlapping puffs, and
-    // a hundred small ones reads as mist in front of a light.
-    count: 20 + Math.round(46 * intensity),
+    // The design's breath is a stack of rounded overlapping puffs. Rendered and looked at, the
+    // first attempt at this — 66 lobes up to 0.105 wide at alpha 0.5 — summed to a solid white ball
+    // over the cherry. So: more lobes, each smaller and much thinner, with the billow left to
+    // `scaleGrowth`. Structure comes from variance, not from opacity.
+    count: 34 + Math.round(70 * intensity),
     directionDeg: tipAngle(rt) + 8 + releaseSteer(rt),
     spreadDeg: 52,
     speed: [0.012 * ease, (0.055 + 0.07 * intensity) * ease],
-    radius: [0.03, 0.105],
+    radius: [0.018, 0.055],
     lifeMs: [3600 * slow, 8200 * slow],
-    alphaPeak: 0.24 + 0.3 * intensity,
+    alphaPeak: 0.08 + 0.1 * intensity,
     rise: smoke.riseSpeed * modifier.riseSpeed * (0.7 + intensity * 0.8) * ease,
     turbulence: smoke.turbulence * modifier.turbulence * (0.85 + intensity * 0.8),
     scaleGrowth: 2.9,

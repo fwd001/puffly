@@ -244,12 +244,12 @@ looks at it.
 
 ## How it is verified
 
-| Command                                                 | What it proves                                                                                                  |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `npm test`                                              | The simulation and its state machine, replay determinism, statistics derived from the log, the boundaries above |
-| `npm run typecheck`                                     | Every workspace, including the Vue shell                                                                        |
-| `npm run build` then `bash tests/smoke/served-build.sh` | The built app is servable from its subpath: entry script, manifest and service worker all answer                |
-| `node tests/smoke/touch-device.mjs <url>`               | A whole break performed with taps on an emulated phone and with a mouse in a desktop window                     |
+| Command                                                 | What it proves                                                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`                                              | The simulation and its state machine, replay determinism, statistics derived from the log, the boundaries above                         |
+| `npm run typecheck`                                     | Every workspace, including the Vue shell                                                                                                |
+| `npm run build` then `bash tests/smoke/served-build.sh` | The built app is servable from its subpath: entry script, manifest and service worker all answer                                        |
+| `node tests/smoke/touch-device.mjs <url>`               | A whole break performed with taps on an emulated phone and with a mouse in a desktop window, and a breath with light and dark inside it |
 
 The served-build check exists because a wrong base path passes every unit test and shows up in
 production as a blank page. It was verified to fail loudly, not just to pass: _index.html loads
@@ -319,8 +319,12 @@ Honest gaps, so nobody rediscovers them as bugs:
   和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.
 - The touch check below is the one gate that cannot run on this machine (no Playwright browser in
   the local cache), so the sections written this round — the row, the pill, the rail, the archive's
-  three densities, the cabinet ladder, the skins, the boxes, the three language tiers — have not
-  been executed _as that script_. Each one was checked by hand against a connected Chrome on the
+  three densities, the cabinet ladder, the skins, the boxes, the three language tiers, the rooms
+  ladder and the check that a breath has structure rather than only brightness — have not been
+  executed _as that script_. The last one was run verbatim against a known picture instead (the
+  shipped function, pointed at a rendered exhale: 9806 cloud samples, neighbour difference 8.44,
+  relative spread 0.294, where the old cloud measured 5.17 and 0.234), so its thresholds are
+  calibrated rather than guessed — but the script itself has not been run end to end here. Each one was checked by hand against a connected Chrome on the
   dev server instead: a whole break performed through the keyboard path, the ash readings
   (`15.7mm · 0.65g`), the reduction page's seven bars and its delta, and every visible string
   measured at ≥ 15 px. Run the script with `PUFFLY_BROWSER=chromium` to fold those claims back into
