@@ -93,7 +93,10 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   _counts_ is never printed, only spoken (`第 14 天` / `14 breaks`), so the row survives the wordless
   tier as digits and marks. It lives under `skins` in the sidebar, because changing the background
   has always had two halves — the four palette layers and the room. Rerun the rungs with
-  `grep -n "unlock:" packages/game-content/src/environments.ts`.
+  `grep -n "unlock:" packages/game-content/src/environments.ts`. Picking one is also measured at the
+  pixel seam rather than assumed: the same state painted with two rooms changes most of the colours
+  the background asks for, and a selection that never reached the state would fail its own test
+  (`npx vitest run packages/game-renderer/src/__tests__/scene-change.test.ts`).
 - **All four layers are layers** — a skin is 纸面, 余烬, 烟羽 and 光池, and the third one used to
   reach only the haze behind the smoke, where its alpha tops out at 0.033. That was measured by
   recording every colour the renderer asks a sprite for: with a palette whose only non-default layer
