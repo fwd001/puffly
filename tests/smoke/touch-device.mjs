@@ -67,6 +67,12 @@ console.log(`engine: ${ENGINE}`);
 const LAYOUTS = {
   // The stage's own table line, lifted clear of the chrome (CHROME_CLEAR_Y in game-core): these
   // are where the props are drawn, so a check that taps anywhere else taps empty air.
+  // NOTE: these are the layout's *unlifted* anchors. Since SPEC.md §55 the table rises when the
+  // window is too short for the fixed-pixel chrome (a phone turned sideways), so on such a stage
+  // the real rod sits higher than the numbers below and a tap aimed here misses. Read them from
+  // `state.stage.layout` on the page instead of trusting this copy — see the two stale marks at
+  // the §15 structure check below. This script has never run on the machine that made that change,
+  // so neither has been re-measured.
   tall: { rod: [0.26, 0.705], lighter: [0.095, 0.49], held: [0.5, 0.52], tray: [0.735, 0.695] },
   wide: { rod: [0.33, 0.695], lighter: [0.075, 0.47], held: [0.52, 0.45], tray: [0.815, 0.685] },
 };
@@ -486,6 +492,9 @@ const hintCentre = async (page) => {
   // dark inside it is.
   const shape = await cloudStructure(page);
   check(
+    // STALE: 6.5 and 0.26 were calibrated against the picture this script saw in 2026-10-05, before
+    // the plume was given one shared flow field (SPEC.md §15) — the breath went from a round cloud
+    // to a narrow rising column, so both numbers move and neither has been re-read here.
     'the breath has light and dark inside it, not just brightness',
     shape.neighbourContrast >= 6.5 || shape.spread >= 0.26,
     `neighbour difference ${shape.neighbourContrast.toFixed(2)}, relative spread ${shape.spread.toFixed(3)}, ${String(shape.cloudSamples)} cloud samples`,
