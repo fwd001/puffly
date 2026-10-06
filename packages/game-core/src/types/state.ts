@@ -240,7 +240,6 @@ export interface StageFrame {
 }
 
 export interface StageAnchors {
-  pack: Point;
   lighter: Point;
   ashtray: Point;
   body: Point;

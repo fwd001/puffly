@@ -4,6 +4,8 @@ import {
   CHROME_CLEAR_Y,
   chromeClearY,
   computeAnchors,
+  HIT,
+  hitCandidates,
   deriveSmokeCharacter,
   hitToleranceFor,
   layoutFor,
@@ -200,7 +202,6 @@ describe('stage shape decides where things live (§55)', () => {
     // Typed as the real shape, so a new anchor field breaks this file at compile time rather
     // than at runtime.
     const anchors: StageAnchors = {
-      pack: { x: 0.2, y: 0.9 },
       lighter: { x: 0.1, y: 0.7 },
       ashtray: { x: 0.8, y: 0.9 },
       body: { x: 0.5, y: 0.6 },
@@ -329,5 +330,26 @@ describe('the chrome takes pixels, not a fraction (§55)', () => {
     for (const [id, aspect] of Object.entries(aspects)) {
       expect(layoutFor(aspect, 1)).toEqual(STAGE_LAYOUTS[id as 'tall']);
     }
+  });
+});
+
+describe('what is on the table is what you can act on (§49)', () => {
+  it('offers a tap to exactly the things that answer one', () => {
+    const h = harness();
+    const state = h.state();
+    const targets = hitCandidates(state.anchors, 0).map((candidate) => candidate.target);
+    expect(new Set(targets)).toEqual(new Set(['cigarette', 'ember', 'lighter', 'ashtray']));
+  });
+
+  it('carries no anchor and no radius for the pack, which is scenery', () => {
+    // The red box on the table is where the rod came from: it is drawn, it catches the light, and
+    // it answers nothing. It used to have both an anchor on the state and an entry in the hit
+    // table, and nothing read either — which is how an object advertises itself as a control and
+    // then does nothing when touched. The layout still knows where it is, because the picture and
+    // the clearance both need that; the interaction layer no longer pretends.
+    const h = harness();
+    expect('pack' in h.state().anchors).toBe(false);
+    expect(HIT).not.toHaveProperty('pack');
+    expect(h.state().stage.layout.pack.x).toBeGreaterThan(0);
   });
 });

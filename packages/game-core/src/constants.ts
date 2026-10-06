@@ -114,7 +114,7 @@ export const ANGLES = {
 } as const;
 
 /** Generous hit radii in normalised units (SPEC.md §66: no precise pixel targets). */
-export const HIT: Record<'body' | 'ember' | 'ash' | 'lighter' | 'ashtray' | 'pack', number> = {
+export const HIT: Record<'body' | 'ember' | 'ash' | 'lighter' | 'ashtray', number> = {
   body: 0.1,
   ember: 0.085,
   ash: 0.075,
@@ -125,7 +125,6 @@ export const HIT: Record<'body' | 'ember' | 'ash' | 'lighter' | 'ashtray' | 'pac
    * reaches past its own rim onto whatever is lying next to it.
    */
   ashtray: 0.1,
-  pack: 0.1,
 };
 
 export const WORLD = {

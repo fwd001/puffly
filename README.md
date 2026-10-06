@@ -82,7 +82,9 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   8 / 20 / 40 / 65 / 95 / 135 / 190 / 250 / 320 / 420 cumulative sticks, and the cabinet groups them
   by what the hand does with them. Each rod has a plume character (column, haze, curls, pour, bloom),
   so a Mist pours down the table while an Ember blooms upward. Recount them with
-  `grep -c "^    id: " packages/game-content/src/{cigarettes,environments,props}.ts`.
+  `grep -c "^    id: " packages/game-content/src/{cigarettes,environments,props}.ts`. The pack lying
+  beside them is scenery that says which rod you are smoking — it is deliberately not a control, and
+  a guard keeps anything un-tappable off the anchors the interaction layer carries (SPEC.md §49).
 - **The rooms** — the seven places a break can happen are a ladder of their own, not colour chips on
   the props row: a card is the room's own light, its name, and the number of the rung that opens it
   (`3`, `7`, `14`, `21`, `30` days). One room is counted in breaks instead, and says so with the

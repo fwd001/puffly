@@ -27,7 +27,6 @@ export function computeAnchors(
   const ash = ashLength > ASH_MIN_LENGTH ? offset(tip, ashLength * 0.5, angleDeg) : tip;
 
   return {
-    pack: { ...layout.pack },
     lighter: { ...layout.lighter },
     ashtray: { ...layout.ashtray },
     body,
