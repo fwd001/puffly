@@ -93,6 +93,14 @@ const LANGUAGE_UNAWARE = [
 ];
 const LANGUAGE_READ = /\.language\b|\blocale\b|\brtl\b/gi;
 
+/**
+ * §10's other half: a daily ceiling is something the page draws, not something the break obeys.
+ * A core that read it could end a session at the limit, which is the lock the brief forbids, and
+ * a renderer that read it would grey the scene on its own instead of being told. The pattern is a
+ * property *read* — declaring the field in `Settings` is the honest pass-through.
+ */
+const LIMIT_READ = /\.dailyLimitSticks\b/g;
+
 function sources(dir: string): string[] {
   const absolute = join(root, dir);
   const found: string[] = [];
@@ -163,15 +171,30 @@ function scanPure(dir: string): string[] {
 
 /** A file that *chooses* words by the player's language, rather than only carrying the choice. */
 export function scanLanguageUse(rel: string, raw: string): string[] {
+  return scanReads(rel, raw, LANGUAGE_READ, "reads the player's language");
+}
+
+/** A file that acts on the player's ceiling, rather than only storing that they set one. */
+export function scanLimitUse(rel: string, raw: string): string[] {
+  return scanReads(rel, raw, LIMIT_READ, 'acts on the daily ceiling');
+}
+
+function scanReads(rel: string, raw: string, pattern: RegExp, why: string): string[] {
   const code = stripComments(raw);
-  const hits = [...code.matchAll(LANGUAGE_READ)].map((match) => match[0].toLowerCase());
+  const hits = [...code.matchAll(pattern)].map((match) => match[0]);
   if (hits.length === 0) return [];
-  return [`${rel}: reads the player's language (${[...new Set(hits)].join(', ')})`];
+  return [`${rel}: ${why} (${[...new Set(hits)].join(', ')})`];
 }
 
 function scanLanguageUnaware(dir: string): string[] {
   return sources(dir).flatMap((file) =>
     scanLanguageUse(relative(root, file), readFileSync(file, 'utf8')),
+  );
+}
+
+function scanLimitUnaware(dir: string): string[] {
+  return sources(dir).flatMap((file) =>
+    scanLimitUse(relative(root, file), readFileSync(file, 'utf8')),
   );
 }
 
@@ -219,6 +242,30 @@ describe('§73 architecture guards', () => {
     expect(
       scanLanguageUse('sample.ts', 'export interface Settings { language?: string; }'),
     ).toEqual([]);
+  });
+
+  it.each(LANGUAGE_UNAWARE)('%s never acts on the daily ceiling', (dir) => {
+    expect(scanLimitUnaware(dir)).toEqual([]);
+  });
+
+  it('the ceiling guard can fail, and does not fire on the field it only carries', () => {
+    expect(
+      scanLimitUse(
+        'sample.ts',
+        'if (settings.dailyLimitSticks && today > settings.dailyLimitSticks) end();',
+      ),
+      'a core that stops the break at the ceiling',
+    ).not.toEqual([]);
+    expect(
+      scanLimitUse('sample.ts', 'export interface Settings { dailyLimitSticks?: number; }'),
+    ).toEqual([]);
+  });
+
+  it('the shell is where the ceiling is actually read, so the guard above guards something', () => {
+    const shell = sources('apps/web/src')
+      .map((file) => stripComments(readFileSync(file, 'utf8')))
+      .join('\n');
+    expect(shell).toContain('.dailyLimitSticks');
   });
 
   it('the scanner itself reports every shape it claims to catch', () => {

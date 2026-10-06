@@ -37,6 +37,12 @@ export interface Settings {
    */
   skin?: string;
   utcOffsetMinutes: number;
+  /**
+   * S20: the player's own ceiling for the day, in sticks. Absent means they have not chosen one
+   * — there is no default, because a number nobody picked would be the brief's first piece of
+   * pressure. Raising or clearing it is never punished (§ limitRule.adjustable).
+   */
+  dailyLimitSticks?: number;
   /** §33: the player's own anchor for smoke-free days. Never inferred as a claim (§84). */
   quitAnchorTimestamp?: number;
   /** §30: only consumed by native shells. */

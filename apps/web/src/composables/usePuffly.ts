@@ -33,11 +33,13 @@ import {
 } from '@puffly/game-renderer';
 import {
   deriveJourney,
+  deriveReduction,
   deriveStatistics,
   deriveTodayView,
   deriveTriggerBreakdown,
   type JourneyStop,
   type Statistics,
+  type ReductionView,
   type TodayView,
   type TriggerCount,
 } from '@puffly/game-statistics';
@@ -51,6 +53,7 @@ import {
 } from './useInputAdapters';
 import type { SkinPalette } from '@puffly/game-core';
 import { HINT_KEYS, createI18n, resolveLocale, type I18n, type LocaleCode } from '../i18n';
+import { isOverLimit } from '../limit';
 import { phaseOf, type Phase } from '../phase';
 
 /** How often chrome is allowed to re-render (§54). */
@@ -144,6 +147,11 @@ export interface Summary {
   affordance: string;
   /** Which of the design's three phases the rail and the HUD are reading (§9.2). */
   phase: Phase;
+  /**
+   * S20's `onReach`: the ceiling has been passed, so the ring goes grey and its digits become a
+   * mark. The break is not stopped, locked or annotated — the interface just stops advertising it.
+   */
+  overLimit: boolean;
   hint: HintWord | null;
   /**
    * Which channel is carrying the cues right now (§63). Mirrored onto the stage as
@@ -169,6 +177,8 @@ export interface Puffly {
   copy: ComputedRef<I18n>;
   /** The boxes in the collection, newest last. */
   progressPacks: ComputedRef<string[]>;
+  /** S20's numbers, restated from the log. */
+  reduction: Ref<ReductionView>;
   /** S17's card data for whatever is burning right now. */
   archive: ComputedRef<ArchiveFacts | null>;
   /** The same card for any rod in the cabinet, asked for by id. */
@@ -225,6 +235,7 @@ export function createPuffly(): Puffly {
     controlsVisible: true,
     affordance: 'none',
     phase: 'light',
+    overLimit: false,
     hint: null,
     cueChannel: 'visual',
     targetReached: false,
@@ -238,6 +249,9 @@ export function createPuffly(): Puffly {
   const today = ref<TodayView | null>(null);
   const journey = ref<JourneyStop[]>([]);
   const triggers = ref<TriggerCount[]>([]);
+  const reduction = ref<ReductionView>(
+    deriveReduction([], { nowMs: Date.now(), utcOffsetMinutes: 0 }),
+  );
   const unlocked = ref<Record<string, readonly string[]>>({});
   const audioAvailable = ref(false);
   const storageDegraded = ref(false);
@@ -381,10 +395,15 @@ export function createPuffly(): Puffly {
       : {}),
   });
 
+  /** Today's sticks against the ceiling the player chose; false when they never chose one. */
+  const overLimit = (): boolean =>
+    isOverLimit(reduction.value.todaySticks, settings.value.dailyLimitSticks);
+
   const recompute = (): void => {
     const options = deriveOptions();
     stats.value = deriveStatistics(sessions, options);
     today.value = deriveTodayView(sessions, options);
+    reduction.value = deriveReduction(sessions, options);
     triggers.value = deriveTriggerBreakdown(sessions);
     journey.value = engine ? deriveJourney(sessions, engine.progressSnapshot()) : [];
   };
@@ -420,6 +439,7 @@ export function createPuffly(): Puffly {
       controlsVisible: state.ui.controlsVisible,
       affordance: state.ui.affordance,
       phase: phaseOf(state.cigarette.state),
+      overLimit: overLimit(),
       hint: hintWord(state),
       cueChannel: audio?.audible() ? 'audio' : 'visual',
       targetReached: state.ui.sessionActive && state.ui.sessionRemainingMs <= 0,
@@ -755,6 +775,7 @@ export function createPuffly(): Puffly {
     archive,
     archiveOf,
     progressPacks,
+    reduction,
     stats,
     today,
     journey,

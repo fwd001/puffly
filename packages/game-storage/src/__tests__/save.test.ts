@@ -281,7 +281,7 @@ describe('what a reader keeps (§64, §49)', () => {
   it("keeps the item in the player's hand and the words they asked for", () => {
     const errors: string[] = [];
     const kept = readSettings(
-      { ...makeSettings(), selection, language: 'zh-CN', skin: 'copper' },
+      { ...makeSettings(), selection, language: 'zh-CN', skin: 'copper', dailyLimitSticks: 12 },
       'settings',
       errors,
     );
@@ -289,6 +289,7 @@ describe('what a reader keeps (§64, §49)', () => {
     expect(kept?.selection).toEqual(selection);
     expect(kept?.language).toBe('zh-CN');
     expect(kept?.skin).toBe('copper');
+    expect(kept?.dailyLimitSticks).toBe(12);
   });
 
   it('leaves an untouched preference absent, so the shell still asks the device', () => {

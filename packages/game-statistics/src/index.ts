@@ -33,6 +33,8 @@ export {
   milestoneDayFor,
 } from './journey';
 export { deriveTriggerBreakdown, dominantTrigger, triggerCounts } from './triggers';
+export { deriveReduction } from './reduction';
+export type { ReductionDay, ReductionView } from './reduction';
 export {
   DAYLIGHT_TIME_OF_DAY,
   NIGHT_TIME_OF_DAY,

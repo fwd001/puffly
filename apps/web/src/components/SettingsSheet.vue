@@ -279,6 +279,28 @@ watch(
     </div>
 
     <div class="row">
+      <span v-if="word('settings.limit') !== null" class="label">{{ word('settings.limit') }}</span>
+      <!-- S20's ceiling is the player's own number. Zero means "I did not pick one", and raising
+           it costs nothing: the brief forbids turning a limit into a punishment. -->
+      <input
+        class="grow"
+        type="range"
+        min="0"
+        max="40"
+        step="1"
+        :value="settings.dailyLimitSticks ?? 0"
+        :aria-label="copy.say('settings.limit')"
+        @input="
+          {
+            const sticks = Number(($event.target as HTMLInputElement).value);
+            game.setSettings({ dailyLimitSticks: sticks > 0 ? sticks : undefined });
+          }
+        "
+      />
+      <span class="digits">{{ settings.dailyLimitSticks ?? '—' }}</span>
+    </div>
+
+    <div class="row">
       <span v-if="word('settings.anchor') !== null" class="label">{{
         word('settings.anchor')
       }}</span>

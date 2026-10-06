@@ -145,7 +145,13 @@ that split from rotting back into an app:
   follow, and both are enforced: a test scans the pure layer for any read of a language, because a
   simulation that picked words could burn differently on two machines and would break §71's replay;
   and right-to-left mirrors the sheets (logical CSS properties only) and never the stage, because
-  the rod burns the same way whichever way you read.
+  the rod burns the same way whichever way you read;
+- **a ceiling is a number the page obeys and the break does not.** `Settings.dailyLimitSticks` is
+  set in the settings sheet and read in exactly one shell function, `isOverLimit`: reaching it
+  greys the ring and swaps its digit for `◇`, and the next break starts as easily as the first.
+  The scan that watches the language watches this field through the pure layer too, because a
+  simulation that obeyed a ceiling would be a lock wearing a statistic's clothes — and the copy
+  table is scanned for the sentences that would praise or threaten.
 
 ## Performance
 

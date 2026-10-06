@@ -94,6 +94,9 @@ export function cloneSettings(settings: Settings): Settings {
   if (typeof settings.skin === 'string' && settings.skin.length > 0) {
     copy.skin = settings.skin;
   }
+  if (typeof settings.dailyLimitSticks === 'number') {
+    copy.dailyLimitSticks = settings.dailyLimitSticks;
+  }
   return copy;
 }
 

@@ -1008,6 +1008,30 @@ craving after
 smoke-free days
 cravings handled
 
+（2026-10-06 补充，按 Smoke Ritual §reduction 落地）这一节从"记录"变成一页可看的东西：减量页
+S20 折在「这次休息」里面，不是第四个 tab，也不是首页。页上只有玩家自己日志的五个数字——
+
+```
+1 / 3           近 7 天 · 支        较上周同期 少吸 2 支
+（环）        ▁▁▁▂▁▁▃（当日冷色高亮）    〜 深呼气 · ◍ 喝水 · ⌇ 走两步
+```
+
+上限由玩家自己设（settings 里一行 `Limit`，0 表示不设）；到了上限**照抽**，只是环去程化：弧线
+和数字一起变灰，数字换成 ◇。不弹窗、不锁死、不设断签惩罚，也没有第四条建议——替代动作固定三
+个，多的那一个不许出现。
+
+三条判据，都不靠散文：
+
+- `apps/web/src/__tests__/reduction.test.ts` 扫全部 `reduction.*` 文案，健康断言（健康/肺/戒/风险
+  /health/lung/risk…）与压力动词（should/must）一条都不许命中，并且当场证明这份词表咬得动。
+- `tests/architecture.test.ts` 里"纯层只携带、不阅读上限"：`packages/game-core`、`game-renderer`、
+  `game-statistics`、`shared` 任何一处读 `.dailyLimitSticks` 就红——燃烧不因为一个数字停下来。
+- `packages/game-statistics/src/__tests__/reduction.test.ts` 只算日志本身：七个格子、当日、本周与
+  上周同期的差（负数=少），空日志给七个 0，绝不出 NaN。
+
+量词在这页是允许的（设计稿自己写的就是 `12 / 20 支`）；§9.2 那条"核心循环只有图标与阿拉伯数字"
+仍然只管首页那一行、pill 和 rail。
+
 ---
 
 34. Journey

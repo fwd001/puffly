@@ -202,6 +202,7 @@ export function makeChosenSettings(nowMs = at(5, 9, 0)): Settings {
     },
     language: 'zh-CN',
     skin: 'copper',
+    dailyLimitSticks: 12,
   };
 }
 

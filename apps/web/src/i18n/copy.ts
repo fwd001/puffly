@@ -78,7 +78,6 @@ export const EN = {
   'a11y.hud.remaining': 'rod left',
   'a11y.hud.hold': 'held for',
   'a11y.hud.puffs': 'draws so far',
-  'a11y.hud.force': 'how hard the smoke came out',
   'a11y.hud.ash': 'ash column',
   'a11y.hud.ashMass': 'ash so far',
   'a11y.hud.category': 'which rod this is',
@@ -130,6 +129,25 @@ export const EN = {
   'a11y.tile': '{name}, {zhName}',
   'a11y.tileLocked': 'not met yet',
 
+  /**
+   * S20. The whole page is the player's own log restated: it compares them to last week and
+   * never to a health target, and it has no verb that reads as advice (§ redlines.noAntiSmokingPressure).
+   */
+  'reduction.sticks': 'sticks',
+  'reduction.week': 'the last seven days',
+  'reduction.deltaMore': '{count} more than the same span last week',
+  'reduction.deltaFewer': '{count} fewer than the same span last week',
+  'reduction.deltaSame': 'the same as the same span last week',
+  'reduction.noLimit': 'no ceiling set',
+  'reduction.alt.breathe': 'breathe out slowly',
+  'reduction.alt.water': 'water',
+  'reduction.alt.walk': 'walk it off',
+  'reduction.footer': 'the ceiling is yours to move — set it where you actually stop',
+  'settings.limit': 'Limit',
+  'a11y.reduction.ring': '{count} of {limit} today',
+  'a11y.reduction.ringNoLimit': '{count} today',
+  'a11y.reduction.bar': '{day}: {count}',
+
   'archive.duration': 'per stick',
   'archive.puffs': 'draws',
   'archive.temp': 'cherry',
@@ -138,9 +156,6 @@ export const EN = {
   'archive.pin': 'keep open',
   'archive.unitMin': 'min',
   'archive.unitTemp': '°C',
-
-  'unit.stick': 'stick',
-  'unit.puff': 'puff',
 } as const;
 
 export type CopyKey = keyof typeof EN;
@@ -210,7 +225,6 @@ const ZH: Table = {
   'a11y.hud.remaining': '还剩多少烟',
   'a11y.hud.hold': '已经按住',
   'a11y.hud.puffs': '已经吸了几口',
-  'a11y.hud.force': '吐出来的劲道',
   'a11y.hud.ash': '灰柱长度',
   'a11y.hud.ashMass': '已经生成的灰',
   'a11y.hud.category': '这是哪一根',
@@ -260,6 +274,21 @@ const ZH: Table = {
   'a11y.tile': '{name} · {zhName}',
   'a11y.tileLocked': '还没抽到',
 
+  'reduction.sticks': '支',
+  'reduction.week': '近 7 天',
+  'reduction.deltaMore': '较上周同期 多吸 {count} 支',
+  'reduction.deltaFewer': '较上周同期 少吸 {count} 支',
+  'reduction.deltaSame': '与上周同期一样',
+  'reduction.noLimit': '未设上限',
+  'reduction.alt.breathe': '深呼气',
+  'reduction.alt.water': '喝水',
+  'reduction.alt.walk': '走两步',
+  'reduction.footer': '上限可自己调，调到想抽就停',
+  'settings.limit': '上限',
+  'a11y.reduction.ring': '今天 {count} / {limit}',
+  'a11y.reduction.ringNoLimit': '今天 {count}',
+  'a11y.reduction.bar': '{day}：{count}',
+
   'archive.duration': '单支时长',
   'archive.puffs': '口数',
   'archive.temp': '中心温度',
@@ -268,9 +297,6 @@ const ZH: Table = {
   'archive.pin': '钉住',
   'archive.unitMin': '分钟',
   'archive.unitTemp': '°C',
-
-  'unit.stick': '支',
-  'unit.puff': '口',
 };
 
 /**

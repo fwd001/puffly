@@ -641,6 +641,8 @@ export function readSettings(
   const selection = optionalSelection(record, path, errors);
   const language = optionalToken(record, 'language', path, errors);
   const skin = optionalToken(record, 'skin', path, errors);
+  // The player's own ceiling: a whole number of sticks, or nothing at all.
+  const dailyLimit = optionalNumber(record, 'dailyLimitSticks', path, errors, 0, 999, true);
 
   if (
     volume === null ||
@@ -683,6 +685,7 @@ export function readSettings(
   if (selection !== undefined) settings.selection = selection;
   if (language !== undefined) settings.language = language;
   if (skin !== undefined) settings.skin = skin;
+  if (dailyLimit !== undefined) settings.dailyLimitSticks = dailyLimit;
   return settings;
 }
 

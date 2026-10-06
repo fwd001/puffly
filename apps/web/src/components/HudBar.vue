@@ -9,6 +9,7 @@
  * is rounded up into a claim.
  */
 import { computed } from 'vue';
+import type { CopyKey } from '../i18n';
 import type { Puffly } from '../composables/usePuffly';
 import { useLongPress } from '../composables/useLongPress';
 
@@ -33,6 +34,11 @@ const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;
 /** The marks the cabinet already uses for these objects, so one shape means one thing. */
 const MARKS = { rod: '—', lighter: '△', tray: '○', out: '◌' } as const;
 
+/**
+ * The row reads the break in three places — the ring's shape, the number you can press, and the
+ * smaller number beside it — and each one has to say what it is on its own, because a bare
+ * "80%" in a screen reader is not a reading of anything.
+ */
 const reading = computed(() => {
   const state = summary.value.state;
   const clock = summary.value.clock;
@@ -44,6 +50,8 @@ const reading = computed(() => {
       primary: clock,
       secondary: '',
       label: copy.value.say('a11y.hud.rail'),
+      numLabel: 'a11y.hud.clock' as CopyKey,
+      altLabel: null,
     };
   }
   const rod = state.cigarette;
@@ -58,6 +66,8 @@ const reading = computed(() => {
           primary: seconds(state.lighter.heldMs),
           secondary: left,
           label: copy.value.say('a11y.hud.hold'),
+          numLabel: 'a11y.hud.hold' as CopyKey,
+          altLabel: 'a11y.hud.remaining' as CopyKey,
         };
       }
       // Which stick of the day this is — 1 before the first one has been saved, not 0.
@@ -69,6 +79,8 @@ const reading = computed(() => {
         primary: clock,
         secondary: left,
         label: copy.value.say('a11y.hud.sticks'),
+        numLabel: 'a11y.hud.clock' as CopyKey,
+        altLabel: 'a11y.hud.remaining' as CopyKey,
       };
     }
     case 'puff':
@@ -79,6 +91,8 @@ const reading = computed(() => {
         primary: `${rod.puff.count} / ${rod.readouts.puffsTarget}`,
         secondary: rod.puff.active ? seconds(rod.puff.heldMs) : left,
         label: copy.value.say('a11y.hud.puffs'),
+        numLabel: 'a11y.hud.puffs' as CopyKey,
+        altLabel: (rod.puff.active ? 'a11y.hud.hold' : 'a11y.hud.remaining') as CopyKey,
       };
     case 'tray':
       return {
@@ -88,6 +102,8 @@ const reading = computed(() => {
         primary: `${rod.readouts.ashMm}mm`,
         secondary: `${rod.readouts.ashGrams}g`,
         label: copy.value.say('a11y.hud.ash'),
+        numLabel: 'a11y.hud.ash' as CopyKey,
+        altLabel: 'a11y.hud.ashMass' as CopyKey,
       };
     default:
       return {
@@ -97,13 +113,15 @@ const reading = computed(() => {
         primary: clock,
         secondary: '',
         label: copy.value.say('a11y.hud.clock'),
+        numLabel: 'a11y.hud.clock' as CopyKey,
+        altLabel: null,
       };
   }
 });
 </script>
 
 <template>
-  <header class="hud" :data-phase="summary.phase">
+  <header class="hud" :data-phase="summary.phase" :data-over="summary.overLimit">
     <button
       class="cat"
       data-hook="category"
@@ -131,8 +149,10 @@ const reading = computed(() => {
           :stroke-dasharray="`${(reading.fraction * CIRCUMFERENCE).toFixed(2)} ${String(CIRCUMFERENCE)}`"
         />
       </svg>
-      <b v-if="reading.value !== ''" class="digits">{{ reading.value }}</b>
-      <span v-else class="mark" aria-hidden="true">{{ reading.mark }}</span>
+      <b v-if="reading.value !== '' && !summary.overLimit" class="digits">{{ reading.value }}</b>
+      <span v-else class="mark" aria-hidden="true">{{
+        summary.overLimit ? '◇' : reading.mark
+      }}</span>
     </span>
 
     <!-- The numbers are the way into the break's own sheet: the count you can see is the
@@ -140,12 +160,18 @@ const reading = computed(() => {
     <button
       class="num"
       data-hook="break"
-      :aria-label="copy.say('a11y.hud.clock')"
+      :aria-label="copy.say(reading.numLabel)"
       @click="emit('break')"
     >
       {{ reading.primary }}
     </button>
-    <span v-if="reading.secondary !== ''" class="num alt">{{ reading.secondary }}</span>
+    <span
+      v-if="reading.secondary !== '' && reading.altLabel !== null"
+      class="num alt"
+      role="img"
+      :aria-label="copy.say(reading.altLabel)"
+      >{{ reading.secondary }}</span
+    >
   </header>
 </template>
 
@@ -251,7 +277,14 @@ const reading = computed(() => {
   color: var(--ember-core);
 }
 
-[data-phase='out'] .arc {
+[data-phase='out'] .arc,
+[data-over='true'] .arc {
   stroke: var(--smoke-gray);
+}
+
+/* S20's `onReach`: the ring goes quiet and the number becomes a mark. Nothing is blocked. */
+[data-over='true'] .num,
+[data-over='true'] .ring .mark {
+  color: var(--smoke-gray);
 }
 </style>

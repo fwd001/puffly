@@ -5,6 +5,7 @@
  * its archive. A rod that has not been met yet is shown rather than hidden — the ladder is the
  * point of the screen, and an empty grid teaches nothing.
  */
+import { computed } from 'vue';
 import type { I18n } from '../i18n';
 import { useLongPress } from '../composables/useLongPress';
 
@@ -26,6 +27,12 @@ const hold = useLongPress(
     if (!props.locked) emit('use', props.id);
   },
 );
+
+/** The dot that marks a card as unreadable is decoration; the name has to carry it instead. */
+const label = computed(() => {
+  const named = props.copy.say('a11y.tile', { name: props.name, zhName: props.zhName });
+  return props.locked ? `${named} · ${props.copy.say('a11y.tileLocked')}` : named;
+});
 </script>
 
 <template>
@@ -35,7 +42,7 @@ const hold = useLongPress(
     :data-locked="locked"
     :data-selected="selected"
     :aria-pressed="selected"
-    :aria-label="copy.say('a11y.tile', { name, zhName })"
+    :aria-label="label"
     @pointerdown="hold.onPointerDown"
     @pointerup="hold.onPointerUp"
     @pointerleave="hold.onPointerLeave"

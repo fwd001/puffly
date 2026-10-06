@@ -73,6 +73,14 @@ function isUnlocked(item: CollectionItem): boolean {
   return (props.game.unlocked.value[item.category] ?? []).includes(item.id);
 }
 
+/**
+ * Everything dimmed on this sheet is dimmed for the same reason, and the reason has to be said:
+ * a card that is only greyer reads as a design choice rather than as something not yet met.
+ */
+function nameFor(label: string, locked: boolean): string {
+  return locked ? `${label} · ${copy.value.say('a11y.tileLocked')}` : label;
+}
+
 function isChosen(item: CollectionItem): boolean {
   const key = SELECTION_KEY[item.category];
   return key !== undefined && props.game.settings.value.selection?.[key] === item.id;
@@ -184,7 +192,9 @@ watch(
           :data-locked="!unlockedSkins.has(skin.id)"
           :data-selected="worn === skin.id"
           :aria-pressed="worn === skin.id"
-          :aria-label="copy.say('a11y.skin', { name: skin.name })"
+          :aria-label="
+            nameFor(copy.say('a11y.skin', { name: skin.name }), !unlockedSkins.has(skin.id))
+          "
           @click="unlockedSkins.has(skin.id) && game.setSettings({ skin: skin.id })"
         >
           <span class="layers" aria-hidden="true">
@@ -198,7 +208,13 @@ watch(
       </div>
     </div>
 
-    <div v-for="shelf in kit" :key="shelf.category" class="group">
+    <div
+      v-for="shelf in kit"
+      :key="shelf.category"
+      class="group"
+      role="group"
+      :aria-label="copy.say('shelf.kit')"
+    >
       <div class="shelf-mark" aria-hidden="true">{{ shelf.glyph }}</div>
       <div class="swatches">
         <button
@@ -208,7 +224,7 @@ watch(
           :class="{ fresh: fresh.has(`${item.category}:${item.id}`) }"
           :data-locked="!isUnlocked(item)"
           :data-selected="isChosen(item)"
-          :aria-label="item.name"
+          :aria-label="nameFor(item.name, !isUnlocked(item))"
           :aria-pressed="isChosen(item)"
           @click="use(item)"
         >

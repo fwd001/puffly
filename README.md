@@ -193,6 +193,19 @@ because a measurement of the simulation is not a thing to tap. Two of its cells 
 stick mark opens the shelf, the clock opens the break. A new unlock is a dot on the stick mark —
 no dialog, no text.
 
+**What the break sheet adds: the player's own week**
+
+Opening the break gives the counts it cannot fit on the row — how many sticks today against the
+ceiling the player set, the last seven days as seven bars with today in a cooler colour, and the
+difference against the same span a week ago (`较上周同期 少吸 2 支`). That is the whole of the
+reduction page, and it is the reason the ceiling exists: it is never a permission. Reaching it
+still lets the break start; the ring only goes grey and swaps its digit for `◇`, there is no
+dialog, nothing locks, and no streak can be broken because there is no streak. The words on that
+page are scanned by a test rather than by review: no line may assert anything about health, and no
+line may tell the player what they should do. The ceiling itself is a preference the simulation is
+not allowed to read — an architecture test fails the build if `game-core` or the renderer ever
+looks at it.
+
 ## How it is verified
 
 | Command                                                 | What it proves                                                                                                  |

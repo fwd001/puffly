@@ -69,9 +69,16 @@ describe('three tiers: target language → English → icons (§9)', () => {
         expect(chinese, `${key} = "${chinese}" uses the quantifier ${unit}`).not.toContain(unit);
       }
     }
-    // The quantifiers exist in the table, where the archive needs them.
-    expect(COPY['zh-CN']?.['unit.stick']).toBe('支');
-    expect(COPY['zh-CN']?.['unit.puff']).toBe('口');
+    // The quantifiers are in the table where the player reads a count of things — the 图鉴, the
+    // 档案, the day's own numbers — and in the spoken names, which are never read with the eyes.
+    const outside = /^(a11y|archive|shelf|reduction)\./;
+    const carrying = KEYS.filter((key) => {
+      const chinese = COPY['zh-CN']?.[key] ?? '';
+      return quantifiers.some((unit) => chinese.includes(unit));
+    });
+    expect(carrying.length).toBeGreaterThan(0);
+    const inTheLoop = carrying.filter((key) => !outside.test(key));
+    expect(inTheLoop, `量词 inside the core loop: ${inTheLoop.join(', ')}`).toEqual([]);
   });
 });
 
