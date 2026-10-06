@@ -53,6 +53,7 @@ import {
 } from './useInputAdapters';
 import type { SkinPalette } from '@puffly/game-core';
 import { HINT_KEYS, createI18n, resolveLocale, type I18n, type LocaleCode } from '../i18n';
+import { anchorAtLight } from '../anchor';
 import { isOverLimit } from '../limit';
 import { phaseOf, type Phase } from '../phase';
 
@@ -505,7 +506,15 @@ export function createPuffly(): Puffly {
       engine.startSession();
     }
     const type = event.event.type;
-    if (type === SessionEventType.LIGHT) haptic(24);
+    if (type === SessionEventType.LIGHT) {
+      haptic(24);
+      // The count gets its beginning from the first cherry rather than from a form (§10).
+      const anchor = anchorAtLight(Date.now(), settings.value.quitAnchorTimestamp);
+      if (anchor !== undefined) {
+        settings.value = { ...settings.value, quitAnchorTimestamp: anchor };
+        void persistence?.saveSettings(settings.value).catch(() => undefined);
+      }
+    } else if (type === SessionEventType.ASH) haptic([9, 26, 9]);
     else if (type === SessionEventType.ASH) haptic([9, 26, 9]);
     else if (type === SessionEventType.EXTINGUISH) haptic(64);
     else if (type === SessionEventType.DISCARD) haptic([14, 40, 20]);
