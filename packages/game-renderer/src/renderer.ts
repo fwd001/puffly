@@ -541,7 +541,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         return;
       }
       if (event.kind !== 'burst') return;
-      intakeBurst(event.burst, pool, { densityScale: densityScaleFor(settings) });
+      intakeBurst(event.burst, pool, {
+        densityScale: densityScaleFor(settings),
+        plumeTint: settings.skin?.smoke,
+      });
       const effect = effectFor(event.burst, clockMs, settings.visualCues);
       if (effect && !settings.reducedMotion) effects.push(effect);
     },

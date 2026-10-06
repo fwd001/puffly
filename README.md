@@ -92,6 +92,14 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   tier as digits and marks. It lives under `skins` in the sidebar, because changing the background
   has always had two halves — the four palette layers and the room. Rerun the rungs with
   `grep -n "unlock:" packages/game-content/src/environments.ts`.
+- **All four layers are layers** — a skin is 纸面, 余烬, 烟羽 and 光池, and the third one used to
+  reach only the haze behind the smoke, where its alpha tops out at 0.033. That was measured by
+  recording every colour the renderer asks a sprite for: with a palette whose only non-default layer
+  is 烟羽, 0 of 60 plume sprites changed colour. The plume now takes the skin's colour at the moment
+  each puff is born, while the filter, the ash and the dust off the tray keep what the tobacco has.
+  What is already in the air when you switch stays as it was for a few seconds — smoke that has left
+  the rod does not get a second colour. Rerun with
+  `npx vitest run packages/game-renderer/src/__tests__/plume-palette.test.ts`.
 
 ## Architecture in one paragraph
 
@@ -314,6 +322,13 @@ Honest gaps, so nobody rediscovers them as bugs:
   `OfflineAudioContext` renders the shipped synth and its spectrum can be compared before and after a
   change — that is how the draw's tube-to-body balance and its spectral movement were tuned (§26).
   What that cannot settle is whether it sounds right. Nobody has listened to these numbers.
+- **Whether the smoke is _the_ smoke.** The plume's thinness, structure and colour are all measured
+  now (SPEC.md §15), and not one of those numbers answers the only question that matters: is this the
+  picture. The design's frames are reachable in a signed-in browser — S3 吸烟 is node `3:127`, S4 吐烟
+  is `3:187`, both 390×844 — but at the zoom that fits the whole page a frame is 27×59 CSS pixels
+  (≈55×119 in a screenshot at this display's scale), and
+  making one bigger needs real wheel or keyboard input, which the editor does not accept from
+  synthetic events. That last look has not been had by anyone.
 - No `LICENSE` file has been chosen for the repository yet.
 - The 12-box collection reserves three boxes for the cinnabar skin's finale (中华硬 / 黄鹤楼1916 /
   和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.

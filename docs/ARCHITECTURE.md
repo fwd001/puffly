@@ -111,6 +111,16 @@ break through it: any write would throw a TypeError instead of corrupting the si
   test, just a filter nobody was driving. It spreads the target now and overrides only the field the
   trim touches. Where a rebuild has to enumerate (validation, where every field needs a bound), the
   enumeration is pinned by a fixture; where it does not, spread it.
+- A colour layer that reaches only a nearly transparent gradient is a layer nobody can see.
+  `applySkin` wrote a skin's 烟羽 into `view.smoke.tint`, and the only reader of that field was the
+  density veil, whose alpha tops out at 0.033; the plume's colour had already been decided in the
+  core and frozen into each particle when it was born. `skin.test.ts` said "the four layers land"
+  and was right — about the view — and no test could tell the difference between that and a picture
+  that never changed. What measures it instead (`plume-palette.test.ts`): hand the renderer a palette
+  whose only non-default layer is the one under test (the other three are copied back from the
+  unskinned view), record every colour the renderer asks a sprite for, and compare two runs of the
+  same seeded puff index-aligned. Then a difference can only have come from that layer, and "0 of 60
+  sprites changed" is a number rather than an impression.
 
 ## Determinism and replay
 

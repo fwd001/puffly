@@ -7,7 +7,8 @@
  */
 
 import { createRng } from '@puffly/shared';
-import type { Burst } from '@puffly/game-core';
+import type { Rgb } from '@puffly/shared';
+import type { Burst, BurstKind } from '@puffly/game-core';
 import type { ParticlePool } from './particles';
 
 /** Lattice size for the curl field: about eight cells across the visible stage. */
@@ -18,7 +19,22 @@ export interface IntakeOptions {
   densityScale: number;
   /** Only draw puffs this far into the future; used to keep a stalled tab from dumping. */
   maxSpawnPerFrame?: number;
+  /**
+   * §6.1: the 烟羽 layer of a skin, or `undefined` for the scene as the content made it. The
+   * plume is made of particles, not of the haze behind them, so a colour layer that stops at
+   * the haze changes nothing a player can see.
+   */
+  plumeTint?: Rgb;
 }
+
+/**
+ * The tobacco's own material — a melted filter, a grain of ash, the dust a rod knocks loose.
+ * A skin may recolour smoke; it has no business recolouring what is not smoke.
+ */
+const MATERIAL_BURSTS: ReadonlySet<BurstKind> = new Set(['ember', 'ash', 'impact']);
+
+const tintFor = (burst: Burst, plumeTint: Rgb | undefined): Rgb =>
+  plumeTint && !MATERIAL_BURSTS.has(burst.kind) ? plumeTint : burst.tint;
 
 const degToRad = (deg: number): number => (deg * Math.PI) / 180;
 
@@ -53,7 +69,7 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       turbulence: burst.turbulence,
       rise: burst.rise * rng.range(0.75, 1.25),
       gravity: burst.gravity,
-      tint: burst.tint,
+      tint: tintFor(burst, options.plumeTint),
       heat: burst.heat * rng.range(0.6, 1),
       // Depth is sampled, not derived from index, so a puff never bands into layers.
       depth: rng.range(0.25, 1),
