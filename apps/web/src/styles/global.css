@@ -343,7 +343,7 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
   border-radius: 999px;
   background: var(--chrome-bg);
   border: 1px solid var(--chrome-line);
-  font-size: 0.9rem;
+  font-size: calc(15px * var(--text-scale));
   opacity: 0;
   transition: opacity 500ms var(--ease-out);
 }

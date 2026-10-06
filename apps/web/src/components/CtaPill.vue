@@ -229,7 +229,7 @@ const wave = computed(() => {
 .glyph {
   min-width: 30px;
   margin-left: 34px;
-  font-size: calc(14px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   line-height: 1;
 }
 

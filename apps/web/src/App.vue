@@ -42,6 +42,12 @@ const summary = computed(() => game.summary.value);
  * row, the pill and the rail all fold together and none of them can invent its own timer (§10).
  */
 const chrome = computed(() => summary.value.controlsVisible || sheet.value !== 'none');
+/**
+ * A sheet is the interaction while it is open, and the pill sits exactly where its rows are — it
+ * covered two settings rows on a phone. The rail stays: it is how the sheet is closed and how
+ * another is reached. The archive card is not a sheet, so a rod held mid-draw keeps its handle.
+ */
+const pill = computed(() => chrome.value && sheet.value === 'none');
 
 /**
  * Screen-reader prose lives here and nowhere else (§4, §64): a blind user hears the state, a
@@ -123,7 +129,7 @@ function openSheet(next: SheetName): void {
       @pin="archivePinned = $event"
     />
 
-    <CtaPill v-show="chrome" :game="game" />
+    <CtaPill v-show="pill" :game="game" />
 
     <TabRail
       v-show="chrome"
@@ -166,7 +172,7 @@ canvas {
   transform: translate(-50%, -50%);
   margin: 0;
   color: var(--soft-white);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.26em;
   text-transform: uppercase;
   white-space: nowrap;

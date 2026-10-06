@@ -289,8 +289,11 @@ Honest gaps, so nobody rediscovers them as bugs:
   size today, and nothing yet stretches its lifetime.
 - The 12-box collection reserves three boxes for the cinnabar skin's finale (中华硬 / 黄鹤楼1916 /
   和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.
-- The touch check below is the one gate that has not been re-run on this machine since its browser
-  binaries left the local cache: the sections written this round (the row, the pill, the rail, the
-  archive's three densities, the cabinet ladder, the skins, the boxes, the three language tiers) are
-  therefore unverified _in a browser_, and each of them is also asserted at source or engine level.
-  Run it with `PUFFLY_BROWSER=chromium` once a browser is available.
+- The touch check below is the one gate that cannot run on this machine (no Playwright browser in
+  the local cache), so the sections written this round — the row, the pill, the rail, the archive's
+  three densities, the cabinet ladder, the skins, the boxes, the three language tiers — have not
+  been executed _as that script_. Each one was checked by hand against a connected Chrome on the
+  dev server instead: a whole break performed through the keyboard path, the ash readings
+  (`15.7mm · 0.65g`), the reduction page's seven bars and its delta, and every visible string
+  measured at ≥ 15 px. Run the script with `PUFFLY_BROWSER=chromium` to fold those claims back into
+  CI.

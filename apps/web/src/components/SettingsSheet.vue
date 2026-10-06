@@ -413,7 +413,7 @@ watch(
   width: 88px;
   flex: none;
   color: var(--smoke-gray);
-  font-size: calc(13px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.06em;
 }
 
@@ -461,7 +461,7 @@ watch(
 
 .choice .sub {
   color: var(--smoke-gray);
-  font-size: calc(10px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.08em;
 }
 
@@ -470,7 +470,7 @@ watch(
 .arm {
   min-width: 5ch;
   color: var(--smoke-gray);
-  font-size: calc(10px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.08em;
 }
 
@@ -481,7 +481,7 @@ watch(
 .hint-preview {
   min-width: 4ch;
   color: var(--soft-white);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.26em;
   text-transform: uppercase;
   opacity: 0.7;

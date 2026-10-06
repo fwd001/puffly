@@ -118,7 +118,7 @@ const cells = computed(() => {
 
 .zh {
   color: var(--smoke-gray);
-  font-size: calc(12px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .close {
@@ -138,7 +138,7 @@ const cells = computed(() => {
 
 .cells dt {
   color: var(--smoke-gray);
-  font-size: calc(10px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.08em;
 }
 
@@ -162,7 +162,7 @@ const cells = computed(() => {
 
 .scenes .label {
   color: var(--smoke-gray);
-  font-size: calc(10px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.08em;
 }
 
@@ -170,13 +170,13 @@ const cells = computed(() => {
   padding: 2px 7px;
   border: 1px solid var(--chrome-line);
   border-radius: 999px;
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .range {
   margin: 0;
   color: var(--smoke-gray);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   /* The ≈ figure is a quote of a published range, so it is typeset like one. */
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
@@ -194,7 +194,7 @@ const cells = computed(() => {
   background: transparent;
   color: var(--smoke-gray);
   font: inherit;
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .pin[aria-pressed='true'] {

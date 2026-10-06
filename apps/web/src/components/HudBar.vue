@@ -202,7 +202,7 @@ const reading = computed(() => {
   border-radius: 50%;
   background: color-mix(in oklab, var(--deep-charcoal) 55%, transparent);
   color: var(--smoke-gray);
-  font-size: calc(13px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .cat {
@@ -255,7 +255,7 @@ const reading = computed(() => {
 .ring .digits {
   position: relative;
   color: var(--soft-white);
-  font-size: calc(12px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   font-weight: 500;
   line-height: 1;
 }

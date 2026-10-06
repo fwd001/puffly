@@ -85,7 +85,7 @@ const on = (id: Phase): boolean => !props.settingsOpen && phase.value === id;
   background: transparent;
   color: var(--smoke-gray);
   font: inherit;
-  font-size: calc(10px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.06em;
   transition:
     color 200ms var(--ease-out),
@@ -105,7 +105,7 @@ const on = (id: Phase): boolean => !props.settingsOpen && phase.value === id;
 }
 
 .tab .glyph {
-  font-size: calc(12px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   line-height: 1;
 }
 

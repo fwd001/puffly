@@ -399,7 +399,7 @@ watch(
 
 .ring b {
   position: relative;
-  font-size: calc(14px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   font-variant-numeric: tabular-nums;
 }
 
@@ -424,7 +424,7 @@ watch(
 
 .cap {
   color: var(--smoke-gray);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .trend rect {
@@ -438,7 +438,7 @@ watch(
 .delta {
   margin: 0;
   color: var(--smoke-gray);
-  font-size: calc(12px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .alts {
@@ -455,14 +455,14 @@ watch(
   border: 1px solid var(--chrome-line);
   border-radius: 999px;
   color: var(--smoke-gray);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .foot {
   width: 100%;
   margin: 0;
   color: var(--smoke-gray);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   opacity: 0.8;
 }
 

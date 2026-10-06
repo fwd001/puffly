@@ -251,7 +251,7 @@ watch(
 
 .count {
   color: var(--smoke-gray);
-  font-size: calc(12px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .digits {
@@ -269,7 +269,7 @@ watch(
 .kind {
   margin: 0 0 6px;
   color: var(--smoke-gray);
-  font-size: calc(10px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
@@ -283,13 +283,13 @@ watch(
 .hint {
   margin: 14px 0 4px;
   color: var(--smoke-gray);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.04em;
 }
 
 .shelf-mark {
   opacity: 0.4;
-  font-size: 0.85rem;
+  font-size: calc(15px * var(--text-scale));
   margin-bottom: -2px;
 }
 
@@ -323,12 +323,12 @@ watch(
 }
 
 .box .brand {
-  font-size: calc(12px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .box .price {
   color: var(--ember-core);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .box:not([data-collected='true']) {

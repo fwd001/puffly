@@ -96,13 +96,13 @@ const label = computed(() => {
 }
 
 .name {
-  font-size: calc(12px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
   letter-spacing: 0.03em;
 }
 
 .zh {
   color: var(--smoke-gray);
-  font-size: calc(11px * var(--text-scale));
+  font-size: calc(15px * var(--text-scale));
 }
 
 .lock {
