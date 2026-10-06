@@ -335,7 +335,10 @@ export function bedTargets(
       // The cherry does not go out when the player exhales, so this bed keeps its level and
       // only loses the *extra* air noise: `detail` is the reduced-motion trim.
       gain: ember * detail,
-      cutoff: 300 + ember * 1200,
+      // A short climb into the body. This number used to run 300 -> 1500 with heat, which was
+      // written as "hotter cherry, more open" and landed on a filter that only gets thinner as it
+      // opens; measured, that left the resting break with no energy under 500 Hz at all.
+      cutoff: 640 + ember * 430,
     },
     ambient: {
       gain: clamp01(state.world.ambientGain) * ambientTrim,

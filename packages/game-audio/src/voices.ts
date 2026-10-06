@@ -619,7 +619,15 @@ const BEDS: Partial<Record<AudioVoiceId, BedRecipe>> = {
     seconds: 3.2,
     density: 0.5,
     channels: 2,
-    filter: { type: 'highpass', hz: 1100, q: 0.7 },
+    // A band in the body, not a gate above it. This used to be a bare highpass at 1100 while the
+    // ember bed drove `shape.frequency` upward with cherry brightness — the one filter type that
+    // gets *thinner* as it opens, wired to the only knob that ever opens — and measured at the
+    // brightness a lit rod holds for ~90% of the break, the resting sound had no energy below
+    // 500 Hz and all of its weight between 1 and 1.6 kHz. 刺耳 is that hole, not loudness.
+    // A brown-noise `rumble` leg was tried first and rejected by measurement: anywhere from gain
+    // 0.3 down to 0.035 it put 42-63% of the bed under 250 Hz at every cutoff, which is a different
+    // complaint, not this one. Where the band sits is the fix.
+    filter: { type: 'bandpass', hz: 620, q: 0.6 },
     lfoHz: 1.7,
     lfoDepth: 260,
   },
