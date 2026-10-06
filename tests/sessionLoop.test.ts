@@ -325,17 +325,26 @@ describe('a real break on real content (§8, §82)', () => {
     const content = createDefaultLookup();
     const items = buildCollectionItems(content.bundle);
 
-    expect(DEFAULT_CONTENT.cigarettes.length).toBeGreaterThanOrEqual(6);
     expect(DEFAULT_CONTENT.environments.length).toBeGreaterThanOrEqual(7);
-    // No real brand names: everything here is one of the six originals the spec names.
-    expect(DEFAULT_CONTENT.cigarettes.map((rod) => rod.id)).toEqual([
-      'classic',
-      'silver',
-      'night',
-      'long',
-      'ember',
-      'mist',
-    ]);
+    // The ladder the brief fixes: eleven categories, unlocked by cumulative sticks at these exact
+    // thresholds, split seven inhaled / three savoured / one filtered. Checked as a shape rather
+    // than as a list of names, so adding a twelfth category has to move the ladder on purpose.
+    const rods = DEFAULT_CONTENT.cigarettes;
+    expect(rods).toHaveLength(11);
+    expect(rods.map((rod) => rod.unlock).filter((rule) => rule.kind === 'default')).toHaveLength(1);
+    expect(
+      rods
+        .map((rod) => (rod.unlock.kind === 'sessions' ? rod.unlock.count : 0))
+        .sort((a, b) => a - b),
+    ).toEqual([0, 8, 20, 40, 65, 95, 135, 190, 250, 320, 420]);
+    const kinds = rods.reduce<Record<string, number>>((tally, rod) => {
+      tally[rod.archive.kind] = (tally[rod.archive.kind] ?? 0) + 1;
+      return tally;
+    }, {});
+    expect(kinds).toEqual({ inhale: 7, savor: 3, filter: 1 });
+    // No real brand anywhere: every one of these is an original the spec names.
+    for (const rod of rods)
+      expect(rod.archive.zhName).not.toMatch(/中华|玉溪|芙蓉王|黄鹤楼|红塔山/);
 
     for (const rod of DEFAULT_CONTENT.cigarettes) {
       expect(() => content.smokeStyle(rod.smokeStyleId), rod.id).not.toThrow();

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { createPuffly } from './composables/usePuffly';
 import { ANCHOR_LOCALE, STATE_KEYS } from './i18n';
+import type { ArchiveFacts } from './composables/usePuffly';
 import HudBar from './components/HudBar.vue';
 import CtaPill from './components/CtaPill.vue';
 import TabRail from './components/TabRail.vue';
@@ -20,7 +21,7 @@ const sheet = ref<SheetName>('none');
  * S17's card, and whether the player pinned it. Pinning is the only reason tier three exists:
  * a held card that disappears when the finger moves is a tooltip, not an archive.
  */
-const archiveOpen = ref(false);
+const archiveFacts = ref<ArchiveFacts | null>(null);
 const archivePinned = ref(false);
 
 // A swipe down folds the interface, and a sheet left open is the loudest part of it.
@@ -30,7 +31,7 @@ watch(
     if (!folded) return;
     sheet.value = 'none';
     archivePinned.value = false;
-    archiveOpen.value = false;
+    archiveFacts.value = null;
   },
 );
 
@@ -105,16 +106,17 @@ function openSheet(next: SheetName): void {
       :game="game"
       @shelf="openSheet('shelf')"
       @break="openSheet('break')"
-      @archive="archiveOpen = true"
+      @archive="archiveFacts = game.archive.value"
     />
 
     <ArchiveCard
-      v-if="archiveOpen"
+      v-if="archiveFacts !== null"
       :game="game"
+      :facts="archiveFacts"
       :pinned="archivePinned"
       @close="
         () => {
-          archiveOpen = false;
+          archiveFacts = null;
           archivePinned = false;
         }
       "
@@ -131,7 +133,12 @@ function openSheet(next: SheetName): void {
     />
 
     <SessionSheet :open="sheet === 'break'" :game="game" @close="sheet = 'none'" />
-    <CollectionSheet :open="sheet === 'shelf'" :game="game" @close="sheet = 'none'" />
+    <CollectionSheet
+      :open="sheet === 'shelf'"
+      :game="game"
+      @archive="archiveFacts = game.archiveOf($event)"
+      @close="sheet = 'none'"
+    />
     <SettingsSheet :open="sheet === 'settings'" :game="game" @close="sheet = 'none'" />
   </main>
 </template>

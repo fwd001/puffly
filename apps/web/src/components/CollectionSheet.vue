@@ -1,10 +1,14 @@
 <script setup lang="ts">
 /**
- * The collection cabinet — §38, §39.
+ * The cabinet — S8 and S8b over the top of §38 and §39.
  *
- * Six shelves, drawn from each item's own palette. A locked card is a dim glyph; a card that
- * just unlocked pulses in on its own and then settles. Tapping an unlocked card *uses* it, so
- * the cabinet doubles as the picker and there is no separate menu to explain (§0).
+ * The ladder comes first: eleven categories, grouped by what the hand does with them, with the
+ * count of how many have been met. Everything else the player can change — rooms, lighters,
+ * trays, plumes, voices — sits below it as the rest of the table, because those are props and
+ * this is the subject.
+ *
+ * A card answers two ways, like the mark in the head-up row: a tap puts the rod in the hand, a
+ * hold asks what it is. Choosing a rod is the picker, so there is no second menu to explain (§0).
  */
 import { computed, nextTick, ref, watch } from 'vue';
 import {
@@ -16,14 +20,21 @@ import {
 import { DEFAULT_CONTENT } from '@puffly/game-content';
 import { rgbToCss } from '@puffly/shared';
 import type { Puffly } from '../composables/usePuffly';
+import ArchiveTile from './ArchiveTile.vue';
+import { shelfCount, shelvesOf } from '../shelf';
+
 const props = defineProps<{ open: boolean; game: Puffly }>();
-const emit = defineEmits<{ close: [] }>();
+const emit = defineEmits<{ close: []; archive: [id: string] }>();
 
-/** Item names are content data, not copy: an archive entry is spelled the way it ships (§9). */
 const copy = computed(() => props.game.copy.value);
+const rods = DEFAULT_CONTENT.cigarettes;
+const shelves = computed(() => shelvesOf(rods));
+const met = computed(() => new Set(props.game.unlocked.value.cigarettes ?? []));
+const count = computed(() => shelfCount(rods, [...met.value]));
+const chosen = computed(() => props.game.settings.value.selection?.cigarette);
 
-const SHELF: readonly { category: string; glyph: string }[] = [
-  { category: CollectionCategory.CIGARETTES, glyph: '—' },
+/** The other five categories, drawn from each item's own palette as before. */
+const KIT: readonly { category: CollectionCategoryValue; glyph: string }[] = [
   { category: CollectionCategory.LIGHTERS, glyph: '△' },
   { category: CollectionCategory.ENVIRONMENTS, glyph: '▢' },
   { category: CollectionCategory.ASHTRAYS, glyph: '○' },
@@ -31,42 +42,33 @@ const SHELF: readonly { category: string; glyph: string }[] = [
   { category: CollectionCategory.SOUNDS, glyph: '∿' },
 ];
 
-/** The card colour is the item's own palette value, taken straight from content. */
-function swatchOf(item: CollectionItem): string {
-  return rgbToCss(item.swatch);
-}
-
-const shelves = computed(() =>
-  SHELF.map((shelf) => ({
+const kit = computed(() =>
+  KIT.map((shelf) => ({
     ...shelf,
     items: props.game.items.value.filter((item) => item.category === shelf.category),
   })),
 );
 
-/** The cabinet doubles as the picker, so a card knows whether it is the one in the hand. */
 const SELECTION_KEY: Partial<Record<CollectionCategoryValue, keyof Selection>> = {
-  [CollectionCategory.CIGARETTES]: 'cigarette',
   [CollectionCategory.LIGHTERS]: 'lighter',
   [CollectionCategory.ENVIRONMENTS]: 'environment',
   [CollectionCategory.ASHTRAYS]: 'ashtray',
 };
 
-const selection = computed(() => props.game.settings.value.selection);
-
-function isSelected(item: CollectionItem): boolean {
-  const key = SELECTION_KEY[item.category];
-  return key !== undefined && selection.value?.[key] === item.id;
-}
 const fresh = computed(() => new Set(props.game.summary.value.fresh));
 
 function isUnlocked(item: CollectionItem): boolean {
   return (props.game.unlocked.value[item.category] ?? []).includes(item.id);
 }
 
+function isChosen(item: CollectionItem): boolean {
+  const key = SELECTION_KEY[item.category];
+  return key !== undefined && props.game.settings.value.selection?.[key] === item.id;
+}
+
 function use(item: CollectionItem): void {
   if (!isUnlocked(item)) return;
-  if (item.category === CollectionCategory.CIGARETTES) props.game.select({ cigarette: item.id });
-  else if (item.category === CollectionCategory.LIGHTERS) props.game.select({ lighter: item.id });
+  if (item.category === CollectionCategory.LIGHTERS) props.game.select({ lighter: item.id });
   else if (item.category === CollectionCategory.ENVIRONMENTS)
     props.game.select({ environment: item.id });
   else if (item.category === CollectionCategory.ASHTRAYS) props.game.select({ ashtray: item.id });
@@ -77,8 +79,8 @@ function use(item: CollectionItem): void {
     if (match) props.game.select({ cigarette: match.id });
   }
 }
-const root = ref<HTMLElement | null>(null);
 
+const root = ref<HTMLElement | null>(null);
 watch(
   () => props.open,
   (isOpen) => {
@@ -98,12 +100,38 @@ watch(
   >
     <header class="head">
       <span class="mark">✦</span>
+      <span class="count digits">{{ count }}</span>
       <button class="icon-button close" :aria-label="copy.say('a11y.close')" @click="emit('close')">
         ×
       </button>
     </header>
 
-    <div v-for="shelf in shelves" :key="shelf.category" class="group">
+    <div v-for="shelf in shelves" :key="shelf.kind" class="group">
+      <p v-if="copy.t('shelf.rods') !== null" class="kind">
+        {{ copy.t(`shelf.kind.${shelf.kind}` as 'shelf.kind.inhale') }}
+      </p>
+      <div class="tiles">
+        <ArchiveTile
+          v-for="rod in shelf.rods"
+          :key="rod.id"
+          :id="rod.id"
+          :name="rod.name"
+          :zh-name="rod.archive.zhName"
+          :swatch="rgbToCss(rod.palette.paper)"
+          :locked="!met.has(rod.id)"
+          :selected="chosen === rod.id"
+          :copy="copy"
+          @use="game.select({ cigarette: $event })"
+          @archive="emit('archive', $event)"
+        />
+      </div>
+    </div>
+
+    <p v-if="copy.t('shelf.hint') !== null" class="hint">
+      {{ copy.t('shelf.hint', { total: String(rods.length) }) }}
+    </p>
+
+    <div v-for="shelf in kit" :key="shelf.category" class="group">
       <div class="shelf-mark" aria-hidden="true">{{ shelf.glyph }}</div>
       <div class="swatches">
         <button
@@ -112,12 +140,12 @@ watch(
           class="swatch"
           :class="{ fresh: fresh.has(`${item.category}:${item.id}`) }"
           :data-locked="!isUnlocked(item)"
-          :data-selected="isSelected(item)"
+          :data-selected="isChosen(item)"
           :aria-label="item.name"
-          :aria-pressed="isSelected(item)"
+          :aria-pressed="isChosen(item)"
           @click="use(item)"
         >
-          <span class="chip" :style="{ background: swatchOf(item) }" aria-hidden="true" />
+          <span class="chip" :style="{ background: rgbToCss(item.swatch) }" aria-hidden="true" />
           <span v-if="!isUnlocked(item)" class="lock" aria-hidden="true">·</span>
         </button>
       </div>
@@ -129,6 +157,7 @@ watch(
 .head {
   display: flex;
   align-items: center;
+  gap: 10px;
   margin-bottom: 6px;
 }
 
@@ -137,8 +166,42 @@ watch(
   font-size: 1.1rem;
 }
 
+.count {
+  color: var(--smoke-gray);
+  font-size: calc(12px * var(--text-scale));
+}
+
+.digits {
+  font-variant-numeric: tabular-nums;
+}
+
 .close {
   margin-inline-start: auto;
+}
+
+.group {
+  margin-top: 12px;
+}
+
+.kind {
+  margin: 0 0 6px;
+  color: var(--smoke-gray);
+  font-size: calc(10px * var(--text-scale));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.hint {
+  margin: 14px 0 4px;
+  color: var(--smoke-gray);
+  font-size: calc(11px * var(--text-scale));
+  letter-spacing: 0.04em;
 }
 
 .shelf-mark {

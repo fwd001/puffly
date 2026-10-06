@@ -167,6 +167,8 @@ export interface Puffly {
   copy: ComputedRef<I18n>;
   /** S17's card data for whatever is burning right now. */
   archive: ComputedRef<ArchiveFacts | null>;
+  /** The same card for any rod in the cabinet, asked for by id. */
+  archiveOf(id: string): ArchiveFacts | null;
   stats: Ref<Statistics>;
   today: Ref<TodayView | null>;
   journey: Ref<JourneyStop[]>;
@@ -247,11 +249,7 @@ export function createPuffly(): Puffly {
   const copy = computed<I18n>(() => createI18n(locale.value));
 
   /** The rod in the hand, described for S17's card. Follows the simulation, not the picker. */
-  const archive = computed<ArchiveFacts | null>(() => {
-    const id =
-      summary.value.state?.cigarette.typeId ??
-      settings.value.selection?.cigarette ??
-      DEFAULT_IDS.cigarette;
+  const archiveOf = (id: string): ArchiveFacts | null => {
     const rod = content.cigarettes().find((entry) => entry.id === id);
     if (!rod) return null;
     const middle = (rod.burnDuration.min + rod.burnDuration.max) / 2;
@@ -267,7 +265,15 @@ export function createPuffly(): Puffly {
         .map((envId) => content.environments().find((env) => env.id === envId)?.name)
         .filter((name): name is string => typeof name === 'string'),
     };
-  });
+  };
+
+  const archive = computed<ArchiveFacts | null>(() =>
+    archiveOf(
+      summary.value.state?.cigarette.typeId ??
+        settings.value.selection?.cigarette ??
+        DEFAULT_IDS.cigarette,
+    ),
+  );
 
   /**
    * A vibration is the one feedback a phone can give that a monitor cannot (§30). It marks the
@@ -728,6 +734,7 @@ export function createPuffly(): Puffly {
     locale,
     copy,
     archive,
+    archiveOf,
     stats,
     today,
     journey,

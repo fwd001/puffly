@@ -115,6 +115,16 @@ export const EN = {
   'state.discarded': 'in the tray',
 
   /** S17's archive card. Tier 2 is what the rod measures; tier 3 is where the ≈ figures live. */
+  /** S8's cabinet: the ladder, its count, and the two lines that explain how to read it. */
+  'shelf.rods': 'the ladder',
+  'shelf.kit': 'the rest of the table',
+  'shelf.hint': 'swipe up for all {total} · hold a card for its archive',
+  'shelf.kind.inhale': 'inhaled',
+  'shelf.kind.savor': 'savoured',
+  'shelf.kind.filter': 'filtered',
+  'a11y.tile': '{name}, {zhName}',
+  'a11y.tileLocked': 'not met yet',
+
   'archive.duration': 'per stick',
   'archive.puffs': 'draws',
   'archive.temp': 'cherry',
@@ -230,6 +240,15 @@ const ZH: Table = {
   'state.extinguishing': '正在掐灭',
   'state.extinguished': '已经灭了',
   'state.discarded': '在烟灰缸里',
+
+  'shelf.rods': '烟种',
+  'shelf.kit': '桌上其余',
+  'shelf.hint': '下滑查看全部 {total} 款 · 长按卡片查档案',
+  'shelf.kind.inhale': '吸入型',
+  'shelf.kind.savor': '品鉴型',
+  'shelf.kind.filter': '过滤型',
+  'a11y.tile': '{name} · {zhName}',
+  'a11y.tileLocked': '还没抽到',
 
   'archive.duration': '单支时长',
   'archive.puffs': '口数',

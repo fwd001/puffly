@@ -8,13 +8,18 @@
  * that need sentences and therefore need the ≈ mark (§ dataHonesty).
  */
 import { computed } from 'vue';
-import type { Puffly } from '../composables/usePuffly';
+import type { ArchiveFacts, Puffly } from '../composables/usePuffly';
 
-const props = defineProps<{ game: Puffly; pinned: boolean }>();
+const props = defineProps<{
+  game: Puffly;
+  /** Whichever rod the hand asked about: the one burning, or one in the cabinet. */
+  facts: ArchiveFacts | null;
+  pinned: boolean;
+}>();
 const emit = defineEmits<{ close: []; pin: [pinned: boolean] }>();
 
 const copy = computed(() => props.game.copy.value);
-const facts = computed(() => props.game.archive.value);
+const facts = computed(() => props.facts);
 
 /** Tier two: the three measurements, in the order the brief lists them. */
 const cells = computed(() => {

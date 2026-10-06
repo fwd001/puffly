@@ -860,6 +860,58 @@ const hintCentre = async (page) => {
     JSON.stringify(pinned),
   );
 
+  // S8: the cabinet is the ladder. Close the card first, then read the shelf it came from.
+  await page.locator('[data-hook="archive"] .close').click();
+  await page.waitForTimeout(260);
+  await page.locator('.hud [data-hook="category"]').tap();
+  await page.waitForTimeout(420);
+  const cabinet = await page.evaluate(() => {
+    const sheet = document.querySelector('.sheet[data-open="true"]');
+    const tiles = [...sheet.querySelectorAll('.tile')];
+    return {
+      sheet: sheet?.dataset.sheet ?? 'none',
+      count: (sheet.querySelector('.count')?.textContent ?? '').trim(),
+      tiles: tiles.length,
+      kinds: [...sheet.querySelectorAll('.kind')].map((el) => (el.textContent ?? '').trim()),
+      locked: tiles.filter((tile) => tile.dataset.locked === 'true').length,
+      hint: (sheet.querySelector('.hint')?.textContent ?? '').trim(),
+    };
+  });
+  check(
+    'the cabinet shows the eleven-category ladder, grouped by what the hand does',
+    cabinet.sheet === 'shelf' &&
+      /^\d+ \/ 11$/.test(cabinet.count) &&
+      cabinet.tiles === 11 &&
+      cabinet.kinds.length === 3 &&
+      cabinet.locked === 10,
+    JSON.stringify(cabinet),
+  );
+
+  // A locked card never enters the hand, but it does open its own archive.
+  const before = await page.evaluate(
+    () => document.querySelector('.tile[data-selected="true"]')?.dataset.rod ?? 'none',
+  );
+  const lockedTile = page.locator('.tile[data-locked="true"]').first();
+  const lockedRod = await lockedTile.getAttribute('data-rod');
+  await lockedTile.dispatchEvent('pointerdown', { pointerType: 'touch' });
+  await page.waitForTimeout(760);
+  await lockedTile.dispatchEvent('pointerup', { pointerType: 'touch' });
+  await lockedTile.dispatchEvent('click');
+  await page.waitForTimeout(340);
+  const heldLocked = await page.evaluate(() => {
+    const card = document.querySelector('[data-hook="archive"]');
+    return {
+      name: (card?.querySelector('.name')?.textContent ?? '').trim(),
+      cells: card?.querySelectorAll('.cells dd').length ?? 0,
+      chosen: document.querySelector('.tile[data-selected="true"]')?.dataset.rod ?? 'none',
+    };
+  });
+  check(
+    'holding a card you have not met opens its archive without putting it in the hand',
+    heldLocked.cells === 3 && heldLocked.chosen === before && heldLocked.name.length > 0,
+    `${lockedRod} → ${JSON.stringify({ ...heldLocked, before })}`,
+  );
+
   check('chrome: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 }

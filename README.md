@@ -73,9 +73,11 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   broken one: the sheets lose every label and keep every `aria-label`, because an unnamed control
   is the one thing this product is not allowed to ship. A language never reaches the simulation —
   the rod burns the same way whichever way you read.
-- **Rod, room, lighter, tray** — six rods, seven rooms, eight props, five smoke styles. Each rod
-  has a plume character (column, haze, curls, pour, bloom), so a Mist pours down the table while an
-  Ember blooms upward. Recount them with
+- **Rod, room, lighter, tray** — eleven rods, seven rooms, eight props, five smoke styles. The
+  eleven are the ladder of the brief: seven inhaled, three savoured, one filtered, unlocked at 0 /
+  8 / 20 / 40 / 65 / 95 / 135 / 190 / 250 / 320 / 420 cumulative sticks, and the cabinet groups them
+  by what the hand does with them. Each rod has a plume character (column, haze, curls, pour, bloom),
+  so a Mist pours down the table while an Ember blooms upward. Recount them with
   `grep -c "^    id: " packages/game-content/src/{cigarettes,environments,props}.ts`.
 
 ## Architecture in one paragraph
