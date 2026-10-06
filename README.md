@@ -125,6 +125,13 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   0.9/s, and no recipe number moved — the styles are still distinguishable, from a breath that barely
   stirs to one that crosses a third of the frame. Rerun with
   `npx vitest run packages/game-renderer/src/__tests__/plume-on-stage.test.ts`.
+- **The thread is one thread.** With the smoke no longer flying off, the column got audited the same
+  way: walk from the cherry to the top of the thread and count how much of the way some puff's own
+  disc covers, and how tall the thread stands in puffs of its own size. All eleven cigarettes pass at
+  1.00 coverage and 5–24 puff-heights, and the two assertions were each proven to bite — thinning the
+  emission reddens the height, shrinking the puffs reddens the coverage. The constant 12 itself is the
+  fastest drag that keeps every breath on stage: at 8 two styles fail, at 6 four do. Rerun with
+  `npx vitest run packages/game-renderer/src/__tests__/plume-continuity.test.ts`.
 - **The button does not sit on the table.** The chrome at the bottom of the screen is fixed pixels, so
   how much of the scene it eats depends on how tall the scene is: 16% of a portrait phone's height,
   34% of the same phone turned sideways, plus a 12px pad so nothing sits flush against it. A constant
