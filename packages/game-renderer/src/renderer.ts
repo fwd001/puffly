@@ -39,6 +39,17 @@ import { createViewport, type Viewport } from './viewport';
 const MAX_FRAME_MS = 50;
 /** A single puff may never cover the stage, whatever the lifetime maths says (§54, §58). */
 export const MAX_SMOKE_RADIUS_PX = 220;
+
+/**
+ * The deck's 冲击感, from the 20% side of its 80/20 rule (S7): 「点火瞬间整体画面轻微推近 + 边缘压暗」.
+ *
+ * `zoom` is deliberately small — 3.5% at the peak, which at 390 px is 14 px at the frame's edge and
+ * nothing at all where the camera pivots. The pivot is the cherry itself, and that is not a
+ * cinematography preference: the shell hit-tests against the anchors the core publishes, so a zoom
+ * that moved the ember would move the thing under the player's thumb for the length of the punch.
+ * Pivoting there keeps §37's rule true by construction rather than by tolerance.
+ */
+export const IGNITION_IMPACT = { ttlMs: 420, zoom: 0.035, edge: 0.22 } as const;
 /** Particles at or past this depth draw in front of the props, the rest behind them. */
 const NEAR_DEPTH = 0.55;
 /** Ash pieces that fill the tray mound; past this the tray just looks full. */
@@ -270,6 +281,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
   let trayLoad = 0;
   let trayWobble = 0;
   let trayInvite = 0;
+  /** 0..1, the ignition punch falling from 1 to 0 over `IGNITION_IMPACT.ttlMs`. */
+  let impact = 0;
   let lastDropped = -1;
   /** The frame the renderer last drew; a discrete event is placed against it. */
   let lastView: GameStateView | null = null;
@@ -348,6 +361,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       const isHot = hot > 0.3;
       ctx.globalCompositeOperation = isHot ? 'lighter' : 'source-over';
       ctx.globalAlpha = alpha;
+      ctx.save();
       ctx.translate(centre.x, centre.y);
       ctx.rotate(particle.rotation);
       // A puff is not a circle: smoke flattens as it spreads, and an ellipse that turns with the
@@ -360,7 +374,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         radiusPx * 2,
         radiusPx * 2 * PUFF_FLATTEN,
       );
-      ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
+      // Restored, not re-set: see the note on `drawFallingAsh`. A thousand sprites a frame each
+      // putting the matrix back by hand is also a thousand chances to put back the wrong one.
+      ctx.restore();
     });
 
     if (sparks.length > 0) {
@@ -490,6 +506,24 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
       ctx.clearRect(0, 0, viewport.cssWidth, viewport.cssHeight);
 
+      // The punch decays from the frame it was earned on, and the whole scene is drawn through a
+      // camera that pivots on the cherry. `punch` is eased out of `impact` rather than used raw:
+      // an impact that leaves at a constant rate reads as a slow slide, and this one has to land.
+      impact = Math.max(0, impact - frame / IGNITION_IMPACT.ttlMs);
+      const punch = impact * (2 - impact);
+      // The frame's own anchor. Stated as the point rather than as a race: by the time the rod
+      // catches the pose has settled at the mouth, and a probe that swaps this for the previous
+      // frame's anchor moves nothing measurable — the claim this file tests is *which* point the
+      // camera turns around, not how fresh its coordinates are.
+      const camera = punch > 0.001 ? viewport.px(state.anchors.ember) : { x: 0, y: 0 };
+      const zoom = 1 + IGNITION_IMPACT.zoom * punch;
+      ctx.save();
+      if (punch > 0.001) {
+        ctx.translate(camera.x, camera.y);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-camera.x, -camera.y);
+      }
+
       drawBackground(ctx, state, viewport);
       drawGrain(ctx, state, grainTile, settings.reducedMotion);
       drawDust(ctx, state, viewport, settings.reducedMotion);
@@ -513,6 +547,27 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         (x, y) => viewport.px({ x, y }),
         (units) => viewport.len(units),
       );
+      ctx.restore();
+
+      // 边缘压暗, drawn outside the camera so it stays glued to the frame rather than sliding off
+      // it: the room closing in for a beat is the other half of the same hit, and the base
+      // vignette is driven by ambient light alone, which no ignition changes.
+      if (punch > 0.001) {
+        const w = viewport.cssWidth;
+        const h = viewport.cssHeight;
+        const edge = ctx.createRadialGradient(
+          w / 2,
+          h * 0.5,
+          Math.min(w, h) * 0.26,
+          w / 2,
+          h * 0.5,
+          Math.max(w, h) * 0.72,
+        );
+        edge.addColorStop(0, 'rgba(0,0,0,0)');
+        edge.addColorStop(1, `rgba(0,0,0,${(IGNITION_IMPACT.edge * punch).toFixed(3)})`);
+        ctx.fillStyle = edge;
+        ctx.fillRect(0, 0, w, h);
+      }
     },
     resize(width, height, dpr) {
       renderer.setViewport(width, height, dpr);
@@ -563,6 +618,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         // Picking the rod up is the most repeated gesture in the game and it emits no burst,
         // so it used to answer with nothing but movement. A ring where it left the table is the
         // §60 "every action gets feedback" beat that a burst cannot carry.
+        // The deck's 冲击感 hangs on one moment, and this is the moment: the rod catching. The
+        // punch is a camera and a vignette rather than an effect in the list, because it belongs to
+        // the whole frame; the ring below is what the *table* does when the rod leaves it.
+        if (event.to === 'BURNING' && !settings.reducedMotion) {
+          impact = 1;
+        }
         if (event.to === 'PICKED_UP' && lastView && !settings.reducedMotion) {
           const at = lastView.anchors.body;
           effects.push({

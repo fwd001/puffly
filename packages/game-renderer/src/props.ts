@@ -670,15 +670,17 @@ function drawFallingAsh(
   for (const fragment of falling) {
     const at = viewport.px(fragment.origin);
     const size = viewport.len(fragment.size);
+    ctx.save();
     ctx.translate(at.x, at.y);
     ctx.rotate(fragment.rotation);
     ctx.fillStyle = rgbToCss(mixRgb(style, [255, 255, 255], 0.15), 0.9);
     ctx.beginPath();
     ctx.ellipse(0, 0, size, size * 0.55, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Reset to the frame transform, not to identity: on a 2x display identity draws the
-    // next fragment at half the size in the wrong place.
-    ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
+    // Restored rather than re-set to the frame transform: the frame transform is no longer one
+    // fixed matrix — the ignition push (S7) is a camera the whole frame shares — and a hard
+    // setTransform here would silently drop it for every fragment after the first.
+    ctx.restore();
   }
   ctx.restore();
 }

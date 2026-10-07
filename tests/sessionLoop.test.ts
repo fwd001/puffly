@@ -46,6 +46,9 @@ function fakeContext(): CanvasRenderingContext2D {
     save: noop,
     restore: noop,
     translate: noop,
+    // The ignition camera (S7) scales the frame about the cherry; this stand-in lists every
+    // canvas method the renderer is allowed to reach for, so a new one has to appear here.
+    scale: noop,
     rotate: noop,
     beginPath: noop,
     moveTo: noop,
