@@ -17,6 +17,7 @@ import type {
   GameStateView,
   QualityMode,
   RendererAdapter,
+  ScenePalette,
   SkinPalette,
 } from '@puffly/game-core';
 import { FIELD_SCALE, budgetFor, intakeBurst } from './intake';
@@ -57,6 +58,8 @@ export interface RendererSettings {
    * scene says what the mix would have said instead of going quiet on one channel.
    */
   visualCues: boolean;
+  /** The player's own room colours, or `null` for the place as it was authored. */
+  customBackground?: ScenePalette | null;
   /**
    * S15: the four layers of a skin, or `null` for the scene as the content made it. A renderer
    * setting and not a simulation one, because a skin may not move a number — the view it produces
@@ -102,6 +105,30 @@ export function applySkin(view: GameStateView, skin: SkinPalette | null): GameSt
       cigarette: { ...view.style.cigarette, paper: skin.paper },
     },
     smoke: { ...view.smoke, tint: skin.smoke },
+  };
+}
+
+/**
+ * The player's own room colours, applied the same way a skin's are: a new view, four colours, and
+ * nothing else in it. `null` returns the view itself rather than a copy, so an untouched game
+ * allocates nothing per frame.
+ */
+export function applyBackground(
+  view: GameStateView,
+  custom: RendererSettings['customBackground'],
+): GameStateView {
+  if (custom === null || custom === undefined) return view;
+  return {
+    ...view,
+    environment: {
+      ...view.environment,
+      background: {
+        ...view.environment.background,
+        sky: [custom.skyTop, custom.skyBottom],
+        horizon: custom.horizon,
+        silhouette: custom.silhouette,
+      },
+    },
   };
 }
 
@@ -431,7 +458,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
 
   const renderer: PufflyRenderer = {
     render(incoming, dtMs) {
-      const state = applySkin(incoming, settings.skin);
+      const state = applyBackground(applySkin(incoming, settings.skin), settings.customBackground);
       lastView = state;
       const frame = Math.max(0, Math.min(dtMs, MAX_FRAME_MS));
       clockMs += frame;

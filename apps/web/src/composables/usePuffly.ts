@@ -51,7 +51,7 @@ import {
   createSurfaceGuard,
   targetForAffordance,
 } from './useInputAdapters';
-import type { SkinPalette } from '@puffly/game-core';
+import type { ScenePalette, SkinPalette } from '@puffly/game-core';
 import { HINT_KEYS, createI18n, resolveLocale, type I18n, type LocaleCode } from '../i18n';
 import { anchorAtLight } from '../anchor';
 import { isOverLimit } from '../limit';
@@ -202,6 +202,12 @@ export interface Puffly {
    */
   gesture(kind: 'hold' | 'tap' | 'release'): void;
   setSettings(patch: Partial<Settings>): void;
+  /**
+   * The four colours the room is painted with right now, or `null` before the first frame exists.
+   * The picker asks for this the moment the player takes the room over, so that what they start
+   * from is the place they chose rather than four black squares.
+   */
+  sceneColours(): ScenePalette | null;
   select(selection: Partial<Selection>): void;
   setCraving(level: number, phase: 'before' | 'after'): void;
   addTrigger(tag: string): void;
@@ -353,11 +359,15 @@ export function createPuffly(): Puffly {
    */
   const rendererSettings = (
     quality: QualityMode = effectiveQuality(),
-  ): Pick<RendererSettings, 'reducedMotion' | 'quality' | 'contrast' | 'skin'> => ({
+  ): Pick<
+    RendererSettings,
+    'reducedMotion' | 'quality' | 'contrast' | 'skin' | 'customBackground'
+  > => ({
     reducedMotion: settings.value.reducedMotion,
     quality,
     contrast: settings.value.contrast,
     skin: skinPalette(),
+    customBackground: settings.value.customBackground,
   });
 
   const applyEffectiveQuality = (): void => {
@@ -802,6 +812,17 @@ export function createPuffly(): Puffly {
     storageDegraded,
     canVibrate,
     attach,
+    sceneColours: (): ScenePalette | null => {
+      const state = engine?.getState();
+      if (!state) return null;
+      const background = state.environment.background;
+      return {
+        skyTop: background.sky[0],
+        skyBottom: background.sky[1],
+        horizon: background.horizon,
+        silhouette: background.silhouette,
+      };
+    },
     gesture(kind) {
       if (!engine) return;
       const state = engine.getState();

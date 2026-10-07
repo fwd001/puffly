@@ -1,6 +1,19 @@
+import type { Rgb } from '@puffly/shared';
+
 /** §64, §26, §55: the only knobs a player gets, all of them optional. */
 
 export type QualityMode = 'auto' | 'high' | 'balanced' | 'light';
+
+/**
+ * The four colours a room is made of, in the order the background is painted: the sky's two ends,
+ * the line where it meets the ground, and everything that stands in front of it.
+ */
+export interface ScenePalette {
+  skyTop: Rgb;
+  skyBottom: Rgb;
+  horizon: Rgb;
+  silhouette: Rgb;
+}
 export type ContrastMode = 'normal' | 'high';
 
 export interface Settings {
@@ -18,6 +31,14 @@ export interface Settings {
   quality: QualityMode;
   /** Minutes, §31's `◷ 03:00`. */
   sessionTargetMs: number;
+  /**
+   * The player's own colours for the four layers the room is painted with, or `null` for whatever
+   * the place itself was authored with. A renderer setting and not a simulation one, for the same
+   * reason a skin is: it may not move a number. Where it differs from a skin is that a skin is a
+   * collectible you unlock and a background is a thing you decide — so it is a preference, and it
+   * costs nothing to change.
+   */
+  customBackground: ScenePalette | null;
   /**
    * §28: whether the object the scene is nudging also gets one plain word naming the gesture
    * ("tap", "hold", "flick", "press", "drop"). On by default — a word is cheaper than a
@@ -90,5 +111,6 @@ export function createDefaultSettings(utcOffsetMinutes = 0): Settings {
     utcOffsetMinutes,
     haptics: false,
     idleFlourishes: true,
+    customBackground: null,
   };
 }

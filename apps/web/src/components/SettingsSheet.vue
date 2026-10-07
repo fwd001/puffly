@@ -8,6 +8,8 @@
  * this sheet is not required to play it, and nothing here is a sentence.
  */
 import { computed, nextTick, ref, watch } from 'vue';
+import { hexToRgb, rgbToHex, type Rgb } from '@puffly/shared';
+import type { ScenePalette } from '@puffly/game-core';
 import type { QualityMode } from '@puffly/game-core';
 import type { Puffly } from '../composables/usePuffly';
 import { coverageOf, LANGUAGES, type CopyKey } from '../i18n';
@@ -16,6 +18,47 @@ const props = defineProps<{ open: boolean; game: Puffly }>();
 const emit = defineEmits<{ close: [] }>();
 
 const settings = computed(() => props.game.settings.value);
+
+/**
+ * The four layers of the player's own room. Seeded from the place they are standing in the moment
+ * they take it over, so the first thing the picker shows is the room they chose rather than four
+ * black squares, and the change they make is a nudge away from something they already liked.
+ */
+const SCENE_LAYERS = ['skyTop', 'skyBottom', 'horizon', 'silhouette'] as const;
+type SceneLayer = (typeof SCENE_LAYERS)[number];
+
+const sceneOf = (layer: SceneLayer): Rgb => {
+  const custom = settings.value.customBackground;
+  if (custom) return custom[layer];
+  // The sheet can be open before the first frame has been drawn, and a picker with nothing to
+  // copy still has to show four usable squares rather than four black ones.
+  const FALLBACK: Record<SceneLayer, Rgb> = {
+    skyTop: [34, 33, 36],
+    skyBottom: [52, 48, 44],
+    horizon: [66, 60, 56],
+    silhouette: [24, 23, 25],
+  };
+  return props.game.sceneColours()?.[layer] ?? FALLBACK[layer];
+};
+
+/** Taking the room over starts from the room, so the first edit is a nudge and not a blank. */
+const emptyScene = (): ScenePalette => ({
+  skyTop: sceneOf('skyTop'),
+  skyBottom: sceneOf('skyBottom'),
+  horizon: sceneOf('horizon'),
+  silhouette: sceneOf('silhouette'),
+});
+
+const setLayer = (layer: SceneLayer, hex: string): void => {
+  const next: ScenePalette = {
+    skyTop: sceneOf('skyTop'),
+    skyBottom: sceneOf('skyBottom'),
+    horizon: sceneOf('horizon'),
+    silhouette: sceneOf('silhouette'),
+  };
+  next[layer] = hexToRgb(hex);
+  props.game.setSettings({ customBackground: next });
+};
 /** One resolved table for the whole sheet, so a row can never show a different language. */
 const copy = computed(() => props.game.copy.value);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -213,6 +256,33 @@ watch(
         "
       />
       <span class="digits">{{ Math.round(settings.sessionTargetMs / 60000) }}</span>
+    </div>
+
+    <div class="row">
+      <span v-if="word('settings.scene') !== null" class="label">{{ word('settings.scene') }}</span>
+      <button
+        class="icon-button"
+        data-setting="scene"
+        :aria-pressed="settings.customBackground !== null"
+        :aria-label="copy.say('a11y.sceneColours')"
+        @click="
+          game.setSettings({
+            customBackground: settings.customBackground ? null : emptyScene(),
+          })
+        "
+      >
+        ▨
+      </button>
+    </div>
+    <div v-if="settings.customBackground" class="row row-swatches" data-setting="scene-swatches">
+      <label v-for="layer in SCENE_LAYERS" :key="layer" class="swatch">
+        <input
+          type="color"
+          :value="rgbToHex(sceneOf(layer))"
+          :aria-label="copy.say(`a11y.sceneLayer.${layer}`)"
+          @input="setLayer(layer, ($event.target as HTMLInputElement).value)"
+        />
+      </label>
     </div>
 
     <div class="row">

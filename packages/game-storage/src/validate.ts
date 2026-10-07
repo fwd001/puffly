@@ -20,6 +20,7 @@ import {
   type InputType,
   type Progress,
   type QualityMode,
+  type ScenePalette,
   type SaveFile,
   type Selection,
   type Session,
@@ -30,6 +31,7 @@ import {
   type WeatherId,
 } from '@puffly/game-core';
 import { copyPayload } from './clone';
+import type { Rgb } from '@puffly/shared';
 
 export type SaveFileResult = { ok: true; save: SaveFile } | { ok: false; errors: string[] };
 
@@ -174,6 +176,49 @@ function booleanWithDefault(
     return fallback;
   }
   return value;
+}
+
+/**
+ * The player's own room colours, or `null` for "use the place's". Each of the four is a 0..255
+ * triple; one malformed layer drops the whole palette rather than painting three quarters of a
+ * sky, because half an override is a scene that looks broken and not like a choice.
+ */
+function readScenePalette(
+  source: Record<string, unknown>,
+  key: string,
+  path: string,
+  errors: ValidationErrors,
+): ScenePalette | null {
+  const value = source[key];
+  if (value === null || value === undefined) return null;
+  if (typeof value !== 'object' || Array.isArray(value)) {
+    fail(errors, `${path}.${key}`, 'expected an object of four colours, or null');
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const layer = (name: keyof ScenePalette): Rgb | null => {
+    const raw = record[name];
+    if (!Array.isArray(raw) || raw.length !== 3) {
+      fail(errors, `${path}.${key}.${name}`, 'expected [red, green, blue]');
+      return null;
+    }
+    const parts = raw.map((part) =>
+      typeof part === 'number' && Number.isFinite(part)
+        ? Math.round(Math.min(255, Math.max(0, part)))
+        : -1,
+    );
+    if (parts.some((part) => part < 0)) {
+      fail(errors, `${path}.${key}.${name}`, 'expected three numbers from 0 to 255');
+      return null;
+    }
+    return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0] as Rgb;
+  };
+  const skyTop = layer('skyTop');
+  const skyBottom = layer('skyBottom');
+  const horizon = layer('horizon');
+  const silhouette = layer('silhouette');
+  if (!skyTop || !skyBottom || !horizon || !silhouette) return null;
+  return { skyTop, skyBottom, horizon, silhouette };
 }
 
 /**
@@ -641,6 +686,7 @@ export function readSettings(
   // Same reason as `hints`: a save written before the lighter was allowed to play with itself has no
   // opinion about it, and losing the whole settings record over one absent key is not an option.
   const idleFlourishes = booleanWithDefault(record, 'idleFlourishes', true, path, errors);
+  const customBackground = readScenePalette(record, 'customBackground', path, errors);
   const selection = optionalSelection(record, path, errors);
   const language = optionalToken(record, 'language', path, errors);
   const skin = optionalToken(record, 'skin', path, errors);
@@ -675,6 +721,7 @@ export function readSettings(
     utcOffsetMinutes,
     haptics,
     idleFlourishes,
+    customBackground,
   };
   // §84: the quit anchor is the player's own statement, so it is optional, never defaulted.
   const quitAnchor = optionalNumber(

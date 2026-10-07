@@ -21,6 +21,28 @@ export const rgbToCss = (value: Rgb, alpha = 1): string =>
     ? `rgb(${value[0]}, ${value[1]}, ${value[2]})`
     : `rgba(${value[0]}, ${value[1]}, ${value[2]}, ${alpha.toFixed(3)})`;
 
+/** The form a native colour input speaks. */
+export const rgbToHex = (value: Rgb): string =>
+  '#' +
+  value
+    .map((part) =>
+      Math.round(Math.min(255, Math.max(0, part)))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('');
+
+/** Anything the picker cannot have meant is read as black, which is what the row shows then. */
+export const hexToRgb = (text: string): Rgb => {
+  const hex = text.replace(/^#/, '');
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return [0, 0, 0];
+  return [
+    parseInt(hex.slice(0, 2), 16),
+    parseInt(hex.slice(2, 4), 16),
+    parseInt(hex.slice(4, 6), 16),
+  ] as const;
+};
+
 /** Base palette of SPEC.md §57 — restrained, flame is the only loud colour. */
 export const PALETTE = {
   deepCharcoal: rgb(18, 19, 23),

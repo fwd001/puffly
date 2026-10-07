@@ -73,6 +73,16 @@ export function cloneSettings(settings: Settings): Settings {
     utcOffsetMinutes: settings.utcOffsetMinutes,
     haptics: settings.haptics,
     idleFlourishes: settings.idleFlourishes,
+    // A palette is four arrays, so a shallow copy would let an imported file share its colours
+    // with the live settings one layer deep.
+    customBackground: settings.customBackground
+      ? {
+          skyTop: [...settings.customBackground.skyTop],
+          skyBottom: [...settings.customBackground.skyBottom],
+          horizon: [...settings.customBackground.horizon],
+          silhouette: [...settings.customBackground.silhouette],
+        }
+      : null,
   };
   // Keep "absent" absent: an export must not turn an unset anchor into `undefined`.
   if (typeof settings.quitAnchorTimestamp === 'number') {
