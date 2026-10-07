@@ -10,6 +10,8 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { Puffly } from '../composables/usePuffly';
 import ReductionPanel from './ReductionPanel.vue';
 import type { CopyKey } from '../i18n';
+import { DEFAULT_CONTENT } from '@puffly/game-content';
+import { nextRodGate } from '../shelf';
 
 const props = defineProps<{
   open: boolean;
@@ -70,6 +72,18 @@ function isTagged(tag: string): boolean {
 /** §34 asks for a trajectory, not a table: the last stretch of stops, newest at the right. */
 const stops = computed(() => journey.value.slice(-24));
 const lastStop = computed(() => stops.value[stops.value.length - 1]);
+
+/**
+ * S13's four local dimensions, plus the one line S11 puts on the desk: 累计 42 支 · 下一支解锁 75 支.
+ * `at` is the ladder's own threshold — the same number the cabinet's ladder line reads, so the two
+ * screens cannot disagree about what the next rod costs.
+ */
+const sticksKept = computed(() => props.game.summary.value.state?.progress.sessionCount ?? 0);
+const nextRod = computed(() => nextRodGate(DEFAULT_CONTENT.cigarettes, sticksKept.value));
+/** Minutes, rounded: a lifetime of seconds is not a number anybody can read at a glance. */
+const hoursSmoked = computed(() => Math.round(stats.value.totalDurationMs / 60000));
+
+const SECTION_HOOKS: Readonly<Record<string, string>> = { reduction: 'reduction', stats: 'stats' };
 const root = ref<HTMLElement | null>(null);
 
 // One writer, and it scrolls the sheet rather than the world. Two watchers used to race (land on
@@ -83,8 +97,8 @@ watch(
     void nextTick(() => {
       const sheet = root.value;
       if (!sheet) return;
-      const wanted =
-        section === 'reduction' ? sheet.querySelector('[data-hook="reduction"]') : null;
+      const hook = section ? (SECTION_HOOKS[section] ?? null) : null;
+      const wanted = hook === null ? null : sheet.querySelector(`[data-hook="${hook}"]`);
       if (!wanted) {
         sheet.scrollTo({ top: 0 });
         return;
@@ -185,9 +199,43 @@ watch(
       </template>
     </svg>
 
+    <!-- S13's dimensions — the deck's own list, 全部本地累计: the four numbers and the ladder line
+         S11 puts on the desk. Nothing here is estimated, so nothing here carries a ≈; and the
+         "next rod" figure is the threshold itself rather than a countdown, because that is the
+         number the cabinet's ladder already prints, and two screens may not cost a rod differently. -->
+    <div class="stats group" data-hook="stats" role="group" :aria-label="copy.say('rail.stats')">
+      <p class="line">
+        <span v-if="copy.t('stats.sticks') !== null" class="name">{{
+          copy.t('stats.sticks')
+        }}</span>
+        <span class="count digits">{{ sticksKept }}</span>
+      </p>
+      <p class="line">
+        <span v-if="copy.t('stats.streak') !== null" class="name">{{
+          copy.t('stats.streak')
+        }}</span>
+        <span class="count digits">{{ stats.currentStreakDays }}</span>
+      </p>
+      <p class="line">
+        <span v-if="copy.t('stats.time') !== null" class="name">{{ copy.t('stats.time') }}</span>
+        <span class="count digits">{{ hoursSmoked }}</span>
+      </p>
+      <p class="line">
+        <span v-if="copy.t('stats.draws') !== null" class="name">{{ copy.t('stats.draws') }}</span>
+        <span class="count digits">{{ stats.totalPuffs }}</span>
+      </p>
+      <p class="line">
+        <span v-if="copy.t('stats.ash') !== null" class="name">{{ copy.t('stats.ash') }}</span>
+        <span class="count digits">{{ summary.ashDropped }}</span>
+      </p>
+      <p v-if="nextRod !== null" class="line">
+        <span v-if="copy.t('stats.next') !== null" class="name">{{ copy.t('stats.next') }}</span>
+        <span class="count digits">{{ nextRod.at }}</span>
+      </p>
+    </div>
+
     <ReductionPanel :game="game" />
     <div class="row numbers">
-      <span class="count">◍ {{ stats.sessionCount }}</span>
       <span class="count">✧ {{ stats.smokeFreeDays }}</span>
       <span class="count">▲ {{ stats.longestStreakDays }}</span>
       <span v-if="lastStop?.isMilestone" class="mark" aria-hidden="true">◆</span>
@@ -278,5 +326,33 @@ watch(
 /* The reduction page: cool for today, amber only for the ceiling, and no colour that praises. */
 .mark {
   color: var(--ember-orange);
+}
+
+/* S13's dimensions: one label and one digit per row. A grid rather than a sentence, because under
+   the icons tier the labels are gone and the digits have to stand alone in the same order. */
+.stats {
+  display: grid;
+  gap: 3px;
+  margin-top: 12px;
+  padding-block-start: 10px;
+  border-block-start: 1px solid var(--chrome-line);
+}
+
+.stats .line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.stats .name {
+  color: var(--smoke-gray);
+  font-size: calc(15px * var(--text-scale));
+  letter-spacing: 0.06em;
+}
+
+.digits {
+  font-variant-numeric: tabular-nums;
 }
 </style>

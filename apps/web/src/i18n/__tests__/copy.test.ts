@@ -70,9 +70,9 @@ describe('three tiers: target language → English → icons (§9)', () => {
       }
     }
     // Where a quantifier may live: the sheets a player reads a count in (the 图鉴, the 档案, the
-    // day's own numbers), a sheet that is allowed to speak in full sentences (settings), and the
+    // day's own numbers, 统计), a sheet that is allowed to speak in full sentences (settings), and the
     // spoken names no eye ever reads (a11y). §9.2 binds the stage and its three chrome pieces.
-    const outside = /^(a11y|archive|shelf|reduction|settings)\./;
+    const outside = /^(a11y|archive|shelf|reduction|settings|stats)\./;
     const carrying = KEYS.filter((key) => {
       const chinese = COPY['zh-CN']?.[key] ?? '';
       return quantifiers.some((unit) => chinese.includes(unit));

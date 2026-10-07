@@ -53,6 +53,9 @@ const MEANING: Record<string, string> = {
   breaks: 'a break',
   draws: 'a draw',
   level: 'a level',
+  // S11's 统计 entry: the ledger's own numbers, which is also what `▤` must never come to mean on
+  // any other surface.
+  stats: 'the ledger',
 };
 
 /** `key: 'glyph'` pairs from a component's own literal map, whatever the variable is called. */
@@ -99,8 +102,10 @@ describe('the mark alphabet means one thing (§23, §55)', () => {
       `ALPHABET ${alphabet.length} marks: ${alphabet.map((m) => `${m.glyph}=${m.meaning}`).join(' ')}`,
     );
     // +1 for the rung mark the level ladder wears: the places used to be hung on the calendar,
-    // and a level is a fifth axis (§6.1).
-    expect(alphabet.length).toBe(7 + 3 + 4 + 5);
+    // and a level is a fifth axis (§6.1). The rail term is the entry count of S10's seven plus
+    // S11's 统计 — a new entry has to be added to that number on purpose, which is the whole point
+    // of writing the denominator out.
+    expect(alphabet.length).toBe(8 + 3 + 4 + 5);
   });
 
   it('never lets one shape mean two things', () => {
