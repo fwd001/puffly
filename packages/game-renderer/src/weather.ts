@@ -15,7 +15,7 @@ import type { GameStateView } from '@puffly/game-core';
 import { fbm2 } from './noise';
 import type { Viewport } from './viewport';
 
-interface Streak {
+export interface Streak {
   x: number;
   phase: number;
   speed: number;
@@ -29,6 +29,13 @@ interface Mote {
   size: number;
   seed: number;
 }
+
+/**
+ * How far a streak falls before it is recycled, in stage units. A streak starts at `stage.y - 0.1`
+ * and is clipped once its head is 0.05 past the bottom, so the whole of the wrap happens off-screen:
+ * recycling a streak is invisible, which is why there is no fade to soften it.
+ */
+const RAIN_TRAVEL = 1.4;
 
 const cache = new Map<string, { streaks: Streak[]; motes: Mote[] }>();
 
@@ -50,9 +57,14 @@ function geometryFor(environmentId: string, weather: string) {
   for (let i = 0; i < count; i++) {
     streaks.push({
       x: (fbm2(i * 1.7, seed, 3) + 1) / 2,
-      phase: ((fbm2(i * 2.9, seed, 7) + 1) / 2) * 1.4,
-      speed: 0.75 + ((fbm2(i * 0.7, seed, 11) + 1) / 2) * 0.8,
-      length: 0.02 + ((fbm2(i * 1.3, seed, 13) + 1) / 2) * 0.05,
+      phase: ((fbm2(i * 2.9, seed, 7) + 1) / 2) * RAIN_TRAVEL,
+      // A streak has to be several times longer than the distance it travels in one frame, or
+      // consecutive frames share nothing and the eye reads teleporting dashes rather than falling
+      // water. At the old 0.75..1.55 with a length of 0.02..0.07 a streak moved 11..22 px per
+      // frame while being 17..59 px long: it stuttered, and that stutter is the thing in the
+      // background the player could not name an algorithm for.
+      speed: 0.46 + ((fbm2(i * 0.7, seed, 11) + 1) / 2) * 0.26,
+      length: 0.07 + ((fbm2(i * 1.3, seed, 13) + 1) / 2) * 0.08,
     });
   }
 
@@ -71,6 +83,10 @@ function geometryFor(environmentId: string, weather: string) {
   cache.set(key, built);
   return built;
 }
+
+/** The generated rain of one scene, for the guard that measures the fall against the streak. */
+export const rainGeometry = (environmentId: string, weather: 'rain' | 'storm'): Streak[] =>
+  geometryFor(environmentId, weather).streaks;
 
 /** Rain in front of the scene, angled by the wind the simulation is already using. */
 export function drawRain(
@@ -93,7 +109,7 @@ export function drawRain(
   ctx.lineWidth = Math.max(1, viewport.len(0.0016));
   ctx.beginPath();
   for (const streak of streaks) {
-    const travel = (seconds * streak.speed + streak.phase) % 1.4;
+    const travel = (seconds * streak.speed + streak.phase) % RAIN_TRAVEL;
     const y = stage.y - 0.1 + travel;
     if (y > 1.05) continue;
     const x = streak.x + slant * travel;
