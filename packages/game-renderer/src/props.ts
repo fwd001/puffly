@@ -266,15 +266,27 @@ export function drawCigarette(
   if (!cigarette.pose.visible && cigarette.state !== 'IDLE') return;
 
   const style = state.style.cigarette;
-  const pivot = viewport.px(cigarette.pose.pivot);
-  const angle = (cigarette.pose.angleDeg * Math.PI) / 180;
+  const pivotPoint = viewport.px(cigarette.pose.pivot);
+  const tipPoint = viewport.px(cigarette.pose.tip);
   const thickness = viewport.len(cigarette.pose.thickness);
 
+  // The stage maps x and y by *different* scales — a normalised square stretched over a tall
+  // box — so the angle the rod is authored at is not the angle it makes on screen, and a
+  // normalised length is not one number in pixels. Drawing the rod with `rotate(angleDeg)` and
+  // `len(rodLength)` put its burning end 52 px away from `pose.tip` on a 390 px phone, which is
+  // the point the smoke is born at, the cherry's own glow is centred on, and a tap is measured
+  // against. The thread was rising out of thin air beside the rod. So the frame is built from
+  // the two endpoints the core already agrees on, and everything downstream — ash, char, cherry
+  // — hangs off the geometry that actually landed on screen.
+  const angle = Math.atan2(tipPoint.y - pivotPoint.y, tipPoint.x - pivotPoint.x);
+  const rodLength = Math.hypot(tipPoint.x - pivotPoint.x, tipPoint.y - pivotPoint.y);
+  const ashPoint = viewport.px(cigarette.pose.ashTip);
+  const ashLength = Math.hypot(ashPoint.x - tipPoint.x, ashPoint.y - tipPoint.y);
+
   ctx.save();
-  ctx.translate(pivot.x, pivot.y);
+  ctx.translate(pivotPoint.x, pivotPoint.y);
   ctx.rotate(angle);
 
-  const rodLength = viewport.len(cigarette.pose.rodLength);
   const filterLength = rodLength * 0.22;
 
   if (rodLength > 0.5) {
@@ -313,7 +325,7 @@ export function drawCigarette(
     ctx.fill();
   }
 
-  drawAshColumn(ctx, state, viewport, thickness, rodLength);
+  drawAshColumn(ctx, state, thickness, rodLength, ashLength);
   drawHeatBleed(ctx, state, viewport, thickness, rodLength);
   drawEmber(ctx, state, viewport, thickness, rodLength);
   ctx.restore();
@@ -358,17 +370,23 @@ function drawHeatBleed(
 }
 
 /** §18: the column bows as it lengthens, which is what makes a player want to flick it. */
+/**
+ * @param ashLengthPx the column's length as it landed on screen, measured between the two points
+ * the core calls the cherry and the far end of the ash. Deriving it from `ash.length` again here
+ * would put the ash's tip somewhere the core has never heard of, and the falling-ash cue is
+ * aimed at that point.
+ */
 function drawAshColumn(
   ctx: CanvasRenderingContext2D,
   state: GameStateView,
-  viewport: Viewport,
   thickness: number,
   rodLength: number,
+  ashLengthPx: number,
 ): void {
   const ash = state.cigarette.ash;
   if (ash.length <= 0) return;
 
-  const ashLength = viewport.len(ash.length);
+  const ashLength = ashLengthPx;
   const bend = ash.bend;
   const style = state.style.cigarette.ash;
   const steps = TIP_GRADIENT_STEPS;
