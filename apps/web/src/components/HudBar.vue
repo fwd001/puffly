@@ -122,6 +122,45 @@ const reading = computed(() => {
       };
   }
 });
+
+/**
+ * S11's desk row: the five figures a window has room to keep standing at once. The phone reveals
+ * two of them at a time, chosen by what the rod is doing (`reading`) — which is right for a thumb
+ * and wrong for a monitor, where "how much ash" should not be hidden behind a phase you are not in.
+ *
+ * The fifth is the rod's own name and the only word in the row, so it follows the hint word's rule
+ * (§28): with hint words off — and in the icons tier, where there are none to show — it is absent,
+ * and the row is still complete on digits alone (§9.2).
+ */
+const desk = computed((): Array<{ key: CopyKey; value: string; press: boolean }> => {
+  const state = summary.value.state;
+  if (!state) return [];
+  const rod = state.cigarette;
+  const facts = props.game.archive.value;
+  const name = facts?.subject === 'rod' ? facts.name : '';
+  const rows = [
+    { key: 'a11y.hud.clock' as CopyKey, value: summary.value.clock, press: true },
+    {
+      key: 'a11y.hud.puffs' as CopyKey,
+      value: `${rod.puff.count} / ${rod.readouts.puffsTarget}`,
+      press: true,
+    },
+    {
+      key: 'a11y.hud.remaining' as CopyKey,
+      value: `${Math.round(rod.rodRemaining * 100)}%`,
+      press: true,
+    },
+    {
+      key: 'a11y.hud.ashMass' as CopyKey,
+      value: `${rod.readouts.ashGrams}g`,
+      press: true,
+    },
+  ];
+  if (name !== '' && props.game.settings.value.hints) {
+    rows.push({ key: 'a11y.hud.category', value: name, press: false });
+  }
+  return rows;
+});
 </script>
 
 <template>
@@ -176,6 +215,22 @@ const reading = computed(() => {
       :aria-label="copy.say(reading.altLabel)"
       >{{ reading.secondary }}</span
     >
+
+    <!-- S11's five, on a width that has room for them. Each figure opens the break's own sheet,
+         because a number you cannot ask about is decoration. -->
+    <div v-if="desk.length > 0" class="desk" data-hook="hud-desk">
+      <template v-for="row in desk" :key="row.key">
+        <button
+          v-if="row.press"
+          class="read"
+          :aria-label="copy.say(row.key)"
+          @click="emit('break')"
+        >
+          {{ row.value }}
+        </button>
+        <span v-else class="read" role="img" :aria-label="copy.say(row.key)">{{ row.value }}</span>
+      </template>
+    </div>
   </header>
 </template>
 
@@ -286,8 +341,45 @@ const reading = computed(() => {
   stroke: var(--smoke-gray);
 }
 
+/* S11's desk row. Below the width where all five figures fit it is neither in the layout nor in the
+   screen reader's way — the phase pair above carries those numbers instead — and at that width the
+   pair steps aside, so no figure is ever said twice on one screen. The 860px is the same boundary the
+   side column appears on (`App.vue`, `DataRail.vue`). */
+.desk {
+  display: none;
+  margin-inline-start: auto;
+  align-items: center;
+  gap: 14px;
+}
+
+@media (min-width: 860px) {
+  .desk {
+    display: flex;
+  }
+
+  .hud > .num {
+    display: none;
+  }
+}
+
+.read {
+  color: var(--soft-white);
+  font-size: calc(15px * var(--text-scale));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+}
+
+button.read {
+  cursor: pointer;
+}
+
 /* S20's `onReach`: the ring goes quiet and the number becomes a mark. Nothing is blocked. */
 [data-over='true'] .num,
+[data-over='true'] .read,
 [data-over='true'] .ring .mark {
   color: var(--smoke-gray);
 }
