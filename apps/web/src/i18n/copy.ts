@@ -204,6 +204,9 @@ export const EN = {
   'archive.temp': 'cherry',
   'archive.scenes': 'when',
   'archive.range': '≈10–15 a day, published range',
+  // S19's 口径 line for the three tier-two figures. It carries no ≈ on purpose: those numbers are
+  // not an estimate of anybody's stick, they are this game's own parameters restated.
+  'archive.basis': 'duration · puffs · core heat: this game’s own parameters',
   'archive.pin': 'keep open',
   'archive.tier.low': 'everyday tier',
   'archive.tier.mid': 'mainstream tier',
@@ -396,6 +399,7 @@ const ZH: Table = {
   'archive.temp': '中心温度',
   'archive.scenes': '场合',
   'archive.range': '≈10–15 支/日 · 公开调查口径',
+  'archive.basis': '口径 · 时长 / 口数 / 芯温 出自本作参数',
   'archive.pin': '钉住',
   'archive.tier.low': '低档 · 走量',
   'archive.tier.mid': '中档 · 主流',

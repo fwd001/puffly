@@ -27,6 +27,41 @@ describe('the archive data rules (§10, §13)', () => {
     expect(COPY['zh-CN']?.['archive.range']).toBeTypeOf('string');
   });
 
+  it('the three figures on the card belong to this game, and the card says so', () => {
+    // The number on the card is arithmetic on the rod's own burn range — not a claim about how long
+    // a real stick of the kind lasts, which is what the design's 10.0-minute table is. The 口径 line
+    // exists so the two cannot be read as each other.
+    const lookup = createDefaultLookup();
+    for (const rod of DEFAULT_CONTENT.cigarettes) {
+      const facts = archiveFacts(lookup, rod.id);
+      expect(facts?.subject, rod.id).toBe('rod');
+      if (facts && facts.subject === 'rod') {
+        const middle = (rod.burnDuration.min + rod.burnDuration.max) / 2;
+        expect(facts.minutes, rod.id).toBe((middle / 60_000).toFixed(1));
+        expect(facts.puffs, rod.id).toBe(rod.physical.puffs.target);
+      }
+    }
+    const basis: Record<string, string | undefined> = {};
+    for (const locale of ['en', 'zh-CN']) {
+      basis[locale] = COPY[locale]?.['archive.basis' as CopyKey];
+      expect(basis[locale], locale).toBeTypeOf('string');
+      // It names this work as the source, and it does not borrow the mark that means "estimate".
+      expect(`${locale}:${String(basis[locale])}`).toMatch(/本作|this game/);
+      expect(`${locale}:${String(basis[locale])}`).not.toContain('≈');
+    }
+    // Icons tier: no sentence, so the card must be able to show none.
+    expect(COPY.ar?.['archive.basis' as CopyKey] ?? undefined).toBeUndefined();
+    // Read the line's own opening tag rather than the next 200 characters: the paragraph after it is
+    // gated on a rod as well, so a forward scan cannot tell the two apart — a version of this case
+    // stayed green while the line was attached to a box card, which has none of these figures.
+    const card = readFileSync(new URL('../components/ArchiveCard.vue', import.meta.url), 'utf8');
+    const at = card.indexOf("t('archive.basis')");
+    expect(at, 'the card lost its basis line').toBeGreaterThan(-1);
+    const open = card.slice(card.lastIndexOf('<p', at), card.indexOf('>', at));
+    expect(open, 'the basis line is not gated on a rod').toContain('rod !== null');
+    expect(open, 'the basis line moved to a box card').not.toContain('box !== null');
+  });
+
   it('every rod names its own category and family, because the card has nothing else to say', () => {
     for (const rod of DEFAULT_CONTENT.cigarettes) {
       expect(rod.archive.zhName, rod.id).not.toBe('');

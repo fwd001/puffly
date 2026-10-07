@@ -118,6 +118,13 @@ const cells = computed(() => {
         }}</span>
         <span v-for="scene in rod.scenes" :key="scene" class="chip">{{ scene }}</span>
       </p>
+      <!-- S19 asks the three tier-two figures to name where they come from, and this build's answer
+           is not the real world's: a rod here lasts the length its own content says. Without the
+           line, 「3.2 分钟」 and the design table's 「10.0 分钟」 look like a contradiction between two
+           claims about a stick, when they are one claim about a game and one about life. -->
+      <p v-if="rod !== null && copy.t('archive.basis') !== null" class="range">
+        {{ copy.t('archive.basis') }}
+      </p>
       <p v-if="rod !== null && copy.t('archive.range') !== null" class="range">
         {{ copy.t('archive.range') }}
       </p>
