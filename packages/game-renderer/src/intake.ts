@@ -25,6 +25,13 @@ export interface IntakeOptions {
    * the haze changes nothing a player can see.
    */
   plumeTint?: Rgb;
+  /**
+   * S6's 「吐烟的烟羽整体偏亮一档」, as far as this renderer's 写实度 allows: 1 is the brightness the
+   * core authored, and the cartoon side lifts the *breath* above it so the player can see the shape
+   * they made. Only `exhale` reads it — the rod's own thread, the cherry's ribbon and every piece of
+   * material keep the alpha the simulation gave them.
+   */
+  plumeLift?: number;
 }
 
 /**
@@ -91,6 +98,16 @@ const streamWindow = (burst: Burst): number => {
   return share === undefined ? 0 : Math.min(burst.lifeMs.min * share, STREAM_MAX_MS);
 };
 
+/**
+ * The one plume the player is responsible for. The deck puts 「整体偏亮一档」 on its cartoon side, and
+ * the reason it needs a lift at all is measurable: the core authors the breath at
+ * `0.08 + 0.1 × intensity` (≤ 0.18) and the smouldering thread at a flat `0.18` — before any lifting,
+ * the shape the player made is the dimmer of the two.
+ */
+const BREATH_BURST: BurstKind = 'exhale';
+
+const liftFor = (kind: BurstKind, lift: number): number => (kind === BREATH_BURST ? lift : 1);
+
 const tintFor = (burst: Burst, plumeTint: Rgb | undefined): Rgb =>
   plumeTint && !MATERIAL_BURSTS.has(burst.kind) ? plumeTint : burst.tint;
 
@@ -103,6 +120,7 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
   const spawnCount = Math.max(1, Math.round(requested * options.densityScale));
   let spawned = 0;
   const windowMs = streamWindow(burst);
+  const lift = liftFor(burst.kind, options.plumeLift ?? 1);
 
   for (let i = 0; i < spawnCount; i++) {
     // 0 at the first particle, 1 at the last. Even spacing is what keeps the column continuous:
@@ -122,7 +140,7 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       radius,
-      alphaPeak: burst.alphaPeak * rng.range(0.7, 1.1) * (1 - STREAM_TAPER * share),
+      alphaPeak: burst.alphaPeak * rng.range(0.7, 1.1) * (1 - STREAM_TAPER * share) * lift,
       alphaDecay: burst.alphaDecay,
       life,
       noiseSeed: rng.int(0, 65535),

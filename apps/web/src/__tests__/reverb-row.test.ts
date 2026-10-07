@@ -33,7 +33,7 @@ describe('the reverb row is a control and not a decoration (S6)', () => {
     expect(say, 'an unnamed control is a broken control').toBeTruthy();
     for (const locale of ['en', 'zh-CN'] as const) {
       const value = COPY[locale]?.[say as CopyKey];
-      expect(`${locale}:${say ?? ''}`, value).toBeTypeOf('string');
+      expect(value, `${locale}:${say ?? ''}`).toBeTypeOf('string');
       expect(value?.trim(), `${locale}:${say ?? ''} is empty`).not.toBe('');
     }
   });

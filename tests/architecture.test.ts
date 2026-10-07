@@ -198,6 +198,44 @@ function scanLimitUnaware(dir: string): string[] {
   );
 }
 
+/**
+ * A test whose first argument is a literal string is judging its own label.
+ *
+ * `expect(value, 'why it matters')` is the shape this repo uses when a case needs naming, and the
+ * arguments are easy to swap: `expect('why it matters', value)` still passes, always, because a label
+ * is a string and the assertion asks whether a string is a string. Four copy guards did exactly that
+ * (S6's reverb row, the three haptic shapes, the archive's ≈ rule) — silently decorative, and green.
+ * A green test that cannot fail is worse than no test, so the shape is now scanned for.
+ */
+const ASSERTION_WITH_LITERAL_SUBJECT = /\bexpect\(\s*(?:`[^`]*`|'[^']*'|"[^"]*")\s*,/g;
+
+export function scanAssertionLabels(rel: string, raw: string): string[] {
+  const code = stripComments(raw);
+  const hits = [...code.matchAll(ASSERTION_WITH_LITERAL_SUBJECT)].map((match) => match[0]);
+  if (hits.length === 0) return [];
+  return [
+    `${rel}: expect() asked about its own label (${String(hits.length)}×: ${[...new Set(hits)].slice(0, 3).join(' | ')})`,
+  ];
+}
+
+function testSources(dir: string): string[] {
+  const absolute = join(root, dir);
+  const found: string[] = [];
+  const walk = (path: string): void => {
+    for (const entry of readdirSync(path)) {
+      const full = join(path, entry);
+      if (statSync(full).isDirectory()) {
+        if (entry === 'node_modules' || entry === 'dist') continue;
+        walk(full);
+        continue;
+      }
+      if (entry.endsWith('.test.ts')) found.push(full);
+    }
+  };
+  walk(absolute);
+  return found;
+}
+
 function scanAdapter(dir: string): string[] {
   const files = sources(dir);
   const code = files.map((file) => stripComments(readFileSync(file, 'utf8'))).join('\n');
@@ -320,6 +358,42 @@ describe('§73 architecture guards', () => {
       .map((file) => stripComments(readFileSync(file, 'utf8')))
       .join('\n');
     expect(/import[^;]*createEngine[^;]*from\s+['"]@puffly\/game-core['"]/.test(shell)).toBe(true);
+  });
+
+  it('no test asserts about its own label, and the scan has a denominator', () => {
+    const files = [...PURE_PACKAGES, ...ADAPTER_PACKAGES, 'apps/web/src', 'tests'].flatMap(
+      testSources,
+    );
+    expect(files.length, 'the test scan found no test files at all').toBeGreaterThan(50);
+    const offending = files.flatMap((file) =>
+      scanAssertionLabels(relative(root, file), readFileSync(file, 'utf8')),
+    );
+    expect(offending).toEqual([]);
+    console.log(`ASSERTION_SHAPE scanned=${String(files.length)}`);
+  });
+
+  it('the assertion-shape guard can fail, and does not fire on the correct form', () => {
+    // The planted example is assembled at run time: written as a literal it would be matched in this
+    // file's own source, which is scanned by the case above.
+    const quote = String.fromCharCode(96);
+    const planted = `expect(${quote}\${'{kind} peak'}${quote}, shipped.peak).toBe(real.peak);`;
+    expect(
+      scanAssertionLabels('sample.test.ts', planted),
+      'a swapped expect was not caught',
+    ).not.toEqual([]);
+
+    // The honest shape: the value first, the reason second.
+    expect(
+      scanAssertionLabels(
+        'sample.test.ts',
+        'expect(shipped.peak, `${kind} peak`).toBe(real.peak);',
+      ),
+      'the guard fires on the shape it exists to allow',
+    ).toEqual([]);
+    // And an assertion with no label at all is none of its business.
+    expect(scanAssertionLabels('sample.test.ts', "expect('a string').toBe('a string');")).toEqual(
+      [],
+    );
   });
 
   it('no shipped source reaches past a package index', () => {

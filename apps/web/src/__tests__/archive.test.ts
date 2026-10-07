@@ -19,7 +19,7 @@ describe('the archive data rules (§10, §13)', () => {
       for (const key of APPROXIMATIONS) {
         const value = table?.[key];
         if (value === undefined) continue;
-        expect(`${locale}:${value}`, key).toContain('≈');
+        expect(value, `${locale}:${key}`).toContain('≈');
       }
     }
     // And the guard is not vacuous: the English and Chinese rows are both there to be read.

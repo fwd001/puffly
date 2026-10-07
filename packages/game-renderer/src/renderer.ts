@@ -55,12 +55,21 @@ export const IGNITION_IMPACT = { ttlMs: 420, zoom: 0.035, edge: 0.22 } as const;
 export const DECK_SPLIT = 0.8;
 
 /**
+ * How far above the core's own alpha the breath sits at one unit of cartoon. 0.5 is a step, not a
+ * doubling: measured on the shipped classic at full intensity, the brightest disc of the breath goes
+ * from 0.0758 to 0.1137, which lifts it just past the rod's own idle thread (0.0975) — visible, and
+ * nowhere near the white ball a larger factor makes. `plume-lift.test.ts` bounds both ends.
+ */
+export const EXHALE_LIFT = 0.5;
+
+/**
  * S6's 写实度, as the renderer reads it: how much of the cartoon side is left in the frame.
  *
  * Written around the deck's own split so `0.8` multiplies everything by exactly 1 — the shipped
  * look is a detent on the dial, not a special case above or below it. Above it the feedback drains
- * toward pure physics: at 1 there is no push-in, no edge, no rock, and a spark lands and stays
- * landed. Below it the cartoon side grows up to double, which is where 「比真实更脆」 earns its keep.
+ * toward pure physics: at 1 there is no push-in, no edge, no rock, a spark lands and stays landed,
+ * and the breath keeps the alpha the simulation authored for it. Below it the cartoon side grows up
+ * to double, which is where 「比真实更脆」 earns its keep.
  *
  * Nothing in the simulation may consult this. `realism.test.ts` runs one session at each end and
  * compares the entire state, because that is the difference between a look and a cheat.
@@ -689,9 +698,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         return;
       }
       if (event.kind !== 'burst') return;
+      // The lift is read from the dial at the moment the air is born, so a plume already in the air
+      // keeps the brightness it was breathed with rather than changing colour when the row is moved.
       intakeBurst(event.burst, pool, {
         densityScale: densityScaleFor(settings),
         plumeTint: settings.skin?.smoke,
+        plumeLift: 1 + EXHALE_LIFT * cartoonScale(settings.realism),
       });
       const effect = effectFor(event.burst, clockMs, settings.visualCues);
       if (effect && !settings.reducedMotion) effects.push(effect);

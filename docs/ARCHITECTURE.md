@@ -279,9 +279,12 @@ and `StorageAdapter` (`game-storage`).
   number to a real amplitude. Nothing in `game-core` reads it.
 - **Realism (§S6 「写实度 80 / 20」)**: `Settings.realism` is the second 0..1 knob and shares
   `readSettings`' one level reader with `haptics`, so the two cannot disagree about what a lying field
-  means. It is read by exactly one thing — `cartoonScale` in `game-renderer` — which multiplies four
-  feedback surfaces: the ignition push-in, its edge vignette, the tray's rock when ash lands, and how
-  much of a spark's fall the table gives back. `0.8` multiplies by exactly 1, so the deck's default is
+  means. It is read by exactly one thing — `cartoonScale` in `game-renderer` — which governs the five
+  feedback surfaces S7 lists: the ignition push-in, its edge vignette, the tray's rock when ash lands,
+  how much of a spark's fall the table gives back, and how far the exhaled plume is lifted above the
+  alpha Game Core authored for it. The last one goes through `intakeBurst`'s `plumeLift` rather than
+  through the draw, because the lift has to land on the breath and on nothing else — and a particle
+  carries no kind for `drawSmoke` to ask about. `0.8` multiplies by exactly 1, so the deck's default is
   the shipped look rather than a change to it, and the ramp is written so each of the row's six detents
   is a different frame (a capped `(1 - realism) / 0.2` left four of them identical). Nothing in
   `game-core` reads it either, and that is a tested claim rather than an intention:

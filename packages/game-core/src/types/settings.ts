@@ -79,8 +79,9 @@ export interface Settings {
    * a save written before the row existed keeps the scene it had.
    *
    * Presentation, and nothing more. It scales how hard the frame pushes in on the ignition, how far
-   * the edges close, how much the tray rocks when ash lands and how springily a spark hops: the
-   * cartoon side of 「物理写实、反馈卡通」. It may not move one number in the simulation — no
+   * the edges close, how much the tray rocks when ash lands, how springily a spark hops and how lit
+   * the breath the player just made is: the cartoon side of 「物理写实、反馈卡通」, which is the list
+   * S7 itself draws. It may not move one number in the simulation — no
    * duration, no puff count, no temperature, no ash weight — which `realism.test.ts` proves by
    * running the same session at both ends and comparing the whole state.
    */

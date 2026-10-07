@@ -68,9 +68,10 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   only appears on a device that has a motor to ask, and only as a level: `navigator.vibrate` has no
   amplitude, so the slider sets how long each pulse is and how many of them arrive. **Realism** is the
   deck's own 「写实 80% / 卡通」 dial and it is a look only: it scales how hard the frame pushes in at
-  the catch, how far the edges close, how much the tray rocks and how springily a spark hops, and it
-  cannot change how long the rod burns, how many puffs it has, or how much ash it makes — a test runs
-  one session at each end of the track and compares the entire simulation. Muting is not a
+  the catch, how far the edges close, how much the tray rocks, how springily a spark hops and how lit
+  your own breath is above the rod's idle thread — and it cannot change how long the rod burns, how
+  many puffs it has, or how much ash it makes. A test runs one session at each end of the track and
+  compares the entire simulation. Muting is not a
   degraded mode: when nothing can
   be heard — muted, blocked by the browser's autoplay policy, or no Web Audio at all — the discrete
   cues are drawn larger and a beat longer, so the picture says what the mix would have said.

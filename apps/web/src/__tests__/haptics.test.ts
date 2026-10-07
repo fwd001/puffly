@@ -149,7 +149,7 @@ describe('three beats, three shapes (S6)', () => {
         'settings.haptic.grit',
       ]) {
         const value = COPY[locale]?.[key as keyof (typeof COPY)['en']];
-        expect(`${locale}:${key}`, value).toBeTypeOf('string');
+        expect(value, `${locale}:${key}`).toBeTypeOf('string');
         expect(value?.trim(), `${locale}:${key} is empty`).not.toBe('');
       }
     }
