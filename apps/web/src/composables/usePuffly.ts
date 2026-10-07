@@ -8,6 +8,7 @@
 
 import { computed, onBeforeUnmount, ref, type ComputedRef, type Ref } from 'vue';
 import { formatClock } from '@puffly/shared';
+import { shouldPaint } from './idlePaint';
 import {
   anchorForTarget,
   createDefaultSettings,
@@ -332,6 +333,8 @@ export function createPuffly(): Puffly {
   let stop: (() => void)[] = [];
   let raf = 0;
   let lastFrameMs = 0;
+  /** ms carried into the next paint, so an idle-throttled frame still advances the scene by its own age. */
+  let paintMs = 0;
   /**
    * Wall time the frame loop already accounted for while the page was hidden. A desktop tab that
    * is merely throttled keeps calling `requestAnimationFrame` at 1 Hz, and those frames are real
@@ -555,7 +558,28 @@ export function createPuffly(): Puffly {
     watchFrames(dt);
     engine.tick(dt);
     const live = engine.getState();
-    renderer?.render(live, dt);
+    // S12's economy, and the one part of the widget idea a browser can honour: once nothing in the
+    // scene is alight, nothing is in the air and the player has left it alone, the canvas drops to
+    // 15 fps. The tick above still runs every beat — §71 counts the numbers a step consumes, and a
+    // dropped frame must not slow a burning rod — and the skipped time is carried into the next
+    // paint, so a puff that is still there when the scene wakes up moves at its own speed and not
+    // in slow motion.
+    paintMs += dt;
+    if (
+      renderer !== null &&
+      shouldPaint(
+        {
+          sessionActive: live.ui.sessionActive,
+          lit: live.cigarette.ember.lit || live.lighter.flame > 0.01,
+          particles: renderer.particleCount(),
+          idleMs: live.ui.idleMs,
+        },
+        paintMs,
+      )
+    ) {
+      renderer.render(live, paintMs);
+      paintMs = 0;
+    }
     // Continuous beds follow the state every frame; cues arrive as events (§26, §27).
     audio?.sync(live);
 

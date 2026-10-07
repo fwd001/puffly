@@ -191,13 +191,15 @@ const wave = computed(() => {
   -webkit-user-select: none;
   user-select: none;
   transition:
-    transform 140ms var(--ease-out),
+    transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 200ms var(--ease-out);
 }
 
 .pill:active,
 .cta[data-held='true'] .pill {
-  transform: scale(0.97);
+  /* 0.96, not 0.97: the deck's own number for how far a press goes, and the curve above is what
+     makes it come back past itself rather than settling flat (S7, 「缩放回弹」). */
+  transform: scale(0.96);
   box-shadow: 0 4px 16px -8px color-mix(in oklab, var(--ember-orange) 70%, transparent);
 }
 

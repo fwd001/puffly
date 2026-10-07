@@ -143,7 +143,10 @@ body {
 }
 
 .icon-button:active {
-  transform: scale(0.94);
+  /* 0.96 and a curve that overshoots on the way back (S7: 「按钮按下有 0.96 缩放回弹」). The spring is
+     the whole 20% of this object: a pressed thing that returns flat is a state change, and one that
+     returns past itself is a thing with a button under it. */
+  transform: scale(0.96);
 }
 
 .icon-button[aria-pressed='true'] {
