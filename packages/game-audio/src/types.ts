@@ -85,6 +85,11 @@ export interface AudioStateSlice {
     readonly ambientGain: number;
     readonly light: { readonly ambient: number; readonly flash: number };
   };
+  readonly ashtray: {
+    readonly typeId: string;
+    readonly soundProfileId: string;
+    readonly extinguishProfileId: string;
+  };
   readonly lighter: {
     readonly typeId: string;
     readonly engaged: boolean;

@@ -205,6 +205,17 @@ export interface WorldSnapshot {
   activeEvents: WorldEventOccurrence[];
 }
 
+/**
+ * Which tray is on the table, in the only sense the audio adapter needs. The picture already gets
+ * the material from `style.ashtray`; without the ids here the four of them are one object to the
+ * half of the game that has to make their sound.
+ */
+export interface AshtraySnapshot {
+  typeId: string;
+  soundProfileId: string;
+  extinguishProfileId: string;
+}
+
 export interface LighterSnapshot {
   typeId: string;
   engaged: boolean;
@@ -297,6 +308,7 @@ export interface GameState {
   smoke: SmokeField;
   world: WorldSnapshot;
   lighter: LighterSnapshot;
+  ashtray: AshtraySnapshot;
   ui: UiHints;
   anchors: StageAnchors;
   progress: ProgressSnapshot;

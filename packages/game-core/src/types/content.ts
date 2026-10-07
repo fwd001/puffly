@@ -141,7 +141,10 @@ export interface AshtrayContent {
   /** Normalised stage radius that catches a released cigarette (§20, §66: no tiny targets). */
   catchRadius: number;
   material: { base: Rgb; rim: Rgb; reflect: number };
+  /** What an ash landing on this material sounds like. */
   soundProfileId: string;
+  /** What putting the rod out in this material sounds like — a glass tray rings, a stone one does not. */
+  extinguishProfileId: string;
   unlock: UnlockRule;
 }
 

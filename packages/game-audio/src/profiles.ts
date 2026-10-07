@@ -174,8 +174,9 @@ export function createProfileStore(
       case 'ambient':
         return state.environment.ambientAudio.profileId;
       case 'tray':
+        return state.ashtray.soundProfileId;
       case 'extinguish':
-        return undefined;
+        return state.ashtray.extinguishProfileId;
       default:
         return undefined;
     }

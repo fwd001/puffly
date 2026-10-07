@@ -1954,6 +1954,39 @@ y 乘 `stage.height`（390×844 手机上就是 390 和 844 两个尺度），�
 （`engaged ? 5.5 : 13`）→ 还是第二条，因为这时盖落在火后面，画面上就是火隔着盖子烧；
 关闭速率改成 0.05 → 第三条。
 
+### 音频 55.6 桌上看得见的那只烟灰缸，声音里必须也有它（2026-10-07）
+
+「声音一定要跟画面连接，画面切换声音要立即切换」这一条量出来两处断点：
+
+1. **四只烟灰缸在声音里是一只。** `profiles.ts` 的 `stateId()` 根本没有 `tray` / `extinguish` 两个
+   role 的分支，直接 `return undefined` ⇒ 每次都走 `byPrefix('tray')` 拿到内容表里**排在前面的那条**。
+   而内容表里 `tray-stone / glass / tin / porcelain` 是四条**不同**的配方（石头不响，其余三只
+   各自以不同增益/音高散布响）。画面换了，声音没换。
+2. **烟灰缸的身份从来没进过视图。** `style.ashtray` 只有三个颜色，`stage.layout.ashtray` 只有位置，
+   没有 id。所以这不只是"音频少读了一个字段"，是核心根本没把它交出去。
+
+补法：`AshtrayContent` 加 `extinguishProfileId`（磕灰与掐灭是两件事，材质对两者的影响不同），
+`GameState` 加 `ashtray: { typeId, soundProfileId, extinguishProfileId }`，`selectAshtray()` 与
+`style` 一起更新（**同一个动作里一起改**，否则颜色和声音会有一帧分家）。
+
+判据 `packages/game-audio/src/__tests__/picture-and-sound.test.ts` 三条，四次单点变异分别红
+2 / 1 / 1 / 1 条：`stateId` 退回 `undefined` 红前两条；ambient 钉死成一条红第三条；
+内容里两只烟灰缸共用一个 `extinguishProfileId` 红第一条；共用一个 `soundProfileId` 也红第一条。
+
+**这一轮自己写错判据两次，都记下来：**
+① 一开始 `TRAYS` 是我在测试里**手抄**的四条，于是"两只共用一个 id"这个变异**全绿** ——
+判据读的是抄件不是出厂表。改成 `DEFAULT_CONTENT.ashtrays` 之后那条变异才红。
+② 第二条界先写成"四只的**音色集合**要互不相同"，实测玻璃/锡/瓷三只都是 `ash+chime`，
+差别在增益与音高散布上 —— 那是内容合理的写法，不是缺陷。改成比**整条配方**
+（`voice:gain:pitchSpread`）并要求"恰好一只不含 chime"。
+
+顺带量到并**排除**的一条：`profiles.ts` 的 `cached` Map 从不失效，看着像 bug，其实不是 ——
+它的 key 是 `role|wanted`，换选择时 `wanted` 变了就是新 key。真正会漏的是上面那个
+`wanted === undefined`，而它已经被这三条判据钉住。
+
+**仍然没做**（属于第 4 条的剩余部分）：五个世界事件（车过、风、霓虹闪、雨、远处人声）现在都映射到
+同一个 `room` cue，画面上是五件不同的事、声音上是一件；`ember.flicker` 每帧算出来但没有任何人读。
+
 ### 55.5 桌上那件"认不出是什么"的东西（2026-10-07）
 
 玩家问的是"打火机和烟灰缸中间那个是什么"。答案是烟盒 —— 而它当时画成 `0.095 × 0.062`，

@@ -188,6 +188,7 @@ export const FIXTURE: ContentBundle = {
       catchRadius: 0.12,
       material: { base: [78, 76, 74], rim: [116, 112, 106], reflect: 0.1 },
       soundProfileId: 'test-sound',
+      extinguishProfileId: 'test-sound',
       unlock: { kind: 'default' },
     },
   ],

@@ -269,6 +269,11 @@ export function createEngine(options: EngineOptions): GameEngine {
       sputter: 0,
       lid: 0,
     },
+    ashtray: {
+      typeId: ashtray.id,
+      soundProfileId: ashtray.soundProfileId,
+      extinguishProfileId: ashtray.extinguishProfileId,
+    },
     ui: createUiHints(0, settings.sessionTargetMs),
     anchors: computeAnchors(rod.pose, rod.ash.length, layout0),
     progress: projectProgress(
@@ -943,6 +948,14 @@ export function createEngine(options: EngineOptions): GameEngine {
     },
     selectAshtray(id: string) {
       rt.ashtray = rt.content.ashtray(id);
+      // The colours and the sound have to move together. `style` is what the picture reads; without
+      // these two ids the audio adapter kept hearing whichever tray happens to sort first, so
+      // swapping a stone tray for a glass one changed the table and not the room.
+      rt.state.ashtray = {
+        typeId: rt.ashtray.id,
+        soundProfileId: rt.ashtray.soundProfileId,
+        extinguishProfileId: rt.ashtray.extinguishProfileId,
+      };
       rt.state.style = assembleStyle(rt.cigarette, rt.lighter, rt.ashtray, rt.smokeStyle);
     },
     startSession() {

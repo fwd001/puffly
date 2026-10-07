@@ -188,6 +188,45 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
     unlock: { kind: 'default' },
   },
   {
+    // One per material, because that is the whole difference between the four of them: the hiss is
+    // the same steam, but what it lands in is not. `unlock: default` on the stone one keeps it the
+    // fallback `byPrefix('extinguish')` reaches for when a bundle has no per-tray entry.
+    id: 'extinguish-stone',
+    name: 'Stub out on stone',
+    layers: [
+      { voice: 'hiss', gain: 0.46, pitchSpread: 2, timingSpreadMs: 12, pan: 0.2, loop: false },
+      { voice: 'ash', gain: 0.24, pitchSpread: 1.5, timingSpreadMs: 30, pan: 0.3, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'extinguish-glass',
+    name: 'Stub out on glass',
+    layers: [
+      { voice: 'hiss', gain: 0.42, pitchSpread: 3, timingSpreadMs: 12, pan: 0.2, loop: false },
+      { voice: 'chime', gain: 0.2, pitchSpread: 5, timingSpreadMs: 24, pan: 0.36, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'extinguish-tin',
+    name: 'Stub out on tin',
+    layers: [
+      { voice: 'hiss', gain: 0.48, pitchSpread: 4, timingSpreadMs: 10, pan: 0.2, loop: false },
+      { voice: 'chime', gain: 0.26, pitchSpread: 7, timingSpreadMs: 20, pan: 0.4, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'extinguish-porcelain',
+    name: 'Stub out on porcelain',
+    layers: [
+      { voice: 'hiss', gain: 0.44, pitchSpread: 2.5, timingSpreadMs: 12, pan: 0.2, loop: false },
+      { voice: 'chime', gain: 0.3, pitchSpread: 2.5, timingSpreadMs: 26, pan: 0.38, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
     id: 'room-quiet',
     name: 'Quiet room',
     layers: [

@@ -54,6 +54,7 @@ export const ASHTRAYS: AshtrayContent[] = [
     catchRadius: 0.1,
     material: { base: rgb(78, 76, 74), rim: rgb(116, 112, 106), reflect: 0.12 },
     soundProfileId: 'tray-stone',
+    extinguishProfileId: 'extinguish-stone',
     unlock: { kind: 'default' },
   },
   {
@@ -62,6 +63,7 @@ export const ASHTRAYS: AshtrayContent[] = [
     catchRadius: 0.11,
     material: { base: rgb(120, 136, 148), rim: rgb(188, 206, 216), reflect: 0.4 },
     soundProfileId: 'tray-glass',
+    extinguishProfileId: 'extinguish-glass',
     unlock: { kind: 'day', day: 7 },
   },
   {
@@ -70,6 +72,7 @@ export const ASHTRAYS: AshtrayContent[] = [
     catchRadius: 0.12,
     material: { base: rgb(96, 92, 84), rim: rgb(158, 150, 136), reflect: 0.28 },
     soundProfileId: 'tray-tin',
+    extinguishProfileId: 'extinguish-tin',
     unlock: { kind: 'puffs', count: 60 },
   },
   {
@@ -78,6 +81,7 @@ export const ASHTRAYS: AshtrayContent[] = [
     catchRadius: 0.095,
     material: { base: rgb(214, 212, 206), rim: rgb(240, 238, 234), reflect: 0.34 },
     soundProfileId: 'tray-porcelain',
+    extinguishProfileId: 'extinguish-porcelain',
     unlock: { kind: 'day', day: 45 },
   },
 ];

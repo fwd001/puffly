@@ -100,6 +100,9 @@ export interface StateOverrides {
   readonly extinguishProgress?: number;
   readonly soundProfileId?: string;
   readonly ambientProfileId?: string;
+  readonly trayId?: string;
+  readonly trayProfileId?: string;
+  readonly extinguishProfileId?: string;
   readonly ambientTrim?: number;
   readonly nowMs?: number;
 }
@@ -142,6 +145,11 @@ export function makeState(overrides: StateOverrides = {}): AudioStateSlice {
       wind: o.wind ?? 0.1,
       ambientGain: o.ambientGain ?? 0.5,
       light: { ambient: 0.24, flash: 0 },
+    },
+    ashtray: {
+      typeId: o.trayId ?? 'stone',
+      soundProfileId: o.trayProfileId ?? 'tray-stone',
+      extinguishProfileId: o.extinguishProfileId ?? 'extinguish',
     },
     lighter: {
       typeId: 'wheel',
@@ -368,6 +376,7 @@ export const BUNDLE: ContentBundle = {
       catchRadius: 0.16,
       material: { base: [120, 118, 122], rim: [160, 158, 160], reflect: 0.2 },
       soundProfileId: 'tray-stone',
+      extinguishProfileId: 'extinguish',
       unlock: { kind: 'default' },
     },
   ],
