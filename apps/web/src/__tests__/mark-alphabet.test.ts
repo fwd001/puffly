@@ -17,7 +17,7 @@
  * is written down in SPEC.md rather than quietly fixed here.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { RAIL_ENTRIES } from '../rail';
 import { RUNG_MARKS } from '../scenes';
@@ -125,5 +125,26 @@ describe('the mark alphabet means one thing (§23, §55)', () => {
     const rod = alphabet.filter((entry) => entry.glyph === '—');
     expect(rod.length).toBeGreaterThan(0);
     for (const entry of rod) expect(entry.meaning).toBe('a rod');
+  });
+
+  it('wears marks that are actually characters, not escape sequences', () => {
+    // `\u2307` inside a `<template>` is not the character: Vue has no string escapes there, so the
+    // row prints the six ASCII characters, which a player reads as "a unicode thing that did not
+    // render". Only the template is scanned — in a script a real escape is correct code.
+    const escape = /\\u[0-9a-fA-F]{4}/;
+    const dir = new URL('../components/', import.meta.url);
+    const files = readdirSync(dir).filter((name) => name.endsWith('.vue'));
+    expect(files.length, 'the components this scans').toBeGreaterThan(6);
+    const offenders = files
+      .filter((name) => {
+        const source = readFileSync(new URL(name, dir), 'utf8');
+        const end = source.indexOf('</template>');
+        return escape.test(source.slice(0, end < 0 ? source.length : end));
+      })
+      .map((name) => name);
+    console.log(`GLYPH escape offenders=${offenders.join(',') || 'none'}`);
+    expect(offenders).toEqual([]);
+    // The positive control: the exact shape the scan forbids must be reported by it.
+    expect(escape.test('\\u2307\n      </button>')).toBe(true);
   });
 });
