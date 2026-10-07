@@ -141,3 +141,47 @@ describe('a switched room is heard in the frame it switches (§27)', () => {
     h.engine.dispose();
   });
 });
+
+describe('the hand lifting the rod is heard (§26)', () => {
+  const cueNames = (events: ((h: ReturnType<typeof createHarness>) => void)[]): string[] => {
+    const h = createHarness({ profiles: PROFILES });
+    h.run(200, makeState({ ambientGain: 0 }));
+    for (const fire of events) fire(h);
+    const names = h.ctx.sources
+      .map((source) => source.name)
+      .filter((name) => name.startsWith('cue.'));
+    h.engine.dispose();
+    return [...new Set(names.map((n) => n.split(':')[0] ?? n))];
+  };
+
+  const lift = (h: ReturnType<typeof createHarness>): void =>
+    h.fire({ kind: 'transition', atMs: 200, from: 'IDLE', to: 'PICKED_UP' }, makeState());
+
+  it('makes a sound when the rod leaves the table', () => {
+    const built = cueNames([lift]);
+    console.log(`LIFT ${built.join(',')}`);
+    expect(built.length, 'the rod lifted in silence').toBeGreaterThan(0);
+  });
+
+  it('does not make one for a transition that is not a lift', () => {
+    // The claim only means something if it is the *lift* that is audible. If every transition fired,
+    // this file would be reporting a sound the design says must not exist.
+    expect(
+      cueNames([
+        (h) =>
+          h.fire({ kind: 'transition', atMs: 200, from: 'BURNING', to: 'RESTING' }, makeState()),
+      ]),
+    ).toEqual([]);
+  });
+
+  it('asks the scene what the surface is, rather than assuming the table', () => {
+    const declared = makeState({ surfaceProfileId: 'surface-concrete' });
+    expect(store.resolve('surface', declared).id).toBe('surface-concrete');
+    // A scene that names a profile the bundle does not have still resolves to the table rather than
+    // throwing (§63), and an undeclared scene resolves to the content's own `surface-table` — not to
+    // whichever entry sorts first, which is the distinction the tray case above had to learn.
+    const missing = makeState({ surfaceProfileId: 'surface-nowhere' });
+    expect(store.resolve('surface', missing).id).toBe('surface-table');
+    expect(store.resolve('surface', makeState()).id).toBe('surface-table');
+  });
+});

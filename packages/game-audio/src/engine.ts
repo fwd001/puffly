@@ -72,6 +72,7 @@ const CUE_BUS: Record<AudioCueId, AudioBusId> = {
   ash: 'cue',
   hiss: 'cue',
   impact: 'cue',
+  lift: 'cue',
   wind: 'ambient',
   rain: 'ambient',
   room: 'ambient',

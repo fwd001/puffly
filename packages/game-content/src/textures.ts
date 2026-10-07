@@ -227,6 +227,28 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
     unlock: { kind: 'default' },
   },
   {
+    // Paper on lacquered wood: one short transient and a whisper of the wrap, at a level that sits
+    // under the room rather than over it. Lifting the rod happens a dozen times a day.
+    id: 'surface-table',
+    name: 'Lifting off the table',
+    layers: [
+      { voice: 'click', gain: 0.1, pitchSpread: 3, timingSpreadMs: 8, pan: -0.1, loop: false },
+      { voice: 'ash', gain: 0.07, pitchSpread: 2, timingSpreadMs: 16, pan: 0.05, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    // A stairwell landing: the rod lies on painted concrete, which does not tick when it is lifted
+    // the way lacquered wood does — it just whispers. Declared here because the scene that needs it
+    // is the one that names it.
+    id: 'surface-concrete',
+    name: 'Lifting off concrete',
+    layers: [
+      { voice: 'ash', gain: 0.11, pitchSpread: 1.5, timingSpreadMs: 18, pan: -0.05, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
     id: 'room-quiet',
     name: 'Quiet room',
     layers: [

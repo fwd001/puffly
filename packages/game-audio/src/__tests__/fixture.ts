@@ -103,6 +103,7 @@ export interface StateOverrides {
   readonly trayId?: string;
   readonly trayProfileId?: string;
   readonly extinguishProfileId?: string;
+  readonly surfaceProfileId?: string;
   readonly ambientTrim?: number;
   readonly nowMs?: number;
 }
@@ -163,6 +164,7 @@ export function makeState(overrides: StateOverrides = {}): AudioStateSlice {
         profileId: o.ambientProfileId ?? 'room-quiet',
         gain: o.ambientTrim ?? 1,
         pan: 0,
+        surfaceProfileId: o.surfaceProfileId,
       },
     },
   };

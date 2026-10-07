@@ -19,7 +19,12 @@ import type {
 import type { AudioContextLike } from './web-audio';
 
 /** Which piece of content a sound belongs to (§77: content, not code, picks the voice). */
-export type AudioProfileRole = 'lighter' | 'draw' | 'tray' | 'extinguish' | 'ambient';
+/**
+ * `surface` is what the rod is lying on — the table, a windowsill, the concrete of a stairwell.
+ * It exists because lifting the rod is the most repeated gesture in the game and it was the only
+ * one that made no sound at all, and because the scenes to come differ in that surface.
+ */
+export type AudioProfileRole = 'lighter' | 'draw' | 'tray' | 'extinguish' | 'ambient' | 'surface';
 
 /** Continuous beds: layers that follow state every frame instead of firing on events (§27). */
 export type AudioBedId = 'draw' | 'flame' | 'ember' | 'ambient';
@@ -37,6 +42,7 @@ export type AudioCueId =
   | 'ash'
   | 'hiss'
   | 'impact'
+  | 'lift'
   | 'wind'
   | 'rain'
   | 'room'
@@ -102,6 +108,7 @@ export interface AudioStateSlice {
       readonly profileId: string;
       readonly gain: number;
       readonly pan: number;
+      readonly surfaceProfileId?: string;
     };
   };
 }

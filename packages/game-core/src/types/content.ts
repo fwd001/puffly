@@ -249,6 +249,12 @@ export interface AmbientAudioSpec {
   profileId: string;
   gain: number;
   pan: number;
+  /**
+   * What the rod is lying on here, and therefore what lifting it sounds like. Optional because the
+   * fallback is a real content profile (`surface-table`) rather than whichever entry sorts first;
+   * a scene overrides it when its table is not a table — a stairwell sill, a concrete ledge.
+   */
+  surfaceProfileId?: string;
 }
 
 export interface WindSpec {

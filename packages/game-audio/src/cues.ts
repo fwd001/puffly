@@ -46,6 +46,7 @@ export const CUE_MIN_GAP_MS: Record<AudioCueId, number> = {
   'draw-detail': 320,
   release: 90,
   ash: 80,
+  lift: 140,
   hiss: 260,
   impact: 90,
   wind: 400,
@@ -70,6 +71,7 @@ const CUE_SHAPE: Record<AudioCueId, CueShape> = {
   ash: { role: 'tray', voices: ['ash', 'chime'], durationMs: 160 },
   hiss: { role: 'extinguish', voices: ['hiss', 'ash'], durationMs: 900 },
   impact: { role: 'tray', voices: ['ash', 'click', 'chime'], durationMs: 220 },
+  lift: { role: 'surface', voices: ['click', 'ash'], durationMs: 120 },
   wind: { role: 'ambient', voices: ['wind', 'city'], durationMs: 2400 },
   rain: { role: 'ambient', voices: ['rain'], durationMs: 3000 },
   room: { role: 'ambient', voices: ['room', 'city', 'wind'], durationMs: 1600 },
@@ -230,9 +232,23 @@ export function planCues(
     }
 
     case 'transition':
+      // Picking the rod up is the most repeated gesture in the game and the only one that made no
+      // sound at all: the rod visibly leaves the table and the room stays silent. Every other
+      // transition is still visual — `unlock` is recorded as a session event, and a light change
+      // makes no noise because in the room it is being copied it makes none.
+      if (event.to !== 'PICKED_UP' || event.from !== 'IDLE') return [];
+      return [
+        build(
+          'lift',
+          store.resolve('surface', state),
+          0.34,
+          hashId('lift', event.atMs),
+          CUE_SHAPE.lift.durationMs,
+        ),
+      ];
+
     case 'unlock':
     default:
-      // `unlock` is also recorded as a session event; the transition table is visual.
       return [];
   }
 }

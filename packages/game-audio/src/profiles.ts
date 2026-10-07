@@ -64,6 +64,10 @@ const ROLE_FALLBACK: Record<AudioProfileRole, readonly AudioLayer[]> = {
     { voice: 'hiss', gain: 0.5, pitchSpread: 3, timingSpreadMs: 10, pan: 0.2, loop: false },
     { voice: 'ash', gain: 0.2, pitchSpread: 2, timingSpreadMs: 30, pan: 0.3, loop: false },
   ],
+  surface: [
+    { voice: 'click', gain: 0.12, pitchSpread: 3, timingSpreadMs: 8, pan: -0.1, loop: false },
+    { voice: 'ash', gain: 0.08, pitchSpread: 2, timingSpreadMs: 14, pan: 0.05, loop: false },
+  ],
   ambient: [
     { voice: 'room', gain: 0.5, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
     { voice: 'ember', gain: 0.1, pitchSpread: 2, timingSpreadMs: 900, pan: 0.4, loop: true },
@@ -77,6 +81,7 @@ const ROLE_DEFAULT_PREFIX: Record<AudioProfileRole, readonly string[]> = {
   tray: ['tray-', 'tray'],
   extinguish: ['extinguish'],
   ambient: ['room-', 'city-', 'rain-', 'street-', 'mountain-', 'ambient'],
+  surface: ['surface-', 'surface'],
 };
 
 /** A layer read from content is untrusted: keep it inside what the synth can survive. */
@@ -173,6 +178,8 @@ export function createProfileStore(
         return state.cigarette.soundProfileId;
       case 'ambient':
         return state.environment.ambientAudio.profileId;
+      case 'surface':
+        return state.environment.ambientAudio.surfaceProfileId;
       case 'tray':
         return state.ashtray.soundProfileId;
       case 'extinguish':
