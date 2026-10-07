@@ -18,9 +18,13 @@ const TIER_WEIGHTS = {
 } as const;
 
 /**
- * A box to add to the collection, or `null` when there is nothing left to find. Reserved boxes —
- * the three the last skin is held behind — are never in the pool, and neither are the slots
- * nobody has named.
+ * A box to add to the collection, or `null` when there is nothing left to find.
+ *
+ * Two exclusions, both from the deck's own sentence 「12 格内保证能开出来 9 个，剩下 3 个留给集齐
+ * 朱砂皮肤的压轴」: a slot nobody named is not a box, and the reserved boxes are not in the pool
+ * *while something else is still missing*. They are the finale, which means they arrive last — a
+ * box that can never be drawn is not a finale, it is a collection that cannot be finished, and the
+ * skin gated on completing it was unreachable (seven findable boxes, a gate of twelve).
  */
 export function rollPack(
   rng: Rng,
@@ -28,9 +32,9 @@ export function rollPack(
   owned: readonly string[],
   cumulativeSticks: number,
 ): PackContent | null {
-  const pool = packs.filter(
-    (pack) => !pack.reserved && pack.brand !== '' && !owned.includes(pack.id),
-  );
+  const named = packs.filter((pack) => pack.brand !== '');
+  const open = named.filter((pack) => !pack.reserved && !owned.includes(pack.id));
+  const pool = open.length > 0 ? open : named.filter((pack) => owned.includes(pack.id) === false);
   const weights = pool.map((pack) => TIER_WEIGHTS[pack.tier](cumulativeSticks));
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   if (pool.length === 0 || total <= 0) return null;

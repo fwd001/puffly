@@ -6,7 +6,9 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '@puffly/shared';
 import { rollPack } from '@puffly/game-core';
-import { PACKS } from '@puffly/game-content';
+import { FINDABLE_PACKS, PACKS, SKINS } from '@puffly/game-content';
+
+const CINNABAR = SKINS.find((skin) => skin.id === 'cinnabar')!;
 import { harness } from './harness';
 import { FIXTURE } from './fixture';
 
@@ -32,7 +34,7 @@ describe('rollPack (§ packs)', () => {
     expect(tiers.has('mid')).toBe(true);
   });
 
-  it('a reserved box is never in the pool, and neither is a slot nobody named', () => {
+  it('a reserved box waits while anything is still open, and a slot nobody named never comes', () => {
     const rng = createRng(3);
     for (let roll = 0; roll < 300; roll += 1) {
       const box = rollPack(rng, PACKS, [], 500);
@@ -40,16 +42,40 @@ describe('rollPack (§ packs)', () => {
     }
   });
 
-  it('every box is offered once before the pool is empty', () => {
+  it('every open box is offered once, and the pool only empties after the finale', () => {
     const rng = createRng(21);
     const owned: string[] = [];
     for (let roll = 0; roll < pool.length; roll += 1) {
       const box = rollPack(rng, PACKS, owned, 500);
       expect(box, `roll ${String(roll)} found nothing while boxes remained`).not.toBeNull();
-      if (box) owned.push(box.id);
+      // The wait is the point of a finale: nothing held back may turn up while an open box is
+      // still missing, or the last skin's prize arrives before the collection it is the prize for.
+      expect(box!.reserved, `${box!.id} came up before the open boxes ran out`).toBe(false);
+      owned.push(box!.id);
     }
     expect(new Set(owned).size).toBe(pool.length);
+
+    const held = named.filter((pack) => pack.reserved).map((pack) => pack.id);
+    for (const id of held) {
+      const box = rollPack(rng, PACKS, owned, 500);
+      expect(box, `the finale never offered ${id}`).not.toBeNull();
+      expect(held.includes(box!.id), `a non-finale box came up in the finale: ${box!.id}`).toBe(
+        true,
+      );
+      owned.push(box!.id);
+    }
+    expect(new Set(owned).size).toBe(named.length);
     expect(rollPack(rng, PACKS, owned, 500)).toBeNull();
+  });
+
+  it('the collection a skin is gated on is one a player can actually finish', () => {
+    // The bug this replaces: three boxes were held back forever, so seven of ten could ever be
+    // found, and the last skin asked for twelve. The gate is now the number of boxes that can be
+    // found at all, and it is derived rather than typed, so naming an eleventh brand moves it.
+    expect(FINDABLE_PACKS).toBe(named.length);
+    expect(CINNABAR.unlock.kind).toBe('packs');
+    expect(CINNABAR.unlock.kind === 'packs' ? CINNABAR.unlock.count : -1).toBe(FINDABLE_PACKS);
+    expect(FINDABLE_PACKS).toBeLessThan(PACKS.length);
   });
 
   it('the same session rolls the same boxes, which is what a replay is for (§71)', () => {
@@ -75,8 +101,18 @@ describe('the twelve slots', () => {
     expect(byTier).toEqual({ low: 3, mid: 5, high: 4 });
   });
 
-  it('every named price is an estimate, and the unfilled slots say so by being blank', () => {
-    for (const pack of named) expect(pack.priceCny.startsWith('≈')).toBe(true);
+  it('a price never reaches the grid, and only ever appears in an archive as an estimate', () => {
+    // The row a player scans is twelve boxes side by side, and twelve prices side by side is a
+    // price table whatever each one says. `PackContent` has no money field at all, so the shape of
+    // the data is the guard; the range lives one level down, where only one box is ever open.
+    for (const pack of PACKS) {
+      expect('priceCny' in pack, `${pack.id} carries a price on the row`).toBe(false);
+    }
+    for (const pack of named) {
+      expect(pack.archive?.priceCny?.startsWith('≈'), `${pack.id} price is not an estimate`).toBe(
+        true,
+      );
+    }
     expect(PACKS.filter((pack) => pack.brand === '')).toHaveLength(2);
   });
 });

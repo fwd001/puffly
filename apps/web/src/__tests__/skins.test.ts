@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { SKINS } from '@puffly/game-content';
+import { FINDABLE_PACKS, SKINS } from '@puffly/game-content';
 
 describe('the skin ladder', () => {
   it('is six skins, and a skin is four colours and nothing else', () => {
@@ -31,7 +31,9 @@ describe('the skin ladder', () => {
       { kind: 'sessions', count: 120 },
       { kind: 'sessions', count: 260 },
       { kind: 'sessions', count: 420 },
-      { kind: 'packs', count: 12 },
+      // Derived, not the sheet's literal twelve: two of the twelve slots carry no brand and can
+      // never be found, so a typed 12 puts the last skin behind an unfinished collection.
+      { kind: 'packs', count: FINDABLE_PACKS },
     ]);
   });
 

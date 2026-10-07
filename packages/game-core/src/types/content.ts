@@ -374,15 +374,33 @@ export type PackTier = 'low' | 'mid' | 'high';
  * A brand may be named here and nowhere else — no mark, no packaging, no comparison, no ranking,
  * no recommendation, no health claim (§ redlines.noAdvertising).
  */
+/**
+ * What the archive page says about one box. Five fields, and each one is a direction rather than a
+ * statistic: the deck's own 口径 line is that no public survey carries per-brand audience data, so
+ * anything more precise than 「以男性为主」 would be invented. No field here is a recommendation, a
+ * ranking, a comparison or a health statement, and `priceCny` only ever reaches the archive card for
+ * one box at a time — twelve of them side by side would be a price table.
+ */
+export interface PackArchive {
+  /** Always carrying its ≈: a published range, not a price this product knows. */
+  priceCny?: string;
+  history?: string;
+  occasion?: string;
+  crowd?: string;
+  gender?: string;
+  /** 日均消耗区间, the same public survey band for every box. */
+  daily?: string;
+}
+
 export interface PackContent {
   id: string;
   tier: PackTier;
   /** Empty for a slot the brief leaves unfilled. It reads as a gap, not as a guess. */
   brand: string;
-  /** Always carrying its ≈: a published range, not a price this product knows. */
-  priceCny: string;
-  /** Held out of the random pool: the finale the last skin is gated on. */
+  /** Held out of the random pool until everything else is found: the finale, not a locked door. */
   reserved: boolean;
+  /** Absent for a slot nobody named, and for a box the deck gives no text for. */
+  archive?: PackArchive;
 }
 
 /**

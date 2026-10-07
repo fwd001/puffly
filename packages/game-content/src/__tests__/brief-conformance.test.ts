@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { CIGARETTES, LIGHTERS, SKINS } from '@puffly/game-content';
+import { CIGARETTES, FINDABLE_PACKS, LIGHTERS, SKINS } from '@puffly/game-content';
 
 const hex = (rgb: readonly number[]): string =>
   '#' +
@@ -36,7 +36,10 @@ const BRIEF_SKIN_GATES: Record<string, string> = {
   snow: 'sessions:120',
   moss: 'sessions:260',
   ash: 'sessions:420',
-  cinnabar: 'packs:12',
+  // The sheet says twelve boxes, but two mid slots are left unnamed on purpose, so the gate is the
+  // number that can actually be found. Typed as twelve it silently re-breaks: the last skin would
+  // sit behind a collection nobody can finish.
+  cinnabar: `packs:${String(FINDABLE_PACKS)}`,
 };
 
 const gateOf = (unlock: { kind: string; count?: number }): string =>

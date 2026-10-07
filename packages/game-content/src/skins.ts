@@ -9,6 +9,7 @@
  */
 
 import { rgb } from '@puffly/shared';
+import { FINDABLE_PACKS } from './packs';
 import type { SkinContent } from '@puffly/game-core';
 
 export const SKINS: SkinContent[] = [
@@ -78,6 +79,6 @@ export const SKINS: SkinContent[] = [
       smoke: rgb(229, 199, 188),
       pool: rgb(255, 169, 133),
     },
-    unlock: { kind: 'packs', count: 12 },
+    unlock: { kind: 'packs', count: FINDABLE_PACKS },
   },
 ];

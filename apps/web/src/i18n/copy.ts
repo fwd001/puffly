@@ -130,7 +130,7 @@ export const EN = {
   /** S17's archive card. Tier 2 is what the rod measures; tier 3 is where the ≈ figures live. */
   /** S8's cabinet: the ladder, its count, and the two lines that explain how to read it. */
   'shelf.packs': 'boxes',
-  'a11y.boxFound': '{brand}, {price}',
+  'a11y.boxFound': 'collected: {brand}',
   'a11y.boxEmpty': 'not found yet',
   'shelf.skins': 'skins',
   'a11y.skin': 'skin {name}',
@@ -304,7 +304,7 @@ const ZH: Table = {
   'state.discarded': '在烟灰缸里',
 
   'shelf.packs': '烟盒',
-  'a11y.boxFound': '{brand}，{price}',
+  'a11y.boxFound': '已收到 · {brand}',
   'a11y.boxEmpty': '还没捡到',
   'shelf.skins': '皮肤',
   'a11y.skin': '皮肤 {name}',

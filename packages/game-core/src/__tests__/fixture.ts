@@ -221,9 +221,9 @@ export const FIXTURE: ContentBundle = {
   skins: [],
   // Three boxes, one per tier: enough for the drop rule to have somewhere to land.
   packs: [
-    { id: 'test-low', tier: 'low', brand: '测试低档', priceCny: '≈6', reserved: false },
-    { id: 'test-mid', tier: 'mid', brand: '测试中档', priceCny: '≈20', reserved: false },
-    { id: 'test-high', tier: 'high', brand: '测试高档', priceCny: '≈90', reserved: false },
-    { id: 'test-held', tier: 'high', brand: '测试压轴', priceCny: '≈100', reserved: true },
+    { id: 'test-low', tier: 'low', brand: '测试低档', reserved: false },
+    { id: 'test-mid', tier: 'mid', brand: '测试中档', reserved: false },
+    { id: 'test-high', tier: 'high', brand: '测试高档', reserved: false },
+    { id: 'test-held', tier: 'high', brand: '测试压轴', reserved: true },
   ],
 };

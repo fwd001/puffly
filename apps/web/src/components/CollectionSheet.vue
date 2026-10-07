@@ -230,7 +230,7 @@ watch(
           :data-collected="collected.has(box.id)"
           :aria-label="
             collected.has(box.id)
-              ? copy.say('a11y.boxFound', { brand: box.brand, price: box.priceCny })
+              ? copy.say('a11y.boxFound', { brand: box.brand })
               : copy.say('a11y.boxEmpty')
           "
           @click="collected.has(box.id) && emit('archive', box.id)"
@@ -241,7 +241,6 @@ watch(
           <span v-if="copy.t('shelf.packs') !== null && collected.has(box.id)" class="brand">{{
             box.brand
           }}</span>
-          <span v-if="collected.has(box.id)" class="price digits">{{ box.priceCny }}</span>
         </button>
       </div>
     </div>
@@ -414,11 +413,6 @@ watch(
 }
 
 .box .brand {
-  font-size: calc(15px * var(--text-scale));
-}
-
-.box .price {
-  color: var(--ember-core);
   font-size: calc(15px * var(--text-scale));
 }
 
