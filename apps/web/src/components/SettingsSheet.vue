@@ -226,7 +226,7 @@ watch(
         :aria-label="copy.say('a11y.fidget')"
         @click="game.setSettings({ idleFlourishes: !settings.idleFlourishes })"
       >
-        ✦
+        \u2307
       </button>
     </div>
 

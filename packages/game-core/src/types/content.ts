@@ -97,6 +97,12 @@ export type UnlockRule =
   | { kind: 'default' }
   | { kind: 'day'; day: number }
   | { kind: 'sessions'; count: number }
+  /**
+   * The ladder the smoking places are hung on. `sessions` counts breaks already kept, which is a
+   * number with no shape; a level is the same progress with a floor under it, and the places are
+   * ordered by how much of the world you have to have sat still in to be shown them.
+   */
+  | { kind: 'level'; level: number }
   | { kind: 'puffs'; count: number }
   /** The last skin is gated on the collection, not on volume: 12 boxes, however long it takes. */
   | { kind: 'packs'; count: number };
@@ -226,7 +232,13 @@ export interface EnvironmentVariant {
 
 export interface BackgroundSpec {
   /** Drawn by the renderer from these numbers — no bitmaps, no GIFs (§15, §87). */
-  kind: 'sky' | 'room' | 'window' | 'city' | 'street' | 'mountain' | 'desk';
+  /**
+   * `stairwell` is the landings and under-stairs air of a building; `corner` is the marked-out
+   * patch of pavement a smoking area actually is — a wall, a bin, a sign. Both are interiors of a
+   * kind, which is why they are their own shapes rather than another `room`.
+   */
+  kind:
+    'sky' | 'room' | 'window' | 'city' | 'street' | 'mountain' | 'desk' | 'stairwell' | 'corner';
   sky: [Rgb, Rgb];
   horizon: Rgb;
   silhouette: Rgb;

@@ -12,7 +12,6 @@ import type { GameStateView } from '@puffly/game-core';
 import { fbm2 } from './noise';
 import type { Viewport } from './viewport';
 
-type BackgroundView = GameStateView['environment']['background'];
 type LightView = GameStateView['world']['light'];
 
 interface Geometry {
@@ -20,6 +19,15 @@ interface Geometry {
   ridge: number[];
   bokeh: { x: number; y: number; r: number; warm: boolean }[];
   neon: { x: number; y: number; w: number; h: number; hue: number }[];
+  /** The overhead flight of a stairwell: each entry is one tread's rising edge, left to right. */
+  steps: number[];
+  /**
+   * The things that make a room a particular room: a pipe, a hanging flex, a lit window nobody is
+   * in, a stain. Seeded per scene *and per day*, so the corner you sit in tomorrow has its bin on
+   * the other side, while a replay of today's break puts every one of them back exactly where it
+   * was (§71).
+   */
+  details: { x: number; y: number; w: number; h: number; kind: number }[];
 }
 
 const cache = new Map<string, Geometry>();
@@ -30,12 +38,17 @@ function hashOf(id: string): number {
   return (h >>> 0) % 100000;
 }
 
-function geometryFor(environmentId: string, background: BackgroundView): Geometry {
-  const key = `${environmentId}:${background.kind}`;
+function geometryFor(state: GameStateView): Geometry {
+  const environmentId = state.environment.id;
+  const background = state.environment.background;
+  // The day is part of the seed, so the room's clutter moves tomorrow and not between two
+  // frames of the same break. A per-frame salt would be the shiver §59 says a picture must not have.
+  const salt = state.progress.level + state.progress.dayNumber * 31;
+  const key = `${environmentId}:${background.kind}:${salt}`;
   const cached = cache.get(key);
   if (cached) return cached;
 
-  const seed = hashOf(environmentId);
+  const seed = hashOf(environmentId) + salt * 7919;
   const blocks: Geometry['blocks'] = [];
   if (background.kind === 'city' || background.kind === 'street' || background.kind === 'window') {
     const count = background.kind === 'window' ? 9 : 16;
@@ -69,6 +82,24 @@ function geometryFor(environmentId: string, background: BackgroundView): Geometr
     }
   }
 
+  const steps: number[] = [];
+  if (background.kind === 'stairwell') {
+    // Eight treads climbing out of frame, each a little narrower than the last, which is what a
+    // flight looks like from below the landing you are standing on.
+    for (let i = 0; i < 8; i++) steps.push(0.62 - i * 0.062 - ((fbm2(i, seed, 59) + 1) / 2) * 0.02);
+  }
+
+  const details: Geometry['details'] = [];
+  for (let i = 0; i < 5; i++) {
+    details.push({
+      x: 0.04 + ((fbm2(i * 1.9, seed, 61) + 1) / 2) * 0.92,
+      y: 0.1 + ((fbm2(i * 2.4, seed, 67) + 1) / 2) * 0.5,
+      w: 0.006 + ((fbm2(i * 3.2, seed, 71) + 1) / 2) * 0.1,
+      h: 0.02 + ((fbm2(i * 4.1, seed, 73) + 1) / 2) * 0.16,
+      kind: Math.floor(((fbm2(i * 5.3, seed, 79) + 1) / 2) * 4) % 4,
+    });
+  }
+
   const neon: Geometry['neon'] = [];
   if (background.kind === 'street') {
     for (let i = 0; i < 5; i++) {
@@ -82,7 +113,7 @@ function geometryFor(environmentId: string, background: BackgroundView): Geometr
     }
   }
 
-  const built: Geometry = { blocks, ridge, bokeh, neon };
+  const built: Geometry = { blocks, ridge, bokeh, neon, steps, details };
   cache.set(key, built);
   return built;
 }
@@ -142,11 +173,17 @@ export function drawBackground(
       break;
     case 'room':
     case 'desk':
+    case 'stairwell':
+    case 'corner':
       drawInterior(ctx, state, viewport, silhouette, horizon);
       break;
     case 'sky':
       break;
   }
+
+  drawDetails(ctx, state, viewport, silhouette, horizon);
+  if (background.kind === 'stairwell') drawStairwell(ctx, state, viewport, silhouette);
+  if (background.kind === 'corner') drawCorner(ctx, state, viewport, silhouette, horizon);
 
   if (background.kind === 'window' || background.kind === 'street') {
     drawBokeh(ctx, state, viewport);
@@ -196,7 +233,7 @@ function drawBlocks(
   light: LightView,
 ): void {
   const { stage } = viewport;
-  const geometry = geometryFor(state.environment.id, state.environment.background);
+  const geometry = geometryFor(state);
   for (const block of geometry.blocks) {
     const x = stage.x + block.x * stage.width;
     const y = stage.y + block.y * stage.height;
@@ -223,7 +260,7 @@ function drawRidge(
   silhouette: Rgb,
   fog: number,
 ): void {
-  const geometry = geometryFor(state.environment.id, state.environment.background);
+  const geometry = geometryFor(state);
   const { stage } = viewport;
   const layers = [0, 1, 2];
   for (const layer of layers) {
@@ -243,6 +280,98 @@ function drawRidge(
     );
     ctx.fill();
   }
+}
+
+/**
+ * The room's own clutter. Four shapes, each drawn as a plain flat colour at a low alpha, because
+ * these are not props to read — they are the reason the wall stops being a swatch. Which of them
+ * appear, and where, is seeded per scene and per day.
+ */
+function drawDetails(
+  ctx: CanvasRenderingContext2D,
+  state: GameStateView,
+  viewport: Viewport,
+  silhouette: Rgb,
+  horizon: Rgb,
+): void {
+  const { cssWidth: w, cssHeight: h } = viewport;
+  for (const detail of geometryFor(state).details) {
+    const x = detail.x * w;
+    const y = detail.y * h;
+    const tone = rgbToCss(mixRgb(silhouette, horizon, detail.kind === 2 ? 0.5 : 0.22), 0.3);
+    ctx.fillStyle = tone;
+    if (detail.kind === 0) {
+      // A pipe along the wall.
+      ctx.fillRect(x, y, w * 0.34, Math.max(1, h * 0.006));
+    } else if (detail.kind === 1) {
+      // A flex hanging from the ceiling with nothing on the end of it.
+      ctx.fillRect(x, y, Math.max(1, w * 0.004), h * 0.12);
+    } else if (detail.kind === 2) {
+      // A window further off, lit by someone else's evening.
+      ctx.fillRect(x, y, w * Math.min(0.09, detail.w), h * Math.min(0.12, detail.h));
+    } else {
+      // A stain: a short, hard-edged mark, not a blob.
+      ctx.fillRect(x, y, w * Math.min(0.05, detail.w), Math.max(1, h * 0.004));
+    }
+  }
+}
+
+/** The flight overhead: treads cut across the upper half, seen from the landing below them. */
+function drawStairwell(
+  ctx: CanvasRenderingContext2D,
+  state: GameStateView,
+  viewport: Viewport,
+  silhouette: Rgb,
+): void {
+  const { cssWidth: w, cssHeight: h } = viewport;
+  const steps = geometryFor(state).steps;
+  if (steps.length === 0) return;
+  ctx.fillStyle = rgbToCss(mixRgb(silhouette, [0, 0, 0], 0.3), 0.92);
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.04);
+  steps.forEach((rising, i) => {
+    const x = ((i + 1) / steps.length) * w * 1.02;
+    ctx.lineTo(x, h * rising);
+    ctx.lineTo(x, h * (rising + 0.035));
+  });
+  ctx.lineTo(w, h * 0.9);
+  ctx.lineTo(0, h * 0.9);
+  ctx.closePath();
+  ctx.fill();
+  // The nosing catches the key light, which is the only thing that makes a stair read as a stair.
+  ctx.strokeStyle = rgbToCss(mixRgb(silhouette, [232, 232, 236], 0.5), 0.32);
+  ctx.lineWidth = Math.max(1, h * 0.003);
+  ctx.beginPath();
+  steps.forEach((rising, i) => {
+    const x = ((i + 1) / steps.length) * w * 1.02;
+    if (i === 0) ctx.moveTo(0, h * 0.04);
+    else ctx.lineTo(x, h * rising);
+  });
+  ctx.stroke();
+}
+
+/** The marked-out patch of pavement: a wall seam behind you and the bin the sign is bolted to. */
+function drawCorner(
+  ctx: CanvasRenderingContext2D,
+  state: GameStateView,
+  viewport: Viewport,
+  silhouette: Rgb,
+  horizon: Rgb,
+): void {
+  const { cssWidth: w, cssHeight: h } = viewport;
+  // The wall junction, one vertical line, so the corner is a corner and not a backdrop.
+  ctx.fillStyle = rgbToCss(mixRgb(silhouette, horizon, 0.3), 0.5);
+  ctx.fillRect(w * 0.58, 0, Math.max(1, w * 0.006), h * 0.7);
+  // The sign post, and the plate on it. What the plate says is not the point. Its x is seeded —
+  // which side of the corner the council put it on changes between visits — but its foot stops
+  // above the table edge, because a pole standing through the place where the rod lies reads as
+  // the rod being impaled rather than as furniture behind it.
+  const details = geometryFor(state).details;
+  const px = w * (0.2 + ((details[3]?.x ?? 0.4) % 0.28));
+  ctx.fillStyle = rgbToCss(mixRgb(silhouette, [0, 0, 0], 0.25), 0.9);
+  ctx.fillRect(px, h * 0.3, Math.max(2, w * 0.01), h * 0.26);
+  ctx.fillStyle = rgbToCss(mixRgb(horizon, [240, 236, 226], 0.5), 0.5);
+  ctx.fillRect(px - w * 0.02, h * 0.26, Math.max(4, w * 0.05), h * 0.05);
 }
 
 function drawInterior(
@@ -301,7 +430,7 @@ function drawInterior(
 }
 
 function drawBokeh(ctx: CanvasRenderingContext2D, state: GameStateView, viewport: Viewport): void {
-  const geometry = geometryFor(state.environment.id, state.environment.background);
+  const geometry = geometryFor(state);
   const { stage } = viewport;
   for (const dot of geometry.bokeh) {
     const alpha =
@@ -320,7 +449,7 @@ function drawBokeh(ctx: CanvasRenderingContext2D, state: GameStateView, viewport
 }
 
 function drawNeon(ctx: CanvasRenderingContext2D, state: GameStateView, viewport: Viewport): void {
-  const geometry = geometryFor(state.environment.id, state.environment.background);
+  const geometry = geometryFor(state);
   const { stage } = viewport;
   for (const strip of geometry.neon) {
     const tint = NEON_TINTS[strip.hue % NEON_TINTS.length] ?? NEON_FALLBACK;

@@ -52,7 +52,101 @@ export const ENVIRONMENTS: Environment[] = [
       night: { lighting: { ambient: 0.34, warmth: 0.2 }, ambientAudio: { gain: 0.24 } },
       'late-night': { lighting: { ambient: 0.26, warmth: 0.14 }, wind: { base: 0.04 } },
     },
-    unlock: { kind: 'default' },
+    unlock: { kind: 'level', level: 1 },
+  },
+  {
+    // Level 2: the stairwell. The first place that is not a room you were given — you go down to
+    // it. Cold concrete, one high window, and the flight overhead cutting the sky in half.
+    id: 'stairwell',
+    name: 'Stairwell',
+    background: {
+      kind: 'stairwell',
+      sky: [rgb(30, 32, 37), rgb(44, 46, 50)],
+      horizon: rgb(74, 78, 84),
+      silhouette: rgb(18, 19, 22),
+      fog: 0.22,
+      grain: 0.62,
+    },
+    lighting: {
+      ambient: 0.36,
+      warmth: 0.12,
+      keyDirectionDeg: 128,
+      contrast: 0.78,
+      smokeVisibility: 0.94,
+    },
+    ambientAudio: {
+      profileId: 'room-quiet',
+      gain: 0.22,
+      pan: 0.1,
+      surfaceProfileId: 'surface-concrete',
+    },
+    wind: { base: 0.16, gust: 0.3, directionDeg: 96, variance: 0.7 },
+    weather: { bias: { clear: 4, cloudy: 4, wind: 3 }, rainIntensity: 0, stormWindScale: 1.2 },
+    smokeModifier: {
+      density: 1.12,
+      turbulence: 1.24,
+      riseSpeed: 0.92,
+      dispersion: 0.9,
+      tintShift: rgb(198, 206, 216),
+    },
+    emberModifier: { brightness: 1, flicker: 1.12, flareBoost: 0.06 },
+    eventPool: CALM,
+    timeVariants: {
+      morning: { lighting: { ambient: 0.5, warmth: 0.34 } },
+      night: { lighting: { ambient: 0.26, warmth: 0.08 }, ambientAudio: { gain: 0.16 } },
+      'late-night': { lighting: { ambient: 0.2, warmth: 0.06 }, wind: { base: 0.1, gust: 0.18 } },
+    },
+    unlock: { kind: 'level', level: 2 },
+  },
+  {
+    // Level 3: the smoking area. Four metres of pavement, a wall at your back and a sign that
+    // nobody reads. The draught between two buildings is why the smoke behaves here and nowhere
+    // else like this.
+    id: 'smoking-corner',
+    name: 'Smoking Corner',
+    background: {
+      kind: 'corner',
+      sky: [rgb(28, 30, 33), rgb(48, 46, 46)],
+      horizon: rgb(96, 88, 78),
+      silhouette: rgb(16, 16, 18),
+      fog: 0.1,
+      grain: 0.55,
+    },
+    lighting: {
+      ambient: 0.4,
+      warmth: 0.42,
+      keyDirectionDeg: -12,
+      contrast: 0.72,
+      smokeVisibility: 0.9,
+    },
+    ambientAudio: {
+      profileId: 'city-far',
+      gain: 0.28,
+      pan: -0.28,
+      surfaceProfileId: 'surface-table',
+    },
+    wind: { base: 0.3, gust: 0.52, directionDeg: 18, variance: 1 },
+    weather: {
+      bias: { clear: 5, cloudy: 4, wind: 4, rain: 1 },
+      rainIntensity: 0.1,
+      stormWindScale: 2,
+    },
+    smokeModifier: {
+      density: 0.96,
+      turbulence: 1.4,
+      riseSpeed: 1.16,
+      dispersion: 1.3,
+      tintShift: rgb(224, 214, 198),
+    },
+    emberModifier: { brightness: 0.98, flicker: 1.2, flareBoost: 0.14 },
+    eventPool: SMOKEY,
+    timeVariants: {
+      morning: { lighting: { ambient: 0.56, warmth: 0.5 }, wind: { base: 0.22 } },
+      sunset: { lighting: { ambient: 0.46, warmth: 0.72 } },
+      night: { lighting: { ambient: 0.3, warmth: 0.34 }, ambientAudio: { gain: 0.34 } },
+      'late-night': { lighting: { ambient: 0.24, warmth: 0.26 }, wind: { base: 0.2, gust: 0.34 } },
+    },
+    unlock: { kind: 'level', level: 3 },
   },
   {
     id: 'balcony',
@@ -96,7 +190,7 @@ export const ENVIRONMENTS: Environment[] = [
       night: { lighting: { ambient: 0.3, warmth: 0.3 }, ambientAudio: { gain: 0.28 } },
       'late-night': { lighting: { ambient: 0.22, warmth: 0.24 }, wind: { base: 0.26 } },
     },
-    unlock: { kind: 'day', day: 3 },
+    unlock: { kind: 'level', level: 4 },
   },
   {
     id: 'rainy-window',
@@ -136,7 +230,7 @@ export const ENVIRONMENTS: Environment[] = [
       night: { lighting: { ambient: 0.3 }, ambientAudio: { gain: 0.58 } },
       'late-night': { lighting: { ambient: 0.24 }, ambientAudio: { gain: 0.62 } },
     },
-    unlock: { kind: 'day', day: 7 },
+    unlock: { kind: 'level', level: 5 },
   },
   {
     id: 'night-city',
@@ -172,7 +266,7 @@ export const ENVIRONMENTS: Environment[] = [
     },
     emberModifier: { brightness: 1.1, flicker: 1.1, flareBoost: 0.3 },
     eventPool: [...SMOKEY, 'environment_noise', 'light_change'],
-    unlock: { kind: 'day', day: 14 },
+    unlock: { kind: 'level', level: 7 },
   },
   {
     id: 'neon-street',
@@ -208,7 +302,7 @@ export const ENVIRONMENTS: Environment[] = [
     },
     emberModifier: { brightness: 1.04, flicker: 1.25, flareBoost: 0.26 },
     eventPool: [...WET, 'light_change', 'shadow_change'],
-    unlock: { kind: 'day', day: 30 },
+    unlock: { kind: 'level', level: 8 },
   },
   {
     id: 'mountain',
@@ -248,7 +342,7 @@ export const ENVIRONMENTS: Environment[] = [
       morning: { lighting: { ambient: 0.6, warmth: 0.42 } },
       'late-night': { lighting: { ambient: 0.2, warmth: 0.3 }, wind: { base: 0.3 } },
     },
-    unlock: { kind: 'day', day: 45 },
+    unlock: { kind: 'level', level: 9 },
   },
   {
     id: 'late-night-desk',
@@ -280,6 +374,6 @@ export const ENVIRONMENTS: Environment[] = [
     },
     emberModifier: { brightness: 1.12, flicker: 0.9, flareBoost: 0.18 },
     eventPool: [...SMOKEY, 'environment_noise'],
-    unlock: { kind: 'day', day: 21 },
+    unlock: { kind: 'level', level: 6 },
   },
 ];

@@ -326,6 +326,10 @@ export interface ProgressSnapshot {
   dayNumber: number;
   smokeFreeDays: number;
   sessionCount: number;
+  /** 1-based rung of `LEVEL_THRESHOLDS` this ledger sits on. */
+  level: number;
+  /** Breaks still needed to reach the next rung, or 0 at the top of the ladder. */
+  sessionsToNextLevel: number;
   puffs: number;
   ashDropped: number;
   /** The boxes the collection holds, mirrored for the cabinet (S19). */

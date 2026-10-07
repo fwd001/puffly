@@ -14,12 +14,13 @@ import type { CollectionItem, UnlockRule } from '@puffly/game-core';
 import type { CopyKey } from './i18n';
 
 /** Which axis a door counts. `now` is the room the player already has. */
-export type RungUnit = 'now' | 'day' | 'breaks' | 'draws' | 'boxes';
+export type RungUnit = 'now' | 'level' | 'day' | 'breaks' | 'draws' | 'boxes';
 
 /** The rung is shown as digits and *said* as a phrase, because "3" alone does not say what it
  * counts. One key per axis, so a new `UnlockRule` cannot borrow another axis's words. */
 export const RUNG_KEYS: Record<RungUnit, CopyKey> = {
   now: 'a11y.rung.now',
+  level: 'a11y.rung.level',
   day: 'a11y.rung.day',
   breaks: 'a11y.rung.breaks',
   draws: 'a11y.rung.draws',
@@ -39,6 +40,7 @@ export const RUNG_KEYS: Record<RungUnit, CopyKey> = {
  */
 export const RUNG_MARKS: Record<RungUnit, string | null> = {
   now: null,
+  level: '\u25c8',
   day: null,
   breaks: '◷',
   draws: '◡',
@@ -56,10 +58,18 @@ export interface Rung {
  * day ladder is the one the journey line draws, so that is the axis a card's number most naturally
  * reads against.
  */
-const AXIS_ORDER: Record<RungUnit, number> = { now: 0, day: 1, breaks: 2, draws: 3, boxes: 4 };
+const AXIS_ORDER: Record<RungUnit, number> = {
+  now: 0,
+  level: 1,
+  day: 2,
+  breaks: 3,
+  draws: 4,
+  boxes: 5,
+};
 
 const UNIT_FOR: Record<UnlockRule['kind'], RungUnit> = {
   default: 'now',
+  level: 'level',
   day: 'day',
   sessions: 'breaks',
   puffs: 'draws',
@@ -72,6 +82,8 @@ const VALUE_FOR = (rule: UnlockRule): number | null => {
   switch (rule.kind) {
     case 'default':
       return null;
+    case 'level':
+      return rule.level;
     case 'day':
       return rule.day;
     case 'sessions':

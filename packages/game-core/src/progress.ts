@@ -8,6 +8,7 @@
 
 import { dayKey, daysBetween } from '@puffly/shared';
 import { emit, record } from './emit';
+import { levelFor } from './levels';
 import { SessionEventType } from './types/events';
 import { CollectionCategory, type CollectionCategoryValue, type Progress } from './types/progress';
 import type { ContentBundle, UnlockRule } from './types/content';
@@ -68,6 +69,8 @@ export function ruleSatisfied(rule: UnlockRule, progress: Progress): boolean {
       return progress.dayNumber >= rule.day;
     case 'sessions':
       return progress.sessions >= rule.count;
+    case 'level':
+      return levelFor(progress.sessions) >= rule.level;
     case 'puffs':
       return progress.puffs >= rule.count;
     case 'packs':

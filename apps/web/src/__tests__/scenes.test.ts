@@ -36,18 +36,18 @@ describe('the rooms are a set with a ladder (§23, §37)', () => {
       const rung = rungOf(room.unlock);
       expect(Object.keys(RUNG_KEYS)).toContain(rung.unit);
     }
-    // 一开始就在 is not a rung with a number on it: the first room shows no digits at all.
-    const open = rooms().filter((room) => room.unlock.kind === 'default');
-    for (const room of open) expect(rungOf(room.unlock).step).toBeNull();
+    // Every room now carries a number. There used to be one `default` room with no digits at all;
+    // the ladder starts at level 1 instead, so the first card says "1" and the row is one scale
+    // from end to end (§6.1).
+    for (const room of rooms()) expect(rungOf(room.unlock).step, room.id).not.toBeNull();
   });
 
   it('orders them by the rung, so the row itself reads as tiers', () => {
     const ladder = byRung(rooms());
-    const days = ladder
-      .filter((room) => rungOf(room.unlock).unit === 'day')
-      .map((room) => Number(rungOf(room.unlock).step));
-    expect(days).toEqual([...days].sort((a, b) => a - b));
-    expect(rungOf(ladder[0]?.unlock ?? { kind: 'default' }).unit).toBe('now');
+    const levels = ladder.map((room) => Number(rungOf(room.unlock).step));
+    expect(levels).toEqual([...levels].sort((a, b) => a - b));
+    expect(levels[0]).toBe(1);
+    expect(new Set(levels).size).toBe(levels.length);
   });
 
   it('never draws two rooms the same way, so the row can be read by looking', () => {
@@ -56,7 +56,7 @@ describe('the rooms are a set with a ladder (§23, §37)', () => {
     const shown = rooms()
       .map(rungShown)
       .filter((text) => text !== '');
-    expect(shown).toHaveLength(rooms().length - 1);
+    expect(shown).toHaveLength(rooms().length);
     expect(new Set(shown).size).toBe(shown.length);
   });
 
@@ -64,9 +64,7 @@ describe('the rooms are a set with a ladder (§23, §37)', () => {
     // Mountain was the last room counted in breaks; it sits on day 45 now, so the row is one
     // ladder and every number on it means the same thing.
     for (const room of rooms()) {
-      expect(['now', 'day'], `${room.id} is counted on another axis`).toContain(
-        rungOf(room.unlock).unit,
-      );
+      expect(rungOf(room.unlock).unit, `${room.id} is counted on another axis`).toBe('level');
     }
     // The break mark is kept because a room may be counted in breaks again, and then a bare 14
     // would be the same door twice. Nothing in the shipped content exercises it, so this does.
@@ -78,12 +76,14 @@ describe('the rooms are a set with a ladder (§23, §37)', () => {
     expect(breaks).not.toBe(day);
   });
 
-  it('counts the set as entered / total, and the total is the seven the brief fixes', () => {
+  it('counts the set as entered / total, and the total is the nine the ladder holds', () => {
+    // The brief's mock-up drew seven rooms. The player asked for a stairwell and a smoking corner
+    // by name, so the set is nine now and this number is the player's, not the mock-up's.
     const all = rooms();
     expect(rungCount(all, [])).toBe(`0 / ${String(all.length)}`);
-    expect(all).toHaveLength(7);
+    expect(all).toHaveLength(9);
     const three = all.slice(0, 3).map((room) => room.id);
-    expect(rungCount(all, three)).toBe('3 / 7');
+    expect(rungCount(all, three)).toBe('3 / 9');
   });
 });
 

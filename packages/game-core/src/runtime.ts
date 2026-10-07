@@ -9,6 +9,7 @@
 import type { IdGenerator, Rng } from '@puffly/shared';
 import { clamp01 } from '@puffly/shared';
 import { ASH, THRESHOLDS, TIMING } from './constants';
+import { levelFor, sessionsToNextLevel } from './levels';
 import type { StageLayout } from './stage';
 import { CIGARETTE_LENGTH, type Point } from './types/geometry';
 import { refreshPose } from './systems/pose';
@@ -316,6 +317,8 @@ export function projectProgress(progress: Progress, smokeFreeDays: number): Prog
     dayNumber: progress.dayNumber,
     smokeFreeDays,
     sessionCount: progress.sessions,
+    level: levelFor(progress.sessions),
+    sessionsToNextLevel: sessionsToNextLevel(progress.sessions),
     collectedPacks: [...(progress.collectedPacks ?? [])],
     puffs: progress.puffs,
     ashDropped: progress.ashDropped,

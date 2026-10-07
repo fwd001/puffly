@@ -102,6 +102,7 @@ export {
   unlockablesFrom,
   type Unlockable,
 } from './progress';
+export { LEVEL_THRESHOLDS, levelFor, sessionsToNextLevel } from './levels';
 export {
   closeSession,
   isSessionTargetReached,
