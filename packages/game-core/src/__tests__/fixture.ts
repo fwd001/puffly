@@ -88,6 +88,7 @@ export const FIXTURE: ContentBundle = {
       name: 'Test Room',
       background: {
         kind: 'room',
+        weatherVisible: false,
         sky: [
           [34, 33, 36],
           [52, 48, 44],
@@ -130,6 +131,7 @@ export const FIXTURE: ContentBundle = {
       name: 'Test Street',
       background: {
         kind: 'street',
+        weatherVisible: true,
         sky: [
           [20, 16, 34],
           [44, 24, 52],

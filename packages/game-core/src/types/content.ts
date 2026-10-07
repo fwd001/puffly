@@ -239,6 +239,14 @@ export interface BackgroundSpec {
    */
   kind:
     'sky' | 'room' | 'window' | 'city' | 'street' | 'mountain' | 'desk' | 'stairwell' | 'corner';
+  /**
+   * Whether the sky's own weather can be *seen* from this place: rain streaks, and anything else
+   * that is drawn as falling outside. A stairwell and a desk cannot show it; a window can, and so
+   * can the patch of pavement a smoking corner actually is. It is a fact about the place rather
+   * than a list the renderer keeps, because §77 makes a new place one entry in this table — and the
+   * first thing a new place would do is fail to appear in a switch it never got edited.
+   */
+  weatherVisible: boolean;
   sky: [Rgb, Rgb];
   horizon: Rgb;
   silhouette: Rgb;

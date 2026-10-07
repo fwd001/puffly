@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONTENT } from '@puffly/game-content';
 import { STEP_MS, type GameStateView } from '@puffly/game-core';
-import { drawRain, rainGeometry } from '../weather';
+import { drawDust, drawRain, rainGeometry } from '../weather';
 import { createViewport } from '../viewport';
 import { createFakeCanvas } from './fakeCanvas';
 import { harness } from '../../../game-core/src/__tests__/harness';
@@ -122,5 +122,83 @@ describe('the rain falls instead of flickering (§59)', () => {
     // And it has to stay mostly the same line: past a quarter of its own length in one frame,
     // consecutive frames stop overlapping and the eye sees one mark replace another.
     expect(moves).toEqual([]);
+  });
+
+  it('falls as one sheet, not as fifty-four separate random objects', () => {
+    // 「别抖动 就是随机的…要不然让它慢慢地去动」. Speed is what reads as random here: a wide band of
+    // speeds over the same height is fifty-four independent things to track, and a narrow band is
+    // one weather front. The ratio is the shape of that difference, not an absolute tempo.
+    const streaks = rainGeometry('neon-street', 'rain');
+    const speeds = streaks.map((s) => s.speed);
+    const ratio = Math.max(...speeds) / Math.min(...speeds);
+    console.log(
+      `RAIN speed spread ${Math.min(...speeds).toFixed(3)}..${Math.max(...speeds).toFixed(3)} ratio=${ratio.toFixed(3)}`,
+    );
+    expect(ratio).toBeGreaterThan(1);
+    // Measured, not read off the formula: the fbm draws never reach the ends of their own range, so
+    // the shipped band is 1.202 (0.274..0.329), the wider band before it was 1.356 (0.505..0.685),
+    // and the original stutter was 1.623 (0.889..1.443). 1.4 would have been inside the noise —
+    // it left the widened band green, which is how this line got moved down to 1.3.
+    expect(ratio).toBeLessThan(1.3);
+  });
+});
+
+/**
+ * Streaks are the sky seen from somewhere. Half of the shipped places are under a roof, and water
+ * drawn across a stairwell is exactly the unexplained "背景的粒子" a player ends up complaining
+ * about — so the field on the place decides it, not a list the renderer keeps (§77: a new place is
+ * one entry, and the first thing a new place fails to appear in is a switch nobody edited).
+ */
+describe('rain belongs to a place that can see the sky (§25)', () => {
+  const streaksPer = (environmentId: string, weather: 'rain' | 'storm'): number => {
+    const h = harness({ content: DEFAULT_CONTENT, environmentId });
+    const s = h.state() as GameStateView;
+    const view = {
+      ...s,
+      nowMs: 40000,
+      world: { ...s.world, weather, ambientGain: 0.6 },
+    } as GameStateView;
+    const canvas = createFakeCanvas();
+    drawRain(canvas.ctx, view, VIEWPORT, false);
+    return canvas.calls.filter((call) => call.name === 'lineTo').length;
+  };
+
+  it('draws water only where the place declares it can be seen', () => {
+    const seen: string[] = [];
+    const hidden: string[] = [];
+    for (const environment of DEFAULT_CONTENT.environments) {
+      const drawn = streaksPer(environment.id, 'rain');
+      (environment.background.weatherVisible ? seen : hidden).push(environment.id);
+      if (environment.background.weatherVisible) {
+        expect(drawn, environment.id).toBeGreaterThan(20);
+      } else {
+        expect(drawn, environment.id).toBe(0);
+      }
+    }
+    console.log(`RAIN visible=${seen.join(',')} | hidden=${hidden.join(',')}`);
+    // Both families have to exist, or the claim above is one list proving nothing.
+    expect(seen.length).toBeGreaterThan(1);
+    expect(hidden.length).toBeGreaterThan(1);
+  });
+
+  it('leaves the indoor air alive anyway', () => {
+    // Nothing in the room is the weather now, so the room must still be a room: dust hangs in the
+    // light, and the storm outside is only felt as light and sound. Without this the claim above
+    // could be satisfied by a renderer that simply stopped drawing.
+    const indoors = DEFAULT_CONTENT.environments.find((e) => !e.background.weatherVisible);
+    expect(indoors).toBeTruthy();
+    const h = harness({ content: DEFAULT_CONTENT, environmentId: indoors!.id });
+    const s = h.state() as GameStateView;
+    const view = {
+      ...s,
+      nowMs: 40000,
+      world: { ...s.world, weather: 'storm' as const, ambientGain: 0.7 },
+    } as GameStateView;
+    const canvas = createFakeCanvas();
+    drawRain(canvas.ctx, view, VIEWPORT, false);
+    expect(canvas.calls.filter((call) => call.name === 'lineTo').length).toBe(0);
+    const dust = createFakeCanvas();
+    drawDust(dust.ctx, view, VIEWPORT, false);
+    expect(dust.calls.filter((call) => call.name === 'arc').length).toBeGreaterThan(8);
   });
 });

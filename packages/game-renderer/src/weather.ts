@@ -63,8 +63,12 @@ function geometryFor(environmentId: string, weather: string) {
       // water. At the old 0.75..1.55 with a length of 0.02..0.07 a streak moved 11..22 px per
       // frame while being 17..59 px long: it stuttered, and that stutter is the thing in the
       // background the player could not name an algorithm for.
-      speed: 0.46 + ((fbm2(i * 0.7, seed, 11) + 1) / 2) * 0.26,
-      length: 0.07 + ((fbm2(i * 1.3, seed, 13) + 1) / 2) * 0.08,
+      //
+      // The band is kept narrow on purpose. Fifty-four speeds that differ by a factor of two do not
+      // read as weather, they read as fifty-four separate random objects, and 「别那么随机」 is about
+      // that: one sheet, drifting down at nearly the same pace, is what rain through a window is.
+      speed: 0.26 + ((fbm2(i * 0.7, seed, 11) + 1) / 2) * 0.08,
+      length: 0.1 + ((fbm2(i * 1.3, seed, 13) + 1) / 2) * 0.06,
     });
   }
 
@@ -96,6 +100,11 @@ export function drawRain(
   reducedMotion: boolean,
 ): void {
   if (state.world.weather !== 'rain' && state.world.weather !== 'storm') return;
+  // Streaks are the sky seen from somewhere. A stairwell, a desk or a room has no sky in frame, so
+  // drawing water across it puts particles in a place they cannot be — which is exactly the thing a
+  // player ends up describing as "背景的抖动，我不知道是什么". Inside, the weather still arrives the
+  // other ways: the light drops, the wind still pushes the column, the room still sounds like rain.
+  if (!state.environment.background.weatherVisible) return;
   const { streaks } = geometryFor(state.environment.id, state.world.weather);
   if (streaks.length === 0) return;
 

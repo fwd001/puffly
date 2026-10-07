@@ -336,6 +336,7 @@ export const BUNDLE: ContentBundle = {
       name: 'Test Room',
       background: {
         kind: 'room',
+        weatherVisible: false,
         sky: [
           [34, 33, 36],
           [52, 48, 44],

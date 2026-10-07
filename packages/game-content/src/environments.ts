@@ -20,6 +20,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Quiet Room',
     background: {
       kind: 'room',
+      weatherVisible: false,
       sky: [rgb(34, 33, 36), rgb(52, 48, 44)],
       horizon: rgb(66, 60, 56),
       silhouette: rgb(24, 23, 25),
@@ -61,6 +62,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Stairwell',
     background: {
       kind: 'stairwell',
+      weatherVisible: false,
       sky: [rgb(30, 32, 37), rgb(44, 46, 50)],
       horizon: rgb(74, 78, 84),
       silhouette: rgb(18, 19, 22),
@@ -106,6 +108,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Smoking Corner',
     background: {
       kind: 'corner',
+      weatherVisible: true,
       sky: [rgb(28, 30, 33), rgb(48, 46, 46)],
       horizon: rgb(96, 88, 78),
       silhouette: rgb(16, 16, 18),
@@ -153,6 +156,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Balcony',
     background: {
       kind: 'city',
+      weatherVisible: true,
       sky: [rgb(42, 52, 68), rgb(96, 96, 98)],
       horizon: rgb(122, 112, 102),
       silhouette: rgb(26, 28, 34),
@@ -197,6 +201,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Rainy Window',
     background: {
       kind: 'window',
+      weatherVisible: true,
       sky: [rgb(30, 38, 46), rgb(56, 66, 74)],
       horizon: rgb(72, 82, 90),
       silhouette: rgb(18, 22, 26),
@@ -237,6 +242,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Night City',
     background: {
       kind: 'city',
+      weatherVisible: true,
       sky: [rgb(14, 16, 26), rgb(34, 28, 40)],
       horizon: rgb(58, 46, 44),
       silhouette: rgb(10, 10, 16),
@@ -273,6 +279,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Neon Street',
     background: {
       kind: 'street',
+      weatherVisible: true,
       sky: [rgb(20, 16, 34), rgb(44, 24, 52)],
       horizon: rgb(86, 40, 78),
       silhouette: rgb(14, 12, 22),
@@ -309,6 +316,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Mountain',
     background: {
       kind: 'mountain',
+      weatherVisible: true,
       sky: [rgb(52, 68, 86), rgb(122, 130, 128)],
       horizon: rgb(146, 142, 132),
       silhouette: rgb(44, 50, 54),
@@ -349,6 +357,7 @@ export const ENVIRONMENTS: Environment[] = [
     name: 'Late Night Desk',
     background: {
       kind: 'desk',
+      weatherVisible: false,
       sky: [rgb(16, 16, 20), rgb(30, 28, 30)],
       horizon: rgb(46, 40, 38),
       silhouette: rgb(12, 12, 14),
