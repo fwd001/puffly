@@ -686,6 +686,9 @@ export function readSettings(
   // Same reason as `hints`: a save written before the lighter was allowed to play with itself has no
   // opinion about it, and losing the whole settings record over one absent key is not an option.
   const idleFlourishes = booleanWithDefault(record, 'idleFlourishes', true, path, errors);
+  // S6's room: a save written before the reverb row existed has no opinion about it, and the
+  // deck's own default is 关.
+  const reverb = booleanWithDefault(record, 'reverb', false, path, errors);
   const customBackground = readScenePalette(record, 'customBackground', path, errors);
   const selection = optionalSelection(record, path, errors);
   const language = optionalToken(record, 'language', path, errors);
@@ -721,6 +724,7 @@ export function readSettings(
     utcOffsetMinutes,
     haptics,
     idleFlourishes,
+    reverb,
     customBackground,
   };
   // §84: the quit anchor is the player's own statement, so it is optional, never defaulted.

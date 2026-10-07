@@ -28,6 +28,8 @@ import { CUE_MIN_GAP_MS, cueIdsFor, planCues } from './cues';
 import type { PlannedCue } from './cues';
 import { createProfileStore } from './profiles';
 import type { ProfileStore } from './profiles';
+import { WET_BASE, createRoomSend } from './room';
+import type { RoomSend } from './room';
 import { createSilentAudioEngine } from './silent';
 import type {
   AudioBedId,
@@ -87,6 +89,13 @@ const CUE_BUS: Record<AudioCueId, AudioBusId> = {
   chime: 'cue',
 };
 
+/**
+ * Which cues ask the room to open for them (S7's 屏息 and S20's 吸附: 「混响拉长」). Everything else
+ * gets the room at its normal size, because the room is the same room — these are the two moments
+ * the deck wants heard as the cavity a draw leaves behind.
+ */
+const ROOM_STRETCH_CUES: ReadonlySet<AudioCueId> = new Set<AudioCueId>(['vacuum', 'burnt-out']);
+
 const BED_ROLE: Record<AudioBedId, AudioProfileRole> = {
   draw: 'draw',
   flame: 'lighter',
@@ -125,6 +134,8 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
   private readonly stream: Rng;
   private readonly master: AudioGainLike;
   private readonly buses: Record<AudioBusId, AudioGainLike>;
+  /** `null` on a runtime with no `DelayNode`: the game plays dry (§63). */
+  private readonly room: RoomSend | null;
   private readonly beds: BedController;
   private readonly active: VoiceHandle[] = [];
   private readonly lastCueAt = new Map<AudioCueId, number>();
@@ -154,6 +165,11 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
       ambient: this.gain('bus:ambient', 1),
     };
     for (const bus of Object.values(this.buses)) bus.connect(this.master);
+
+    // A send, not a serial stage: the dry cue bus keeps its own path to the master, so the room can
+    // be switched off without touching anything that is already sounding.
+    this.room = createRoomSend(context, this.master, 'room');
+    if (this.room) this.buses.cue.connect(this.room.input);
 
     this.beds = new BedController({
       context,
@@ -238,6 +254,7 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
     this.guard(() => {
       const nowSec = this.context.currentTime;
       this.beds.dispose();
+      this.room?.dispose();
       for (const handle of this.active.splice(0)) this.reap(handle, nowSec);
       for (const bus of Object.values(this.buses)) bus.disconnect();
       this.master.disconnect();
@@ -371,6 +388,9 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
       this.master.gain.setValueAtTime(target, this.now());
     }
     this.applyBuses(smooth ? BUS_TC : 0);
+    // The room is the player's decision and nothing else: off means a level of exactly zero, so a
+    // guard can tell "not asked for" apart from "very quiet".
+    this.room?.setWet(this.settings.reverb ? WET_BASE : 0);
   }
 
   private applyBuses(timeConstant = BUS_TC): void {
@@ -426,6 +446,11 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
 
     const bus = CUE_BUS[cue.cue];
     const durationSec = Math.max(0.02, cue.durationMs / 1000);
+    // 混响拉长 (S7's 屏息, S20's 吸附): the two cues that are the cavity a draw leaves behind open
+    // the room for themselves. With the setting off nothing is scheduled at all.
+    if (this.room !== null && this.settings.reverb && ROOM_STRETCH_CUES.has(cue.cue)) {
+      this.room.stretch(now);
+    }
     for (const layer of cue.layers) {
       this.fire(layer.voice, layer, cue.velocity, now, bus, cue.seed, durationSec);
     }

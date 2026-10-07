@@ -72,6 +72,11 @@ export interface AudioPannerLike extends AudioNodeLike {
   readonly pan: AudioParamLike;
 }
 
+/** A `DelayNode` narrowed to the one param the room send moves. */
+export interface AudioDelayLike extends AudioNodeLike {
+  readonly delayTime: AudioParamLike;
+}
+
 /** The context view the engine needs. `state` is a string: browsers disagree on the enum. */
 export interface AudioContextLike {
   readonly sampleRate: number;
@@ -84,6 +89,11 @@ export interface AudioContextLike {
   createBufferSource(): AudioBufferSourceLike;
   /** Optional because Safari <14 has no `StereoPannerNode`; panning is then skipped. */
   createStereoPanner?(): AudioPannerLike;
+  /**
+   * Optional like the panner: a runtime without it loses the room and keeps the game. The argument
+   * is the ceiling on the delay line, not the delay itself, so `createDelay()` alone is enough.
+   */
+  createDelay?(maxDelaySeconds?: number): AudioDelayLike;
   createBuffer(channels: number, length: number, sampleRate: number): AudioBufferLike;
   resume(): unknown;
   suspend(): unknown;

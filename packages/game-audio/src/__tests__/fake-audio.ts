@@ -12,6 +12,7 @@ import type {
   AudioBufferLike,
   AudioBufferSourceLike,
   AudioContextLike,
+  AudioDelayLike,
   AudioFilterLike,
   AudioGainLike,
   AudioNodeLike,
@@ -137,6 +138,16 @@ export class FakePanner extends FakeNode implements AudioPannerLike {
   }
 }
 
+/** A `DelayNode`: the room's whole shape lives in this one param. */
+export class FakeDelay extends FakeNode implements AudioDelayLike {
+  readonly delayTime: FakeParam;
+
+  constructor() {
+    super();
+    this.delayTime = this.register('delayTime', new FakeParam(0));
+  }
+}
+
 export class FakeBuffer implements AudioBufferLike {
   private readonly data: Float32Array[];
 
@@ -206,7 +217,7 @@ export interface FakeContextOptions {
   /** Autoplay policy: a context that starts suspended does nothing until a gesture resumes it. */
   readonly startState?: 'suspended' | 'running';
   /** Simulate a runtime that refuses a node type (`createStereoPanner` on old Safari, etc). */
-  readonly without?: readonly ('stereoPanner' | 'oscillator' | 'buffer')[];
+  readonly without?: readonly ('stereoPanner' | 'oscillator' | 'buffer' | 'delay')[];
   /** Simulate a Web Audio implementation that throws — §63 must swallow it. */
   readonly throwOn?: 'createGain' | 'createBuffer' | 'createBufferSource' | 'resume';
   readonly sampleRate?: number;
@@ -227,11 +238,25 @@ export class FakeAudioContext implements AudioContextLike {
 
   private readonly options: FakeContextOptions;
 
+  /**
+   * Assigned in the constructor instead of declared as a method, so a context built with
+   * `without: ['delay']` genuinely has no `createDelay` for the room to notice — which is the old
+   * Safari case §63 asks the engine to survive by playing dry.
+   */
+  createDelay?: (maxDelaySeconds?: number) => AudioDelayLike;
+
   constructor(options: FakeContextOptions = {}) {
     this.options = options;
     this.sampleRate = options.sampleRate ?? 48000;
     this.state = options.startState ?? 'running';
     this.destination.name = 'destination';
+    if (!options.without?.includes('delay')) {
+      this.createDelay = () => {
+        const node = new FakeDelay();
+        this.track(node);
+        return node;
+      };
+    }
   }
 
   advance(seconds: number): void {

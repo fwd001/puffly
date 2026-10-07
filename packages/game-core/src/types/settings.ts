@@ -69,6 +69,13 @@ export interface Settings {
   /** §30: only consumed by native shells. */
   haptics: boolean;
   /**
+   * S6's 「混响 关」: whether the room behind the cues is heard at all. Off by default because the
+   * deck puts the tail at ≤0.4 s and a virtual smoke break is more often on headphones in a real
+   * room than in a hall — and because a player who never opens this setting must not be given a
+   * reverb they did not ask for. Purely a sound: it may not move one number in the simulation.
+   */
+  reverb: boolean;
+  /**
    * Whether the lighter may do a small flourish when nobody is doing anything with it — a cap
    * flicked open and shut, a throw of sparks. The table is the one thing on screen that is not the
    * rod, and a break where nothing ever moves is not a room, it is a still frame. Off means off:
@@ -110,6 +117,7 @@ export function createDefaultSettings(utcOffsetMinutes = 0): Settings {
     hints: true,
     utcOffsetMinutes,
     haptics: false,
+    reverb: false,
     idleFlourishes: true,
     customBackground: null,
   };

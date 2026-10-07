@@ -224,6 +224,22 @@ watch(
       />
     </div>
 
+    <!-- S6's 「混响 关」 row: the only sound control that is not a level, because a room is either
+         heard or it is not. Off is the deck's default, and the glyph is the radiating arcs a mixer
+         draws for a send. -->
+    <div class="row">
+      <span v-if="word('settings.tail') !== null" class="label">{{ word('settings.tail') }}</span>
+      <button
+        class="icon-button"
+        data-setting="tail"
+        :aria-pressed="settings.reverb"
+        :aria-label="copy.say('a11y.reverbTail')"
+        @click="game.setSettings({ reverb: !settings.reverb })"
+      >
+        )))
+      </button>
+    </div>
+
     <div class="row">
       <span v-if="word('settings.smoke') !== null" class="label">{{ word('settings.smoke') }}</span>
       <button

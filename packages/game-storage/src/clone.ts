@@ -72,6 +72,7 @@ export function cloneSettings(settings: Settings): Settings {
     hints: settings.hints,
     utcOffsetMinutes: settings.utcOffsetMinutes,
     haptics: settings.haptics,
+    reverb: settings.reverb,
     idleFlourishes: settings.idleFlourishes,
     // A palette is four arrays, so a shallow copy would let an imported file share its colours
     // with the live settings one layer deep.

@@ -2350,7 +2350,53 @@ typecheck 也管不到），改成表内已有的 `--smoke-gray`，字号按稿�
 不是 COPY 表里那格 —— 把十个标签全删也照样绿。改成读表（`COPY[locale]?.[key]`），再用"从 en 删掉
 `archive.crowd`"这一处变异验它：恰好红那一条，报 `en:archive.crowd: expected undefined to be type of 'string'`。
 
+### 混响：一间屋，但不是用 convolution 做的（2026-10-07）
+
+稿子三处提到它：设置页 S6 的「混响 关」、声音页 S20 的「混响尾巴 ≤ 0.4s」、时序表 S7 屏息那一拍的
+「触觉骤降 + **混响拉长**」（S20 的 吸附 音色同样写着「低通骤降 + 混响拉长」）。
+改之前全仓 0 处 ConvolverNode、0 处 reverb（`grep -rn "Convolver|reverb"` 空）。
+
+**为什么不是 convolution**：IR 是"一间屋的采样"，稿子页面抬头写的是"全部为程序化合成音（无采样素材依赖）"；
+生成一份也行，但那是一整段要随房间换的噪声缓冲。改成**两条反馈 delay（61ms / 89ms）+ 环内低通 2.4kHz**——
+只用 seam 已经允许的节点，而且**尾巴是可以算的**：能量到 −60 dB 的时刻是
+`tail = delay · ln(0.001) / ln(feedback)`，于是 0.4s 那条上限变成判据能从节点上的**实际参数**重算的一个数，
+而不是"听着差不多"。（读的是 fake 里 `room:combN.delay` 的 delayTime 与 `combN.fb` 的 gain，
+不是从常量再推一遍——从上游重算自己判的数是判据空转的老路。）
+
+三条不变量与它们的判据（`packages/game-audio/src/__tests__/room.test.ts`，10 条）：
+- **关就是零**，不是很小：`room:wet` 的 lastTarget 恰好 0；开了是 `WET_BASE`=0.15，且 ≤ 上界 0.3
+  （再高一个短音就几乎被送到响两遍，那不是房间）。
+- **它是 send 不是串联级**：`bus:cue` 的 connections 里同时有 `bus:master`（干路）和 `room:in`。
+  只有一个是串联——关掉设置会把已经在响的东西一起拔掉。
+- **环要成环**：`combN.damp` 连回 `combN.fb` **且**连到 `room:wet`。只连 wet 就是一次回声，金属味。
+- **拉长只发生在该发生的那两条**：`ROOM_STRETCH_CUES` = vacuum / burnt-out；开一次 = 一次
+  setValueAtTime(×1.8) + 一次 setTargetAtTime 回原值，拉长后的 −60 dB 点 > 0.34s 且 ≤ 0.75s。
+  打火机、磕灰、吐气、掐灭都不许推动 delayTime。设置关着 ⇒ 一次自动化都不许发生。
+
+设置那一半（`Settings.reverb`，布尔，默认 false）走的是 `hints`/`idleFlourishes` 已有的那条形状：
+`booleanWithDefault(record,'reverb',false)` 而不是 `requireBoolean` —— **老存档没这个键不等于存档坏了**，
+这条有判据（H 处变异把它换成严格读，"旧存档仍然解析"那格当场红）。`clone.ts` 与 `validate.ts` 各手抄一遍
+字段名，所以两处都要动、两处各有反证（F：读的时候漏掉；G：导出时漏掉）。
+界面上是设置页声音那一组里的一行 `data-setting="tail"`，图标 `)))`（ASCII，不会再犯 #50 那个豆腐块）。
+
+键名定成 `settings.tail` / 中文「混响」，没用 `room`：这张表里 `settings.scene` 已经把"房间"占给
+**四色背景**了（en 'Room' / zh '房间'），再让"房间"同时指声音的空间就是让一个词分两边站。
+同一个道理 `mark-alphabet.test.ts` 管的是**图形**那一份（一个形状不许代表两件事）；文字这一份目前没有判据，
+所以这条只是这里的一句话 + 代码注释，别把它当成有守卫。
+
+变异九处，各红其所：屋不建 → 7 条；关时给 0.02 → 1 条；设置关着仍拉长 → 1 条；每条 cue 都拉长 → 1 条；
+反馈调到 0.98（屋子啸叫）→ 2 条；validate 漏键 → 3 条；clone 漏键 → 1 条；严格读 → 2 条；
+typeof 守卫失效（`createDelay` 缺失时不再提前返回）→ 1 条，并且它顺手暴露了**部分构造**：
+in/wet 已经建好才被 throw 打断，所以判据里那句"`room:` 节点数为 0"是真的在数节点。
+
+一处**没做到**，写清楚：这一片做的是"一间可以开关、尾巴有上限、会被两口气拉长的屋"，
+稿子那种随场所改变混响（厕所硬、露台空）**还没有**——环境的 `ventilation` 已经进了烟的模型，
+但没进音频；那需要 per-environment 的 room 参数，是 §22.y/22.z 的下一步而不是这一片。
+另：`reverb` 目前不随 `reducedMotion` 变化，也不在 `ambientVolume` 的管辖内（它是 send 的电平，不是床的音量）。
+
 ### 声音清单还缺三条：灰柱崩裂 / 吸附 / 吸尽（2026-10-07）
+
+
 
 稿子第 20 页给了 12 个声音事件，仓里对得上 9 个，缺 3 个：**灰柱·崩裂**（方波 1.8kHz·极短包络，90ms·0.6）、
 **吸附·吸入末期**（低通骤降＋混响拉长，400ms·0.65）、**吸尽·结束标记**（低通 400→200Hz 缓降，1.2s·0.7）。
