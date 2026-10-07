@@ -100,7 +100,10 @@ export function drawAshtray(
  * size no test can reason about.
  */
 export const LIGHTER_SIZE = { width: 0.05, height: 0.075 } as const;
-export const PACK_SIZE = { width: 0.095, height: 0.062 } as const;
+// Portrait, because that is the one silhouette a pack cannot be mistaken for. Lying it on its
+// side (the previous 0.095 x 0.062) made it the same shape as a tin of something, and the tin is
+// the thing the player then asks the name of.
+export const PACK_SIZE = { width: 0.058, height: 0.088 } as const;
 
 /** The lighter's case hangs above its anchor; the pack is centred on its own. */
 export const lighterBox = (at: { x: number; y: number }, len: (v: number) => number) => {
@@ -135,32 +138,61 @@ export function drawPack(
   ctx.ellipse(0, h * 0.52, w * 0.62, h * 0.12, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Box: the band colour, lit from the scene's key direction.
+  // Body: the band colour, lit across from the scene's key direction, with the corners the
+  // cellophane rounds off.
   const body = ctx.createLinearGradient(-w / 2, 0, w / 2, 0);
-  body.addColorStop(0, rgbToCss(mixRgb(band, [0, 0, 0], 0.55)));
-  body.addColorStop(0.55, rgbToCss(mixRgb(band, [255, 255, 255], 0.12)));
-  body.addColorStop(1, rgbToCss(mixRgb(band, [0, 0, 0], 0.4)));
+  body.addColorStop(0, rgbToCss(mixRgb(band, [0, 0, 0], 0.58)));
+  body.addColorStop(0.42, rgbToCss(mixRgb(band, [255, 255, 255], 0.16)));
+  body.addColorStop(1, rgbToCss(mixRgb(band, [0, 0, 0], 0.44)));
   ctx.fillStyle = body;
-  roundRect(ctx, -w / 2, -h / 2, w, h, w * 0.08);
+  roundRect(ctx, -w / 2, -h * 0.34, w, h * 0.84, w * 0.1);
   ctx.fill();
 
-  // Foil lip and the lid seam: two bands, and it reads as a pack rather than a brick.
-  ctx.fillStyle = rgbToCss(mixRgb(paper, [180, 180, 186], 0.35), 0.85);
-  ctx.fillRect(-w / 2 + w * 0.06, -h / 2 - h * 0.06, w * 0.88, h * 0.14);
-  ctx.strokeStyle = rgbToCss(mixRgb(band, [0, 0, 0], 0.7), 0.7);
-  ctx.lineWidth = Math.max(1, h * 0.03);
+  // The top face. The room is looked down into — the tray is an ellipse for the same reason — so a
+  // box that shows only its front is a flat card.
   ctx.beginPath();
-  ctx.moveTo(-w / 2, -h * 0.12);
-  ctx.lineTo(w / 2, -h * 0.12);
-  ctx.stroke();
+  ctx.moveTo(-w / 2, -h * 0.34);
+  ctx.lineTo(-w * 0.36, -h * 0.5);
+  ctx.lineTo(w * 0.5, -h * 0.5);
+  ctx.lineTo(w / 2, -h * 0.34);
+  ctx.closePath();
+  ctx.fillStyle = rgbToCss(mixRgb(band, [255, 255, 255], 0.3));
+  ctx.fill();
 
-  // Rod ends peeking out, so the pack and the rod in hand are the same object family.
-  ctx.fillStyle = rgbToCss(paper, 0.92);
-  for (let i = 0; i < 3; i++) {
-    const x = -w * 0.26 + i * w * 0.26;
-    roundRect(ctx, x, -h / 2 - h * 0.2, w * 0.09, h * 0.2, w * 0.045);
-    ctx.fill();
-  }
+  // Rods standing in the opening, at three heights, each with its filter end up: the pack and the
+  // rod in hand have to be recognisably the same object.
+  const rodW = w * 0.16;
+  const RISES = [0.2, 0.27, 0.16];
+  RISES.forEach((rise, i) => {
+    const x = -w * 0.27 + i * w * 0.27 - rodW / 2;
+    ctx.fillStyle = rgbToCss(paper, 0.95);
+    ctx.fillRect(x, -h * (0.46 + rise), rodW, h * (rise + 0.14));
+    ctx.fillStyle = rgbToCss(state.style.cigarette.filter, 0.95);
+    ctx.fillRect(x, -h * (0.46 + rise), rodW, h * 0.07);
+  });
+
+  // The lid, folded back over the rods — a hinged flip, not a removed cap.
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, -h * 0.34);
+  ctx.lineTo(w / 2, -h * 0.34);
+  ctx.lineTo(w * 0.56, -h * 0.56);
+  ctx.lineTo(-w * 0.44, -h * 0.56);
+  ctx.closePath();
+  ctx.fillStyle = rgbToCss(mixRgb(band, [0, 0, 0], 0.3));
+  ctx.fill();
+  // Foil showing at the fold, which is the brightest thing on a real pack.
+  ctx.fillStyle = rgbToCss(mixRgb(paper, [186, 188, 196], 0.28), 0.9);
+  ctx.fillRect(-w * 0.42, -h * 0.53, w * 0.84, Math.max(1, h * 0.045));
+
+  // The band across the front, and one hairline above it. Colour only: §3 says no mark, no word.
+  ctx.fillStyle = rgbToCss(mixRgb(band, [255, 255, 255], 0.5), 0.9);
+  ctx.fillRect(-w / 2, -h * 0.06, w, h * 0.17);
+  ctx.strokeStyle = rgbToCss(mixRgb(band, [0, 0, 0], 0.72), 0.6);
+  ctx.lineWidth = Math.max(1, h * 0.018);
+  ctx.beginPath();
+  ctx.moveTo(-w / 2, -h * 0.06);
+  ctx.lineTo(w / 2, -h * 0.06);
+  ctx.stroke();
 
   ctx.restore();
 }
