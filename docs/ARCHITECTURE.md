@@ -202,7 +202,13 @@ that split from rotting back into an app:
   gets the same behaviour for free (§10);
 - **the scene's numbers live inside the scene's sheets.** The break's clock is a row in `this
   break`, not an overlay, and the stage mirrors it as `data-break` for the same reason the cue
-  channel is mirrored as `data-cues`: a fact nothing can read is a fact nothing can check;
+  channel is mirrored as `data-cues`: a fact nothing can read is a fact nothing can check. The
+  mirror list is `data-cues`, `data-break`, `data-phase`, `data-affordance` and `data-aim` — the
+  last of them because the props' positions are a function of the window (the table lifts, the
+  canvas letterboxes), so anything aiming from outside the page has to read them rather than carry
+  a copy. `apps/web/src/__tests__/stage-mirrors.test.ts` pins each attribute to the summary field it
+  mirrors, and the browser layer reads these and never a word: an `aria-label` is translated, so a
+  check against its text passes in one language and fails in the next;
 - **a language is a preference the core carries and never reads.** `Settings.language` travels with
   the save so a phone and a desktop agree after a sync, and every word is chosen in
   `apps/web/src/i18n` — target language, then English, then no visible word at all. Two things
@@ -303,11 +309,14 @@ complexity for hypothetical futures (SPEC.md §89, 9-10):
 
 - **no desktop or mobile shell yet** — only the seams above, which is why `apps/` holds `web` alone;
 - **no accounts, sync or telemetry** (§52) — there is no network code in the repository;
-- **no i18n in the game core** (§5) — the core is language independent by construction. The visible
-  text in the whole product is one gesture verb (`tap` / `light` / `hold` / `flick` / `press` /
-  `drop`) that the *shell* draws over the object the core is already nudging, plus `aria-label` for
-  screen readers and the PWA manifest. The core never sees a word: it publishes an affordance, and
-  the shell decides what language, if any, that affordance wears;
+- **no i18n in the game core** (§5) — the core is language independent by construction. What the
+  scene itself puts over the picture is one gesture verb, drawn over the object the core is already
+  nudging (`state.ui.affordance`: `pick` / `lighter` / `puff` / `flick` / `extinguish` / `discard`);
+  the design also names its chrome — the bottom rail's tabs, the main button's word, the desk
+  column's rows and the sheets — and every one of those words comes out of the copy table in
+  `apps/web/src/i18n` with the same three-tier fallback, never as a string in a component. `aria-label`
+  and the PWA manifest are where prose is allowed to live. The core never sees a word: it publishes
+  an affordance, and the shell decides what language, if any, that affordance wears;
 - **no game engine dependency** (§76) — Canvas 2D and `requestAnimationFrame` only;
 - **no medical claims or recovery percentages** (§84) — `smokeFreeDays` is a count of days on an
   anchor the player sets themselves, and nothing in the UI turns it into a health statement.

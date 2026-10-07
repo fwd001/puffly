@@ -181,7 +181,7 @@ maintaining the code.
 | release, while still moving      | the drawn smoke expands out _that way_                           |
 | watch the ash column grow        | it bends, then asks to be flicked                                |
 | tap or flick the ash             | it falls under gravity and rotation, and the tray fills up       |
-| press it into the tray           | flare → burst → hiss → thin smoke → dark                         |
+| press it into the tray           | flare → burst → a low muffle → thin smoke → dark                 |
 | close two fingers on the cherry  | the same thing, by a different hand                              |
 | drag it over the tray and let go | its rim warms as you approach; smothered, discarded, a fresh rod |
 | swipe down over nothing at all   | the interface folds away and the rod keeps burning               |
@@ -219,8 +219,9 @@ that only exist as a halo, and a table that says the rest.
 3. Hold on the rod and release. The drawn smoke expands when you let go. Every rod exhales
    differently: one pours down the table, one blooms upward, one curls.
 4. Let the ash grow. It bends as it lengthens, and asks to be flicked.
-5. Put it out: press it into the tray and hold. The cherry dies in stages — flare, burst, hiss,
-   thin smoke, dark.
+5. Put it out: press it into the tray and hold. The cherry dies in stages — flare, burst, a low
+   muffle, thin smoke, dark. It is a muffle on purpose: the sound of a press is low-passed, not a
+   bright steam.
 6. Drop it in the tray. **The break is over at this moment**: the clock goes away, and a fresh
    rod turns up on the table a beat later. That is not a reset — ending the break is the point of
    the loop, and the record of it (how long, how many draws, how much ash) is what accumulates.
