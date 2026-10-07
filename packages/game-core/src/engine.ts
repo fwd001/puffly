@@ -678,8 +678,12 @@ export function createEngine(options: EngineOptions): GameEngine {
 
   const tickMotion = (): void => {
     const cigarette = rt.state.cigarette;
-    const wind = rt.state.world.wind;
-    updateWobble(cigarette.pose, rt.timers.wobblePhaseMs, 0.8 + wind * 2.2);
+    // The lean belongs to the body, not the weather. Wind bends smoke (§25) and nothing else here
+    // is outdoors-held; the shipped wiring used `0.8 + wind*2.2`, which measured a 4.06 deg swing
+    // in a windy room against 1.83 in a calm one — the same cigarette, held by the same hand,
+    // leaning twice as far because of the sky. What is left is the draw: a hand moves when it
+    // pulls, and rests when it does not.
+    updateWobble(cigarette.pose, rt.timers.wobblePhaseMs, 0.3 + cigarette.puff.intensity * 0.55);
     const target = restingTarget(
       cigarette.state,
       rt.drag.pressed ? rt.drag.pointer : null,

@@ -101,11 +101,15 @@ export function integratePose(
 }
 
 /**
- * Two detuned sines make a lean that never repeats identically, without needing a
- * noise texture in the pure layer (§59: organic, non-linear, imperfect).
+ * Two detuned sines make a lean that never repeats identically, without needing a noise texture in
+ * the pure layer (§59: organic, non-linear, imperfect) — but both rates have to stay below the
+ * speed a bright edge can travel without the picture appearing to swim. At 0.7 and 1.93 rad/s the
+ * lean turned over 0.019 deg per frame at unit amplitude, which is a new sub-pixel of the rod's
+ * white edge every frame for the whole break; these two give 0.008. The slower pair also beats on a
+ * ~40 s cycle rather than a ~1 s one, so what reads on screen is a hand settling, not shivering.
  */
 export function updateWobble(pose: CigarettePose, phaseMs: number, amplitudeDeg: number): void {
   const t = phaseMs / 1000;
   pose.wobbleDeg =
-    Math.sin(t * 0.7) * amplitudeDeg * 0.65 + Math.sin(t * 1.93 + 0.9) * amplitudeDeg * 0.35;
+    Math.sin(t * 0.31) * amplitudeDeg * 0.7 + Math.sin(t * 0.83 + 0.9) * amplitudeDeg * 0.3;
 }
