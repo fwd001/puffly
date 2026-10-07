@@ -125,6 +125,7 @@ export interface HintWord {
 
 export type { ArchiveFacts, BoxArchiveFacts, RodArchiveFacts } from '../archiveModel';
 import { archiveFacts as factsFor, type ArchiveFacts } from '../archiveModel';
+import { SWELL_RUNGS, hapticPattern, shapeForEvent, swellRung, type HapticShape } from '../haptics';
 
 export interface Summary {
   state: GameStateView | null;
@@ -279,12 +280,17 @@ export function createPuffly(): Puffly {
   );
 
   /**
-   * A vibration is the one feedback a phone can give that a monitor cannot (§30). It marks the
-   * four beats that end a gesture — the cherry catching, the ash letting go, the stub dying, the
-   * rod landing — and nothing in between, because a motor on every puff stops meaning anything.
+   * A vibration is the one feedback a phone can give that a monitor cannot (§30). The deck names
+   * three shapes for it (S6): 点火 短促, 吸入 渐强, 烟灰 细碎 — and S7 adds the two ending beats.
+   *
+   * The 渐强 is the one that used to be deliberately absent: an earlier rule here said "nothing in
+   * between, because a motor on every puff stops meaning anything". The answer is not a motor — it is
+   * four steps up the draw, fired only when the step rises (`swellRung`), so one long inhale is a
+   * crescendo of four pulses and a tremulous thumb is still four pulses.
    */
-  const haptic = (pattern: number | number[]): void => {
-    if (!settings.value.haptics || !canVibrate.value) return;
+  const feel = (shape: HapticShape, level = 1): void => {
+    const pattern = hapticPattern(shape, settings.value.haptics, level);
+    if (pattern === null || !canVibrate.value) return;
     try {
       navigator.vibrate(pattern);
     } catch {
@@ -493,16 +499,20 @@ export function createPuffly(): Puffly {
     }
     const type = event.event.type;
     if (type === SessionEventType.LIGHT) {
-      haptic(24);
       // The count gets its beginning from the first cherry rather than from a form (§10).
       const anchor = anchorAtLight(Date.now(), settings.value.quitAnchorTimestamp);
       if (anchor !== undefined) {
         settings.value = { ...settings.value, quitAnchorTimestamp: anchor };
         void persistence?.saveSettings(settings.value).catch(() => undefined);
       }
-    } else if (type === SessionEventType.ASH) haptic([9, 26, 9]);
-    else if (type === SessionEventType.EXTINGUISH) haptic(64);
-    else if (type === SessionEventType.DISCARD) haptic([14, 40, 20]);
+    }
+    // Which beat says which shape is one table (`shapeForEvent`), so the mapping is a thing that can
+    // be asked rather than only read. Only the level differs by shape: the grains scale with the
+    // column that just went.
+    const shape = shapeForEvent(type);
+    if (shape !== null) {
+      feel(shape, shape === 'grit' ? state.cigarette.ash.ratio : 1);
+    }
 
     if (event.event.type === SessionEventType.DISCARD) {
       // It ends when the stub goes into the tray. No dialog, no confirmation (§62).
@@ -516,6 +526,9 @@ export function createPuffly(): Puffly {
    */
   let cuesAreVisual = false;
 
+  /** Which step of the current draw the hand has already been told about. */
+  let lastSwellRung = 0;
+
   const frame = (nowMs: number): void => {
     if (!engine) return;
     const raw = lastFrameMs === 0 ? 1000 / 60 : Math.max(nowMs - lastFrameMs, 0);
@@ -526,6 +539,11 @@ export function createPuffly(): Puffly {
     watchFrames(dt);
     engine.tick(dt);
     const live = engine.getState();
+    // 吸入 渐强 (S6): four steps up one draw, fired only when the step rises. When the draw ends the
+    // rung falls to 0, so the next one climbs from the bottom again instead of staying at the top.
+    const rung = swellRung(live.cigarette.puff.active ? live.cigarette.puff.intensity : 0);
+    if (rung > lastSwellRung) feel('swell', rung / SWELL_RUNGS);
+    lastSwellRung = rung;
     // S12's economy, and the one part of the widget idea a browser can honour: once nothing in the
     // scene is alight, nothing is in the air and the player has left it alone, the canvas drops to
     // 15 fps. The tick above still runs every beat — §71 counts the numbers a step consumes, and a

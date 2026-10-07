@@ -65,7 +65,9 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
 - **High contrast** — brighter smoke and a lit edge on the rod, for a readable silhouette in a dark
   room.
 - **Clock, hint words, text scale, break length, volume, ambient, mute** — and **haptics**, which
-  only appears on a device that has a motor to ask. Muting is not a degraded mode: when nothing can
+  only appears on a device that has a motor to ask, and only as a level: `navigator.vibrate` has no
+  amplitude, so the slider sets how long each pulse is and how many of them arrive. Muting is not a
+  degraded mode: when nothing can
   be heard — muted, blocked by the browser's autoplay policy, or no Web Audio at all — the discrete
   cues are drawn larger and a beat longer, so the picture says what the mix would have said.
 - **Language** `◌ A 中 ع ∅` — three tiers, in this order: the language you asked for, then English,

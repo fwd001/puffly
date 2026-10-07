@@ -266,8 +266,11 @@ and `StorageAdapter` (`game-storage`).
   weights, and effects are looked up by id.
 - **New world event**: the id is listed in SPEC.md §21, so it already has a rule in
   `WORLD_EVENT_RULES`; adding one means a rule plus an `applyStart` case, not a new protocol.
-- **Haptics (§30)**: `Settings.haptics` exists and is unread on the web. A native shell consumes it
-  without touching the simulation.
+- **Haptics (§30, S6)**: `Settings.haptics` is a 0..1 level — it used to be a boolean, and the deck's
+  save schema writes a number, so `readSettings` maps a legacy `true`/`false` to 1/0 instead of
+  refusing the record. The web shell is the reader: `haptics.ts` holds the shape table and the
+  patterns, and `navigator.vibrate` is called from exactly one place. A native shell may map the same
+  number to a real amplitude. Nothing in `game-core` reads it.
 
 ## Verification layers
 

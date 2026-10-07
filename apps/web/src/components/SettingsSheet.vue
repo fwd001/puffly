@@ -396,14 +396,37 @@ watch(
       <span v-if="word('settings.vibration') !== null" class="label">{{
         word('settings.vibration')
       }}</span>
-      <button
-        class="icon-button"
-        :aria-pressed="settings.haptics"
+      <!-- S6's 触觉 is a number (the deck's own save schema writes 0.7), and `navigator.vibrate`
+           has no amplitude — only durations — so this level is how long and how many pulses the hand
+           gets. Zero is off, and off is the default: nobody asked for a motor by installing this. -->
+      <input
+        class="grow"
+        type="range"
+        min="0"
+        max="100"
+        step="5"
+        :value="Math.round(settings.haptics * 100)"
         :aria-label="copy.say('a11y.haptics')"
-        @click="game.setSettings({ haptics: !settings.haptics })"
-      >
-        ⌁
-      </button>
+        @input="
+          game.setSettings({
+            haptics: Number(($event.target as HTMLInputElement).value) / 100,
+          })
+        "
+      />
+      <span class="digits">{{ Math.round(settings.haptics * 100) }}</span>
+    </div>
+    <div v-if="game.canVibrate.value" class="row row-shapes" data-hook="haptic-shapes">
+      <!-- The three shapes S6 names, spelled out so the slider is not a mystery dial: what the hand
+           is told, per beat. They are words about one control, not three controls. -->
+      <span v-if="word('settings.haptic.spark') !== null" class="shape">{{
+        word('settings.haptic.spark')
+      }}</span>
+      <span v-if="word('settings.haptic.swell') !== null" class="shape">{{
+        word('settings.haptic.swell')
+      }}</span>
+      <span v-if="word('settings.haptic.grit') !== null" class="shape">{{
+        word('settings.haptic.grit')
+      }}</span>
     </div>
 
     <div class="row">
@@ -513,6 +536,15 @@ watch(
   gap: 8px;
   min-height: var(--tap-target, 44px);
   margin: 2px 0;
+}
+
+/* The three shape words name what the slider above them does, so they are quieter than a control
+   row and are not tappable. */
+.row-shapes {
+  min-height: 20px;
+  gap: 10px;
+  color: var(--smoke-gray);
+  font-size: calc(15px * var(--text-scale));
 }
 
 .label {

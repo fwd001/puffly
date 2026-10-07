@@ -179,6 +179,29 @@ function booleanWithDefault(
 }
 
 /**
+ * The hand's own level. `haptics` was a boolean until the deck's save schema (S23) wrote a number,
+ * so a file that still says true comes back as 1 and false as 0 — the player keeps exactly the
+ * feedback they had, rather than getting a different one because the app was upgraded. Anything
+ * numeric is read as a level in 0..1; anything else falls back to off and says which field lied.
+ */
+function readHapticLevel(
+  source: Record<string, unknown>,
+  key: string,
+  path: string,
+  errors: ValidationErrors,
+): number {
+  const value = source[key];
+  if (value === undefined) return 0;
+  if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value < 0 || value > 1) fail(errors, `${path}.${key}`, 'expected a level between 0 and 1');
+    return Math.min(1, Math.max(0, value));
+  }
+  fail(errors, `${path}.${key}`, 'expected 0..1, true or false');
+  return 0;
+}
+
+/**
  * The player's own room colours, or `null` for "use the place's". Each of the four is a 0..255
  * triple; one malformed layer drops the whole palette rather than painting three quarters of a
  * sky, because half an override is a scene that looks broken and not like a choice.
@@ -680,7 +703,7 @@ export function readSettings(
     path,
     errors,
   );
-  const haptics = requireBoolean(record, 'haptics', path, errors);
+  const haptics = readHapticLevel(record, 'haptics', path, errors);
   // A save written before §28's hint word existed has no opinion about it: the default stands.
   const hints = booleanWithDefault(record, 'hints', true, path, errors);
   // Same reason as `hints`: a save written before the lighter was allowed to play with itself has no
@@ -705,8 +728,7 @@ export function readSettings(
     textScale === null ||
     quality === null ||
     sessionTargetMs === null ||
-    utcOffsetMinutes === null ||
-    haptics === null
+    utcOffsetMinutes === null
   ) {
     return null;
   }

@@ -15,27 +15,13 @@
  * those need the composable mounted, which is a separate piece of scaffolding to decide on.
  */
 
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { blockAfter, shellSource } from './sourceProbe';
 
-const SOURCE = readFileSync(new URL('../composables/usePuffly.ts', import.meta.url), 'utf8');
-
-/** The body of the first `if` whose condition matches, taken by brace matching rather than by line. */
-function blockAfter(condition: RegExp): string {
-  const found = condition.exec(SOURCE);
-  if (!found) throw new Error(`no branch matching ${condition}`);
-  const open = SOURCE.indexOf('{', found.index + found[0].length - 1);
-  if (open < 0) throw new Error('branch has no body');
-  let depth = 0;
-  for (let index = open; index < SOURCE.length; index++) {
-    if (SOURCE[index] === '{') depth += 1;
-    else if (SOURCE[index] === '}' && --depth === 0) return SOURCE.slice(open, index + 1);
-  }
-  throw new Error('unbalanced braces');
-}
+const SOURCE = shellSource();
 
 describe('the first light actually sets the anchor (§10)', () => {
-  const lightBranch = blockAfter(/if\s*\(type === SessionEventType\.LIGHT\)/);
+  const lightBranch = blockAfter(SOURCE, /if\s*\(type === SessionEventType\.LIGHT\)/);
 
   it('asks the rule on the light, not somewhere else', () => {
     expect(lightBranch).toContain('anchorAtLight(');

@@ -66,8 +66,13 @@ export interface Settings {
   dailyLimitSticks?: number;
   /** §33: the player's own anchor for smoke-free days. Never inferred as a claim (§84). */
   quitAnchorTimestamp?: number;
-  /** §30: only consumed by native shells. */
-  haptics: boolean;
+  /**
+   * §30: how much the hand is told, 0..1, where 0 is nothing at all. It used to be a boolean; the
+   * deck's own save schema (S23) writes a number, and the three shapes it names — 点火 短促,
+   * 吸入 渐强, 烟灰 细碎 — need one knob to be scaled against rather than switched. A save that still
+   * says true comes back as 1, so nobody's feedback changes size by upgrading.
+   */
+  haptics: number;
   /**
    * S6's 「混响 关」: whether the room behind the cues is heard at all. Off by default because the
    * deck puts the tail at ≤0.4 s and a virtual smoke break is more often on headphones in a real
@@ -116,7 +121,7 @@ export function createDefaultSettings(utcOffsetMinutes = 0): Settings {
     sessionTargetMs: DEFAULT_SESSION_TARGET_MS,
     hints: true,
     utcOffsetMinutes,
-    haptics: false,
+    haptics: 0,
     reverb: false,
     idleFlourishes: true,
     customBackground: null,
