@@ -215,6 +215,14 @@ export interface Environment {
   wind: WindSpec;
   weather: WeatherSpec;
   smokeModifier: SmokeModifier;
+  /**
+   * 通风系数 (S21): 0 is a sealed cubicle where the smoke has nowhere to go, 1 is a forecourt with
+   * a draught over it. It is not a look — it decides how thick the smoke stays and how far it
+   * spreads, which is why the same rod is four times more visible in one place than another. The
+   * deck calls this the one reason the venue system exists: it builds presence better than a skin
+   * ever could, because a skin is allowed to change nothing else.
+   */
+  ventilation: number;
   emberModifier: EmberModifier;
   eventPool: string[];
   /** §24: per-time-of-day overrides; missing keys fall back to the base spec. */

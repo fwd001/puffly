@@ -44,6 +44,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 1.05,
       tintShift: rgb(214, 208, 196),
     },
+    ventilation: 0.05,
     emberModifier: { brightness: 1.02, flicker: 1, flareBoost: 0.1 },
     eventPool: SMOKEY,
     timeVariants: {
@@ -91,6 +92,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 0.9,
       tintShift: rgb(198, 206, 216),
     },
+    ventilation: 0.2,
     emberModifier: { brightness: 1, flicker: 1.12, flareBoost: 0.06 },
     eventPool: CALM,
     timeVariants: {
@@ -141,6 +143,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 1.3,
       tintShift: rgb(224, 214, 198),
     },
+    ventilation: 0.45,
     emberModifier: { brightness: 0.98, flicker: 1.2, flareBoost: 0.14 },
     eventPool: SMOKEY,
     timeVariants: {
@@ -184,6 +187,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 1.4,
       tintShift: rgb(206, 214, 224),
     },
+    ventilation: 0.65,
     emberModifier: { brightness: 0.94, flicker: 1.3, flareBoost: 0.24 },
     eventPool: [...SMOKEY, 'wind'],
     timeVariants: {
@@ -229,6 +233,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 1.2,
       tintShift: rgb(196, 208, 218),
     },
+    ventilation: 0.25,
     emberModifier: { brightness: 1.06, flicker: 1.2, flareBoost: 0.16 },
     eventPool: WET,
     timeVariants: {
@@ -270,6 +275,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 1.15,
       tintShift: rgb(228, 214, 190),
     },
+    ventilation: 0.7,
     emberModifier: { brightness: 1.1, flicker: 1.1, flareBoost: 0.3 },
     eventPool: [...SMOKEY, 'environment_noise', 'light_change'],
     unlock: { kind: 'level', level: 7 },
@@ -307,6 +313,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 1.1,
       tintShift: rgb(232, 176, 214),
     },
+    ventilation: 0.75,
     emberModifier: { brightness: 1.04, flicker: 1.25, flareBoost: 0.26 },
     eventPool: [...WET, 'light_change', 'shadow_change'],
     unlock: { kind: 'level', level: 8 },
@@ -344,6 +351,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 1.6,
       tintShift: rgb(214, 224, 226),
     },
+    ventilation: 0.9,
     emberModifier: { brightness: 0.9, flicker: 1.5, flareBoost: 0.34 },
     eventPool: ['wind', 'smoke_swirl', 'ember_flare', 'ash_fall', 'ambient_event', 'shadow_change'],
     timeVariants: {
@@ -381,6 +389,7 @@ export const ENVIRONMENTS: Environment[] = [
       dispersion: 0.9,
       tintShift: rgb(226, 216, 196),
     },
+    ventilation: 0.15,
     emberModifier: { brightness: 1.12, flicker: 0.9, flareBoost: 0.18 },
     eventPool: [...SMOKEY, 'environment_noise'],
     unlock: { kind: 'level', level: 6 },

@@ -115,6 +115,8 @@ export const FIXTURE: ContentBundle = {
         dispersion: 1,
         tintShift: [200, 200, 200],
       },
+      // The sealed end of S21: what every plume calibration was made at.
+      ventilation: 0.05,
       emberModifier: { brightness: 1, flicker: 1, flareBoost: 0 },
       eventPool: [
         'wind',
@@ -158,6 +160,7 @@ export const FIXTURE: ContentBundle = {
         dispersion: 1.1,
         tintShift: [220, 200, 210],
       },
+      ventilation: 0.7,
       emberModifier: { brightness: 1.05, flicker: 1.2, flareBoost: 0.2 },
       eventPool: ['wind', 'rain', 'smoke_swirl', 'ember_flare', 'ash_fall'],
       unlock: { kind: 'sessions', count: 2 },

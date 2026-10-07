@@ -66,6 +66,24 @@ function densityTarget(rt: EngineRuntime): number {
   );
 }
 
+/**
+ * S21's own endpoints. 0.05 is the sealed cubicle the deck starts its scale with, 0.90 the forecourt
+ * with a draught over it — everything the ventilation does is measured across that span rather than
+ * from zero, so a room at or below the sealed end is the picture every plume calibration was made
+ * at, and only the genuinely open places pay for it.
+ */
+const VENT_SEALED = 0.05;
+const VENT_OPEN = 0.9;
+
+/**
+ * 通风系数 as 0..1 from the sealed end (S21). Both halves of the mechanic — how thick the smoke
+ * hangs and how far it is carried — are driven by this one number, and the renderer reads the
+ * spread through it too, because there is one fact per place and the renderer is not allowed to
+ * invent a second one.
+ */
+export const ventDraught = (ventilation: number): number =>
+  clamp01((ventilation - VENT_SEALED) / (VENT_OPEN - VENT_SEALED));
+
 export function tickSmoke(rt: EngineRuntime, dtMs: number): void {
   const profile = rt.cigarette.smokeProfile;
   const modifier = rt.environment.smokeModifier;
@@ -98,6 +116,13 @@ export function tickSmoke(rt: EngineRuntime, dtMs: number): void {
     modifier.riseSpeed *
     (1 - clamp01(boost.rain) * 0.35) *
     (0.9 + 0.2 * field.density);
+  // 通风系数 (S21). A sealed stairwell keeps its smoke: it hangs, layers and reads as a body of
+  // smoke at the same brightness a rooftop loses in two seconds. The half that belongs to the
+  // simulation is this one — how much of the puff is still there to see. The other half the deck
+  // names, 扩散半径, is spent where a radius becomes pixels (`spread` in the renderer), because
+  // `smoke.dispersion` is the rod's authored tendency and multiplying a venue into it would change
+  // a number nothing reads.
+  const draught = ventDraught(rt.environment.ventilation);
   field.dispersion =
     profile.dispersion * modifier.dispersion * shape.dispersion * (1 + Math.abs(world.wind) * 0.5);
 
@@ -106,7 +131,10 @@ export function tickSmoke(rt: EngineRuntime, dtMs: number): void {
   field.drift.y =
     Math.sin(radians) * world.wind * SMOKE.driftPerWind * 0.35 - 0.01 * field.riseSpeed;
 
-  field.visibility = world.light.smokeVisibility * (0.7 + 0.3 * boost.ambient);
+  // 0.75 is what makes the deck's number real: the same rod at the sealed end and at the open end
+  // reads four times brighter, and that difference is the point of the whole system.
+  field.visibility =
+    world.light.smokeVisibility * (0.7 + 0.3 * boost.ambient) * (1 - draught * 0.75);
   field.tint = mixRgb(style.tint, modifier.tintShift, 0.35);
 
   const active = lit || cigarette.state === 'EXTINGUISHED' || cigarette.state === 'EXTINGUISHING';

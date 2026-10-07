@@ -10,7 +10,7 @@
  */
 
 import { clamp01, mixRgb, rgbToCss, type Rgb } from '@puffly/shared';
-import { emberPresence } from '@puffly/game-core';
+import { emberPresence, ventDraught } from '@puffly/game-core';
 import type {
   Burst,
   ContrastMode,
@@ -296,6 +296,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     const style = state.style.smoke;
     const stage = viewport.stage;
     const lift = settings.contrast === 'high' ? 1.35 : 1;
+    // The venue's share of the width (S21 通风系数): a sealed place lets the ribbon hang, a forecourt
+    // tears it out sideways. Anchored at 1 and only ever adding, because the core's `smoke.dispersion`
+    // also carries the rod and the ashtray — taking that straight into the radius would shrink the
+    // calibrated picture of every room at once, which is what §57 says the smoke cannot afford. The
+    // brightness half of the same coefficient arrives through `field.visibility` below.
+    const spread = 1 + ventDraught(state.environment.ventilation) * 0.45;
     const sparks: Particle[] = [];
 
     ctx.save();
@@ -320,7 +326,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       // Wider and dimer per particle: the same light spread over more overlapping puffs is what
       // turns a jar of bubbles into a body of smoke (§16).
       const radiusPx = Math.min(
-        viewport.len(particle.radius * particle.scale * particle.size) * depthScale * PUFF_SPREAD,
+        viewport.len(particle.radius * particle.scale * particle.size) *
+          depthScale *
+          PUFF_SPREAD *
+          spread,
         MAX_SMOKE_RADIUS_PX,
       );
       if (!sprite || radiusPx <= 0.4) return;

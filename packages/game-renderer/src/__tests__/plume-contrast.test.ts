@@ -111,8 +111,14 @@ describe('the smoke is the light thing in the room (§57)', () => {
   });
 
   it('lifts the smoke well clear of that room', () => {
-    // 8.83:1 measured. The floor is 5 because below that a soft-edged cloud stops reading as a
-    // body at phone size, not because 5 is where the current build sits.
+    // The floor is 5 because below that a soft-edged cloud stops reading as a body at phone size —
+    // it is not where the build sits, and the gap is now only 1.8%. Measured series for this number,
+    // from the `ROOM` line above: 9.73 when this file was written (`3b5af51`), 6.44 after `197b89b`
+    // spread a breath over a second instead of an instant, 5.09 after `57dfac6` hung the places on a
+    // level and seeded clutter into the background. Each of those steps was absorbed by the floor
+    // without going red, which is how a guard meant for 「烟看不清」 ended up 46% dimmer than the day
+    // it was born. The ventilation coefficient (S21) is deliberately measured from its sealed end so
+    // it cannot add a fourth step: `tests/venue-and-smoke.test.ts` is what keeps that honest.
     expect(ratio).toBeGreaterThanOrEqual(5);
     expect(plume.L).toBeGreaterThan(ground * 4);
   });

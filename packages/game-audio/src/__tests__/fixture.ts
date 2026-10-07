@@ -363,6 +363,8 @@ export const BUNDLE: ContentBundle = {
         dispersion: 1,
         tintShift: [0, 0, 0],
       },
+      // The sealed end of S21: what every plume calibration was made at.
+      ventilation: 0.05,
       emberModifier: { brightness: 1, flicker: 1, flareBoost: 1 },
       eventPool: [],
       unlock: { kind: 'default' },

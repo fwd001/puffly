@@ -88,12 +88,16 @@ describe('a shadow passing outside takes light off the room (§22)', () => {
     // Both halves, or the claim is only that one number is smaller than another.
     expect(clear!.ambient).toBeCloseTo(clear!.base, 6);
     expect(shadowed!.ambient).toBeLessThan(shadowed!.base - 0.02);
-    expect(shadowed!.ambient).toBeCloseTo(shadowed!.base * (1 - shadowed!.shadow * SHADOW_SHARE), 3);
+    expect(shadowed!.ambient).toBeCloseTo(
+      shadowed!.base * (1 - shadowed!.shadow * SHADOW_SHARE),
+      3,
+    );
   });
 
   it('so the frame the player is actually shown closes in around the cherry', () => {
     const lit = readFrame(viewWith(() => undefined));
-    const dark = readFrame(      viewWith((v) => {
+    const dark = readFrame(
+      viewWith((v) => {
         const world = v.world as unknown as { light: { ambient: number } };
         world.light.ambient = world.light.ambient * (1 - SHADOW_SHARE);
       }),

@@ -1311,7 +1311,6 @@ try {
     JSON.stringify(closed),
   );
 
-
   const narrow = await openWindow({ width: 600, height: 900 });
   const folded = await narrow.page.evaluate(() => ({
     display: getComputedStyle(document.querySelector('.data-rail')).display,
