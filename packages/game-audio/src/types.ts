@@ -35,9 +35,12 @@ export type AudioBusId = 'cue' | 'bed' | 'ambient';
 /**
  * Every discrete happening the engine can turn into sound.
  *
- * The last three are the deck's own list (S20) arriving late: 灰柱崩裂 is the column letting go
+ * The last five are the deck's own list (S20) arriving late: 灰柱崩裂 is the column letting go
  * rather than the grains landing, 吸附 is the hollow at the end of a draw, and 吸尽 is the same
- * hollow held for a second and a half because the rod is over.
+ * hollow held for a second and a half because the rod is over. `smother` and `catch` are the two
+ * that were named wrong rather than missing: the put-out was called `hiss`, which is precisely the
+ * bright steam the deck does *not* want there (掐灭 is a 闷响), and the paper taking the flame
+ * (纸面引燃·嘶) had no cue at all — the lighting was one register instead of two.
  */
 export type AudioCueId =
   | 'click'
@@ -49,7 +52,8 @@ export type AudioCueId =
   | 'ash'
   | 'vacuum'
   | 'burnt-out'
-  | 'hiss'
+  | 'smother'
+  | 'catch'
   | 'impact'
   | 'lift'
   | 'wind'

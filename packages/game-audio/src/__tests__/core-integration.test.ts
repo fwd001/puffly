@@ -134,14 +134,14 @@ describe('audio driven by the real Game Core', () => {
     pump(1400);
     expect(audio.bedLevel('draw')).toBe(0);
 
-    // Stubbed out in the tray: the hiss, and only the hiss.
-    const hissBefore = ctx.sources.filter((source) => source.name.startsWith('cue.hiss')).length;
+    // Stubbed out in the tray: the muffle lands, on a rod whose paper already hissed.
+    const muffleBefore = ctx.sources.filter((s) => s.name.startsWith('cue.hollow')).length;
     tap('ashtray');
     pump(900);
     expect(core.getState().cigarette.state).toBe('EXTINGUISHED');
     expect(
-      ctx.sources.filter((source) => source.name.startsWith('cue.hiss')).length,
-    ).toBeGreaterThan(hissBefore);
+      ctx.sources.filter((source) => source.name.startsWith('cue.hollow')).length,
+    ).toBeGreaterThan(muffleBefore);
 
     // Let go: the small impact of a cigarette landing.
     const ashBefore = ctx.sources.filter((source) => source.name.startsWith('cue.ash')).length;

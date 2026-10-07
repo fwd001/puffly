@@ -35,21 +35,22 @@ describe('discrete cues (§26)', () => {
     expect(cueNodes(failed, 'flame')).toBeGreaterThan(0);
     expect(failed.engine.cueForEvent(sessionEvent('LIGHT_FAIL'))).toEqual(['sputter']);
 
-    // The catch is the crackle of the `ember` burst the core emits at the same moment, so the
-    // session event must not answer with a second click of its own (§26).
+    // The cherry taking is the crackle of the `ember` burst the core emits in the same instant, so
+    // the session event must not answer with a second click of its own (§26). What it does answer
+    // with is the paper (S20's 纸面引燃·嘶), which is a different voice in a different band.
     const caught = once(sessionEvent('LIGHT'));
-    expect(caught.engine.cueForEvent(sessionEvent('LIGHT'))).toEqual([]);
+    expect(caught.engine.cueForEvent(sessionEvent('LIGHT'))).toEqual(['catch']);
     expect(cueNodes(caught, 'click')).toBe(0);
     const crackle = once(burstEvent('ember', 3, 0.8));
     expect(cueNodes(crackle, 'crackle') + cueNodes(crackle, 'ember')).toBeGreaterThan(0);
     // The wheel flick is still the loudest thing in the lighting window.
     const store = createProfileStore(PROFILES);
     const flickPlan = planCues(burstEvent('lighter', 3), makeState(), store)[0];
-    const catchPlan = planCues(burstEvent('ember', 4, 0.8), makeState(), store)[0];
-    expect(catchPlan?.velocity ?? 1).toBeLessThan(flickPlan?.velocity ?? 0);
+    const sparkPlan = planCues(burstEvent('ember', 4, 0.8), makeState(), store)[0];
+    expect(sparkPlan?.velocity ?? 1).toBeLessThan(flickPlan?.velocity ?? 0);
   });
 
-  it('the catch itself crackles', () => {
+  it('the cherry taking crackles', () => {
     const h = once(burstEvent('ember', 33, 0.7));
     expect(cueNodes(h, 'crackle') + cueNodes(h, 'ember')).toBeGreaterThan(0);
     expect(h.engine.cueForEvent(burstEvent('ember', 33))).toEqual(['ignite']);
@@ -64,9 +65,11 @@ describe('discrete cues (§26)', () => {
     expect(cueNodes(held, 'draw') + cueNodes(held, 'crackle')).toBeGreaterThan(0);
   });
 
-  it('ash falls, extinguishing hisses, a discard lands in the tray', () => {
+  it('ash falls, a stubbed-out rod thuds low, a discard lands in the tray', () => {
     expect(cueNodes(once(burstEvent('ash', 51)), 'ash')).toBeGreaterThan(0);
-    expect(cueNodes(once(burstEvent('extinguish', 52, 0.6)), 'hiss')).toBeGreaterThan(0);
+    const smothered = once(burstEvent('extinguish', 52, 0.6));
+    expect(cueNodes(smothered, 'hollow')).toBeGreaterThan(0);
+    expect(cueNodes(smothered, 'hiss'), 'the put-out is not a bright steam').toBe(0);
     const impact = once(burstEvent('impact', 53), makeState({ cigaretteState: 'DISCARDED' }));
     expect(cueNodes(impact, 'ash')).toBeGreaterThan(0);
     expect(impact.engine.cueForEvent(burstEvent('discard', 54))).toEqual(['impact']);

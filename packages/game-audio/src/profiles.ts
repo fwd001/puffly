@@ -69,10 +69,15 @@ const ROLE_FALLBACK: Record<AudioProfileRole, readonly AudioLayer[]> = {
     { voice: 'crackle', gain: 0.16, pitchSpread: 3, timingSpreadMs: 60, pan: 0.15, loop: true },
     { voice: 'puff', gain: 0.34, pitchSpread: 2, timingSpreadMs: 24, pan: 0.05, loop: false },
     { voice: 'hollow', gain: 0.34, pitchSpread: 1.5, timingSpreadMs: 16, pan: 0.08, loop: false },
+    // The paper the flame reaches (S20's 嘶), and the reason it is here rather than left to
+    // `VOICE_DEFAULTS`: with the rod's own recipe answering, a blend can hiss differently.
+    { voice: 'hiss', gain: 0.18, pitchSpread: 2, timingSpreadMs: 26, pan: 0.14, loop: false },
   ],
   tray: [{ voice: 'ash', gain: 0.4, pitchSpread: 2, timingSpreadMs: 22, pan: 0.35, loop: false }],
+  // A muffle, not a steam: the built-in answer for putting a rod out is the dark voice plus the
+  // grind of whatever it is being put out on.
   extinguish: [
-    { voice: 'hiss', gain: 0.5, pitchSpread: 3, timingSpreadMs: 10, pan: 0.2, loop: false },
+    { voice: 'hollow', gain: 0.44, pitchSpread: 3, timingSpreadMs: 10, pan: 0.18, loop: false },
     { voice: 'ash', gain: 0.2, pitchSpread: 2, timingSpreadMs: 30, pan: 0.3, loop: false },
   ],
   surface: [

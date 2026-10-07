@@ -38,6 +38,7 @@ export const PROFILES: SoundProfileContent[] = [
       { voice: 'draw', gain: 0.4, pitchSpread: 2.5, timingSpreadMs: 20, pan: 0.1, loop: true },
       { voice: 'crackle', gain: 0.16, pitchSpread: 3, timingSpreadMs: 60, pan: 0.15, loop: true },
       { voice: 'puff', gain: 0.34, pitchSpread: 2, timingSpreadMs: 24, pan: 0.05, loop: false },
+      { voice: 'hiss', gain: 0.18, pitchSpread: 2, timingSpreadMs: 26, pan: 0.14, loop: false },
     ],
     unlock: { kind: 'default' },
   },
@@ -53,7 +54,7 @@ export const PROFILES: SoundProfileContent[] = [
     id: 'extinguish',
     name: 'Stub out',
     layers: [
-      { voice: 'hiss', gain: 0.5, pitchSpread: 3, timingSpreadMs: 10, pan: 0.2, loop: false },
+      { voice: 'hollow', gain: 0.44, pitchSpread: 3, timingSpreadMs: 10, pan: 0.18, loop: false },
       { voice: 'ash', gain: 0.2, pitchSpread: 2, timingSpreadMs: 30, pan: 0.3, loop: false },
     ],
     unlock: { kind: 'default' },

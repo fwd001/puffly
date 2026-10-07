@@ -57,7 +57,12 @@ export const CUE_MIN_GAP_MS: Record<AudioCueId, number> = {
   // it is drawn on, so the gap is what makes it a marker rather than a stutter.
   'burnt-out': 1200,
   lift: 140,
-  hiss: 260,
+  // The grind is a drag, not a tap: the core emits an extinguish burst as the press keeps going,
+  // and the muffle has a 0.3 s floor to itself, so anything shorter than that would buzz.
+  smother: 260,
+  // Same rate as the spark it belongs to. A stricter gap would drop the paper half of a fast
+  // re-light while still answering the wheel, which is the wrong way round for a pair.
+  catch: 140,
   impact: 90,
   wind: 400,
   rain: 400,
@@ -90,7 +95,18 @@ const CUE_SHAPE: Record<AudioCueId, CueShape> = {
   // the cue (the four weather voices stretch too, but nobody inhales a gust).
   vacuum: { role: 'draw', voices: ['hollow'], durationMs: 400 },
   'burnt-out': { role: 'draw', voices: ['hollow'], durationMs: 1200 },
-  hiss: { role: 'extinguish', voices: ['hiss', 'ash'], durationMs: 900 },
+  // 掐灭·闷响 (S20: 「正弦 60Hz + 低通噪声」, 220 ms·0.8): the press is low-passed, not a bright
+  // steam, so the body is `hollow` — which is the only voice that falls as it dies. The deck's 220
+  // ms cannot be shorter than `hollow`'s own 0.3 s floor, so this is the shortest muffle there is.
+  // The two voices behind it are the material it lands in, and each of the five extinguish profiles
+  // carries one of them: stone grinds, glass / tin / porcelain each ring at their own level. Asking
+  // for all three is what keeps them sounding different, because a voice a profile does not carry
+  // is dropped rather than defaulted.
+  smother: { role: 'extinguish', voices: ['hollow', 'ash', 'chime'], durationMs: 240 },
+  // 纸面引燃·嘶 (S20: 「带通噪声由 6 kHz 降到 1.5 kHz 的下扫」, 350 ms·0.55): the second register of
+  // the lighting. The sparks were already there — this is the paper, and it comes off the rod's own
+  // profile, so a different blend hisses differently.
+  catch: { role: 'draw', voices: ['hiss'], durationMs: 350 },
   impact: { role: 'tray', voices: ['ash', 'click', 'chime'], durationMs: 220 },
   lift: { role: 'surface', voices: ['click', 'ash'], durationMs: 120 },
   wind: { role: 'ambient', voices: ['wind', 'city'], durationMs: 2400 },
@@ -107,7 +123,7 @@ const BURST_CUE: Record<BurstKind, AudioCueId | null> = {
   ember: 'ignite',
   flare: 'ignite',
   ash: 'ash',
-  extinguish: 'hiss',
+  extinguish: 'smother',
   discard: 'impact',
   impact: 'impact',
 };
@@ -128,6 +144,14 @@ export function burstCues(kind: BurstKind): readonly AudioCueId[] {
   const accent = BURST_ACCENT[kind];
   return accent === undefined ? [body] : [body, accent];
 }
+
+/**
+ * The body cues that are a gesture rather than a cloud, and so keep the deck's length instead of
+ * the smoke's. 掐灭 is one press of 220 ms (S20), and the extinguish burst it belongs to carries a
+ * burst life of seconds: stretched, the muffle became a 0.6 s wash of low noise under a grind that
+ * repeats faster than that. `fracture` needs no entry — an accent is never stretched to begin with.
+ */
+const GESTURE_CUES: ReadonlySet<AudioCueId> = new Set<AudioCueId>(['smother']);
 
 /**
  * Which of the two hollows a finished draw is: an ordinary one, or the last one on a stub.
@@ -159,9 +183,13 @@ const WORLD_CUE: Record<string, AudioCueId | null> = {
  * or a world occurrence, and firing twice would be the mechanical button §26 forbids.
  */
 const SESSION_CUE: Record<string, AudioCueId | null> = {
-  // Nothing: the same instant already emitted an `ember` burst, which is the crackle of the
-  // cherry taking. A click on top of it was two sounds for one event (§26).
-  [SessionEventType.LIGHT]: null,
+  // The second register of the lighting: the deck splits it into 引燃·火星 (the ember burst, already
+  // fired) and 纸面引燃·嘶. What was refused here before was a *click* — the same bright transient the
+  // crackle already carried. The hiss is a different band and a different length.
+  //
+  // It hangs off this event rather than off the `ember` burst on purpose: the lighter's fidget
+  // flourish emits the very same burst kind, and there is no paper anywhere in a fiddled lighter.
+  [SessionEventType.LIGHT]: 'catch',
   [SessionEventType.LIGHT_FAIL]: 'sputter',
   [SessionEventType.UNLOCK]: 'chime',
   [SessionEventType.SESSION_TARGET]: 'chime',
@@ -258,14 +286,16 @@ export function planCues(
           store.resolve(shape.role, state),
           density * cueGain(cue, state),
           event.burst.seed,
-          // The body follows the smoke's own life; an accent keeps the deck's fixed length, because
-          // the break is not a cloud that hangs around. What the player hears of it is `crackle`'s
-          // own decay — that voice does not read `durationSec`, so this number is the plan's claim
-          // about the gesture, not a measurement of the sound.
+          // The body follows the smoke's own life unless the happening is a gesture, and an accent
+          // keeps the deck's fixed length, because the break is not a cloud that hangs around. What
+          // the two numbers buy differs by voice: `crackle` never reads `durationSec`, so the
+          // crack's 90 ms is the plan's claim about the gesture, while `hollow` does read it and the
+          // press's 240 ms is played — floored to the 0.3 s the sweep needs, which is the one place
+          // the deck's figure cannot be met exactly.
           stretched ? burstDuration(event.burst, shape) : shape.durationMs,
         );
       };
-      return cueIds.map((cue, index) => planOne(cue, index === 0));
+      return cueIds.map((cue, index) => planOne(cue, index === 0 && !GESTURE_CUES.has(cue)));
     }
 
     case 'world': {
@@ -297,8 +327,9 @@ export function planCues(
       const profile = store.resolve(shape.role, state);
       // The click of a lighter that caught is quieter than the flick of the wheel: the catch
       // is an accent, and the ember burst arriving in the same instant is the body (§26).
-      // The two hollows take the deck's own figures (S20: 吸附 0.65, 吸尽 0.7), and the ending is
-      // the louder of them because it is the one that says the rod is over.
+      // The two hollows and the paper take the deck's own figures (S20: 吸附 0.65, 吸尽 0.7,
+      // 纸面引燃 0.55), and the ending is the loudest of them because it is the one that says the
+      // rod is over.
       const velocity =
         cue === 'sputter'
           ? 0.5
@@ -306,9 +337,11 @@ export function planCues(
             ? 0.65
             : cue === 'burnt-out'
               ? 0.7
-              : cue === 'click'
-                ? 0.52
-                : 0.42 * (0.6 + ambientScale * 0.4);
+              : cue === 'catch'
+                ? 0.55
+                : cue === 'click'
+                  ? 0.52
+                  : 0.42 * (0.6 + ambientScale * 0.4);
       return [
         build(
           cue,
@@ -367,7 +400,10 @@ function cueGain(cue: AudioCueId, state: AudioStateSlice): number {
       return 0.75 + clamp01(state.smoke.density) * 0.25;
     case 'impact':
       return 0.8;
-    case 'hiss':
+    case 'smother':
+      // Kept at the level the bright steam used to have rather than dropped to the deck's 0.8:
+      // a 150 Hz muffle reads quieter than a 2.4 kHz hiss at the same number, and this trim is
+      // multiplied by the burst's own density before it reaches the voice.
       return 0.85 + clamp01(state.cigarette.extinguishProgress) * 0.15;
     case 'click':
       return 1;

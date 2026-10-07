@@ -103,6 +103,7 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
       { voice: 'crackle', gain: 0.16, pitchSpread: 3, timingSpreadMs: 60, pan: 0.15, loop: true },
       { voice: 'puff', gain: 0.34, pitchSpread: 2, timingSpreadMs: 24, pan: 0.05, loop: false },
       { voice: 'hollow', gain: 0.3, pitchSpread: 1.5, timingSpreadMs: 16, pan: 0.12, loop: false },
+      { voice: 'hiss', gain: 0.18, pitchSpread: 2, timingSpreadMs: 26, pan: 0.14, loop: false },
     ],
     unlock: { kind: 'default' },
   },
@@ -113,6 +114,7 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
       { voice: 'draw', gain: 0.32, pitchSpread: 2.5, timingSpreadMs: 18, pan: 0.18, loop: true },
       { voice: 'puff', gain: 0.28, pitchSpread: 3, timingSpreadMs: 20, pan: 0.12, loop: false },
       { voice: 'hollow', gain: 0.24, pitchSpread: 2.5, timingSpreadMs: 14, pan: 0.2, loop: false },
+      { voice: 'hiss', gain: 0.14, pitchSpread: 3, timingSpreadMs: 22, pan: 0.2, loop: false },
     ],
     unlock: { kind: 'day', day: 3 },
   },
@@ -124,6 +126,7 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
       { voice: 'crackle', gain: 0.22, pitchSpread: 2, timingSpreadMs: 50, pan: 0.2, loop: true },
       { voice: 'puff', gain: 0.4, pitchSpread: 1.5, timingSpreadMs: 30, pan: 0, loop: false },
       { voice: 'hollow', gain: 0.36, pitchSpread: 1, timingSpreadMs: 22, pan: 0.04, loop: false },
+      { voice: 'hiss', gain: 0.22, pitchSpread: 1.5, timingSpreadMs: 28, pan: 0.06, loop: false },
     ],
     unlock: { kind: 'day', day: 7 },
   },
@@ -135,6 +138,7 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
       { voice: 'crackle', gain: 0.34, pitchSpread: 4, timingSpreadMs: 40, pan: 0.25, loop: true },
       { voice: 'ember', gain: 0.2, pitchSpread: 5, timingSpreadMs: 70, pan: 0.3, loop: true },
       { voice: 'hollow', gain: 0.22, pitchSpread: 4, timingSpreadMs: 18, pan: 0.22, loop: false },
+      { voice: 'hiss', gain: 0.26, pitchSpread: 4, timingSpreadMs: 18, pan: 0.28, loop: false },
     ],
     unlock: { kind: 'puffs', count: 120 },
   },
@@ -145,6 +149,7 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
       { voice: 'draw', gain: 0.26, pitchSpread: 1, timingSpreadMs: 30, pan: 0.08, loop: true },
       { voice: 'puff', gain: 0.22, pitchSpread: 1.5, timingSpreadMs: 34, pan: 0.08, loop: false },
       { voice: 'hollow', gain: 0.2, pitchSpread: 1, timingSpreadMs: 26, pan: 0.06, loop: false },
+      { voice: 'hiss', gain: 0.12, pitchSpread: 1, timingSpreadMs: 30, pan: 0.1, loop: false },
     ],
     unlock: { kind: 'day', day: 14 },
   },
@@ -187,19 +192,20 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
     id: 'extinguish',
     name: 'Stub out',
     layers: [
-      { voice: 'hiss', gain: 0.5, pitchSpread: 3, timingSpreadMs: 10, pan: 0.2, loop: false },
+      { voice: 'hollow', gain: 0.5, pitchSpread: 3, timingSpreadMs: 10, pan: 0.18, loop: false },
       { voice: 'ash', gain: 0.2, pitchSpread: 2, timingSpreadMs: 30, pan: 0.3, loop: false },
     ],
     unlock: { kind: 'default' },
   },
   {
-    // One per material, because that is the whole difference between the four of them: the hiss is
-    // the same steam, but what it lands in is not. `unlock: default` on the stone one keeps it the
-    // fallback `byPrefix('extinguish')` reaches for when a bundle has no per-tray entry.
+    // One per material, because that is the whole difference between the four of them: the muffle is
+    // the same press (S20's 闷响: low-passed, not a bright steam), but what it lands in is not.
+    // `unlock: default` on the stone one keeps it the fallback `byPrefix('extinguish')` reaches for
+    // when a bundle has no per-tray entry.
     id: 'extinguish-stone',
     name: 'Stub out on stone',
     layers: [
-      { voice: 'hiss', gain: 0.46, pitchSpread: 2, timingSpreadMs: 12, pan: 0.2, loop: false },
+      { voice: 'hollow', gain: 0.46, pitchSpread: 2, timingSpreadMs: 12, pan: 0.18, loop: false },
       { voice: 'ash', gain: 0.24, pitchSpread: 1.5, timingSpreadMs: 30, pan: 0.3, loop: false },
     ],
     unlock: { kind: 'default' },
@@ -208,7 +214,7 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
     id: 'extinguish-glass',
     name: 'Stub out on glass',
     layers: [
-      { voice: 'hiss', gain: 0.42, pitchSpread: 3, timingSpreadMs: 12, pan: 0.2, loop: false },
+      { voice: 'hollow', gain: 0.42, pitchSpread: 3, timingSpreadMs: 12, pan: 0.18, loop: false },
       { voice: 'chime', gain: 0.2, pitchSpread: 5, timingSpreadMs: 24, pan: 0.36, loop: false },
     ],
     unlock: { kind: 'default' },
@@ -217,7 +223,7 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
     id: 'extinguish-tin',
     name: 'Stub out on tin',
     layers: [
-      { voice: 'hiss', gain: 0.48, pitchSpread: 4, timingSpreadMs: 10, pan: 0.2, loop: false },
+      { voice: 'hollow', gain: 0.48, pitchSpread: 4, timingSpreadMs: 10, pan: 0.18, loop: false },
       { voice: 'chime', gain: 0.26, pitchSpread: 7, timingSpreadMs: 20, pan: 0.4, loop: false },
     ],
     unlock: { kind: 'default' },
@@ -226,7 +232,7 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
     id: 'extinguish-porcelain',
     name: 'Stub out on porcelain',
     layers: [
-      { voice: 'hiss', gain: 0.44, pitchSpread: 2.5, timingSpreadMs: 12, pan: 0.2, loop: false },
+      { voice: 'hollow', gain: 0.44, pitchSpread: 2.5, timingSpreadMs: 12, pan: 0.18, loop: false },
       { voice: 'chime', gain: 0.3, pitchSpread: 2.5, timingSpreadMs: 26, pan: 0.38, loop: false },
     ],
     unlock: { kind: 'default' },
