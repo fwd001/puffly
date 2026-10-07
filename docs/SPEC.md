@@ -3979,3 +3979,68 @@ Long-term vision
 10. 不破坏 Game Core 与 Platform 的解耦。
 
 最终交付的 Puffly 应该不是一个 Demo，而是一套具有完整游戏核心、视觉系统、声音系统、数据系统、成长系统和跨平台扩展能力的产品级代码库。
+
+## 稿子 24 屏逐屏对账（2026-10-08）
+
+对账口径：那份 pptx 抽出来的纯文本（24 屏）逐屏读它**自己写的字**，再看代码与判据里有没有对应的东西。
+三种结论分开写，不混：
+
+- 落 —— 有实现，并且至少有一条能跑的判据或一条真机检查指着它；
+- 偏 —— 有意与稿子不同，理由写在对应小节；
+- 欠 —— 稿子点名了，这一版没有。
+
+复跑命令（数字都是今天现量的）：`npm test` = 111 档 824 条；`bash tests/smoke/served-build.sh`；
+真机层 `node tests/smoke/touch-device.mjs http://127.0.0.1:4179/puffly/` = 68/68。
+
+| 屏 | 稿子点名的东西 | 这一版 | 证据（判据 / 真机检查 / 本节） | 状态 |
+|------|------------------------|------------------|------------------------------------------|--------|
+| S1 待机 | 页头品类标 + 支数环 + 02:14 + 78%；按钮删文字只留组合图标；提示条换成纸面塌陷示意 | HudBar 五格读数；CtaPill 图形 + 一个词；halo 指位提示 | 真机 "S1: the row reads the stick, the clock and what is left of the rod"、"an untouched table names the one thing to do" | 落 |
+| S2 点燃 | 点火环 + 0.4s + 78%；0.4s 蓄力 → 砂轮爆 → 纸面着焰 | 翻盖绕合页、火星四溅、着焰那一下推近压暗 | SPEC "点火那一下"、"翻盖终于绕着合页转"；真机 "lighting it moves the rail off the flame and the row onto the draw" | 落 |
+| S3 吸烟 | 环内口数 6/12 + 本次时长 3.2s；按钮只留吐烟图标；阻力波形条替整句 | 口数与秒数进环，秒数不带中文单位；波形条即阻力 | 真机 "holding the pill draws, and the row says so in seconds"、"the head-up row carries the digits, and nothing else on the stage does" | 落 |
+| S4 吐烟 | 力度读数；两端中文换成对照图（三道丝线 / 三层云朵） | 丝线与云朵画在按钮自己身上 | `CtaPill.vue:145` 的 `.art.flick` / 丝线云朵组；真机 "the picture carries the cues…" | 落 |
+| S5 烟灰缸 | 灰柱环 + 9mm + 2.1g + 磕灰演示条 | 灰柱比例成环、毫米与克并排、磕灰有自己的示意图形 | `HudBar.vue:105-106`（`ash.ratio` / `ashMm`）、`CtaPill.vue:136` 的 `.art.flick` | 落 |
+| S6 反馈 | 触觉三档 + 声音层可关 + 写实度 80/20 + 混响关 + 静音三层 | 四项各成一行，档位用刻点数量表达 | 真机 "the sheet asks for the player in the device language — 声音 \| 混响 \| 写实度…"；SPEC "手上的三种形状"、"混响"、"写实度那一格" | 落 |
+| S7 声音与动效规范 | 四层反馈模型、12 个声音事件、0–12 秒一口时序、写实 5 条与卡通 5 条 | 四层与静音三层成立，12 事件齐；卡通 5 条全落，写实 5 条里 3 条落；七拍都在状态机里，但没有"每段几秒"的定拍 | SPEC "声音清单还缺三条"；`ember-heat.test.ts`、`realism.test.ts`；`stateMachine.ts:17-26` | 部分：定拍 = 欠；烟羽三层与灰的"先断裂"一拍 = 偏；辉光半径方向 = 待拍板 |
+| S8 图鉴 | 每格四行（名 / 品类词 / 时长 / 解锁状态）、11 格三型、页头阶梯 | 名 + 品类词 + 自己等的解锁数；时长故意不上格 | 本节 "图鉴每格的两行"；`shelf.test.ts` 七条；真机 "the cabinet shows the eleven-category ladder" | 落（时长行 = 偏） |
+| S9 数据基线与参数表 | 时长 / 口数 / 单口吸入 / 烟灰量 / 芯温逐只给值 | 后六只与稿子逐一对齐；六只卷烟只有稿子的三分之一 | 本节 "档案卡上那三个数是谁的数" 末尾那张对照 | 偏：压缩是有意的，是否拉回稿子区间 = 待拍板 |
+| S10 过渡页 | 只印「原生 Standard」 | 无要求 | — | 不适用 |
+| S11 桌面版 | 侧栏六入口、剩余 68% 与 03:12 对齐、说明去中文量词 | 侧栏八个入口，读数以数字为准 | 真机 "S10: eight entries, each a finger-sized target wearing a word at the type floor" | 落（八 ⊇ 稿子六） |
+| S12 桌面挂件 | 透明背景、常驻桌面、点击展开 | 常驻透明窗是原生壳的事，PWA 做不到；稿子这条里能做的另一半（空闲降帧省电）落了 | SPEC "两件小而确指的动效条目"；`idle-paint.test.ts` | 偏：能力边界；原生壳 = 未开工 |
+| S13 挂件展开态 | 320×420 面板，与移动端同一套逻辑、输入换成鼠标 | 等价物是宽屏侧栏 + 同一套 sheet；鼠标路径有判据 | 真机 "desktop: the lighter catches a mouse click"、"desktop: holding the mouse draws" | 偏（形态不同，逻辑同一套） |
+| S14 零文字 / 多语言 / 本地存储 | 核心循环零文字、六个图标、三个自定义档位（单口时长 / 吐烟力度 / 每日支数目标）、存档 schema | 零文字与三层降级成立；吐烟力度 = 屏上的力度控制，每日支数上限 = `dailyLimitSticks`，目标时长 = `sessionTargetMs` | 真机 "the third tier leaves no words and no unnamed control behind"；`settings.ts` | 欠：单口时长这一档没有 —— 见下面第 1 条 |
+| S15 一致性审计表 | 0 处整段未图标化、0 处数值口径不一致、估算值统一带约等于 | 三条都有判据指着 | 真机 "the screen carries no prose…"、"pinning the card earns tier three, and its estimate carries the ≈"；`WORD_HOMES` 扫描 | 落 |
+| S16 全球品类与两型 | 吸入型按住吐烟；品鉴型含住 2 秒缓缓吐、不出现肺阻力反馈；过滤型经水 | 三型各自成立 | `savour.test.ts`；真机 kinds = 吸入型 7 / 品鉴型 3 / 过滤型 1 | 落 |
+| S17 皮肤 | 四层色板 + 环境预设；硬约束不得动时长 / 口数 / 温度 / 灰重 | 皮肤只有四层，物理碰不到 | `skins.test.ts` "a skin is four colours and nothing else"、`skin.test.ts` "a skin cannot reach the ash, the band, the filter or the tray" | 落 |
+| S18 烟盒收集 | 12 槽、低档保底 / 中高加权、三条底线（不画商标、不做价格对比、不做健康暗示） | 12 槽与三档都在，底线由扫描判据守着 | `packs.test.ts`；真机 "烟盒 0 / 12"；SPEC "烟盒收集：压轴盒以前是永远拿不到" | 落 |
+| S19 抽到一半看档案 | 手机端按住烟身 0.6 秒；PC 端鼠标停在烟身上 0.6 秒、右栏滑出；松手只收卡；钉住读第三层；数字 ≥15px | 阈值与三层密度成立，但挂点在 HUD 的支数标记、卡片是覆盖式而非右栏 | 真机 "a hold opens the archive at tier two…"、"the release takes the card back…"、"pinning the card earns tier three" | 落（挂点 = 偏，见下面第 2 条） |
+| S20 图鉴全展开 | 11 格长屏 | 同一屏，滚动即长屏 | 同 S8 | 落 |
+| S21 皮肤实机屏 | 六套、只改四层、四套按支数解锁（40 / 120 / 260 / 420）、朱砂按集齐 | 与稿子逐一对齐 | `brief-conformance.test.ts` "gates each skin where the sheet says"；真机 cards:6 layers:4 locked:5 | 落 |
+| S22 烟盒实机屏 | 12 槽分三档、已收计数、集齐进度 | 档位记号 `·` / `••` / `✦`，计数与差多少盒都在 | `CollectionSheet.vue:255`；真机 "烟盒 0 / 12" | 落 |
+| S23 减量 | 12 / 20 今日上限、近 7 天日均、较上周同期、三个替代动作、不劝戒不断言健康 | 上限可自调且清空不受罚、日均与同期差值都落；三个替代动作还是 span | 本节 "减量页缺的那一个数"；`reduction.*` 判据 | 部分：三个替代动作 = 待拍板（做成机制还是纯装饰） |
+| S24 场所 12 处 | 通风系数 0.05–0.90 直接改烟的消散；对照表 13 行 | 21 处场所，系数逐处给，稿子 13 行里 12 行对上 | `venue-and-smoke.test.ts`；真机 "场景 1 / 21" | 落（一处系数 = 偏，见下面第 3 条） |
+
+### 这轮对账新照出来的三条
+
+1. **S14 的三个自定义档位，缺的是「单口时长」。** 稿子自己那份存档 schema 写着 `settings.puffDurationSec`，
+   而 `Settings` 里没有这个键（今天逐字段读过 `packages/game-core/src/types/settings.ts`）—— 现在的单口时长
+   只由烟种自己决定。这一档不是漏 UI：把它交给玩家就会动「口数 × 单口时长 = 本次时长」，进而动稿子 S14 那
+   套「25 分钟 ≈ 2.5 支 / 一个月 75 支」的算术。⇒ 待拍板，且要先定「玩家改档位时燃烧算不算他自己的数」。
+2. **S19 的挂点从「烟身」挪到了 HUD 的支数标记。** 稿子说按住烟身 0.6 秒开档案，但画布上的「按住」已经被
+   吸入占了（S3 自己规定的核心手势），同一只手指不能既吸气又翻卡片。⇒ 现在的做法是：手机端长按 HUD 的支数
+   标记、桌面端鼠标停在同一格上 0.6 秒（`useLongPress` 的 `onPointerEnter`，阈值同一个 600ms）。稿子说的
+   「右栏档案区从下方滑出」也没做成右栏，是覆盖卡 —— 宽屏侧栏今天的八个入口里没有 archive 这一格。
+3. **S24 的对照表与卡片行自己打架，本轮取的是卡片那一行。** 稿子「通风系数对照」把中国吸烟亭写成 0.75，
+   同一屏的卡片行写「通风 0.45 · 半户外 · 烟往上贴墙走」；铁皮棚有顶棚和挡板，物理上关不住 0.75 那种过堂风，
+   所以 shipped = 0.45（`environments.ts` 的 `tin-shelter`）。稿子那个 0.75 这一档并没有丢 —— 内容里由
+   `neon-street` 占着。其余 12 行逐行相等（0.05 / 0.20 / 0.40 / 0.45 / 0.60 / 0.70 / 0.75 / 0.55 / 0.35 /
+   0.30 / 0.25 / 0.15 / 0.90）。
+
+### 等他拍板的（这一版有意没动）
+
+- 六只卷烟的时长要不要拉回稿子区间（S9）；拉回去等于改核心循环的时长与那套月算术。
+- 减量页那三个替代动作是做成机制还是纯装饰（S23 / #70）。
+- 余烬辉光半径的方向：稿子说熄灭前应收敛，今天是反向的（#63 c2）。
+- 烟羽要不要真的分成主体 / 边缘 / 卷曲三层独立速度（S7 r4），还是保持 #38 那个「一个场切两段」。
+- 「0–12 秒一口时序」缺的是那张**定拍表**，不是动作本身：取烟 / 点火 / 吸入 / 屏息 / 磕灰 / 掐灭 六拍在状态机里
+  都有名字（`stateMachine.ts` 的 `PICKED_UP` `LIGHTING` `PUFFING` `RESTING` `ASH_READY` `EXTINGUISHING`），
+  而今天每一段的长度由手指决定 —— 按住多久就吸多久。要不要把它做成一条可自动走完的 12 秒节拍 = 待拍板。
