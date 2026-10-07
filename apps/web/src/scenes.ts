@@ -11,7 +11,7 @@
  */
 
 import type { CollectionItem, UnlockRule } from '@puffly/game-core';
-import type { CopyKey } from './i18n';
+import type { CopyKey, I18n } from './i18n';
 
 /** Which axis a door counts. `now` is the room the player already has. */
 export type RungUnit = 'now' | 'level' | 'day' | 'breaks' | 'draws' | 'boxes';
@@ -108,8 +108,34 @@ export function rungOf(rule: UnlockRule): Rung {
  * doors, and the row must not be able to draw two rooms identically.
  */
 export function rungShown(item: CollectionItem): string {
-  const rung = rungOf(item.unlock);
+  return rungShownFor(item.unlock);
+}
+
+/** The same mark for anything that carries an `UnlockRule`, which is how the rod tiles join in. */
+export function rungShownFor(rule: UnlockRule): string {
+  const rung = rungOf(rule);
   return `${RUNG_MARKS[rung.unit] ?? ''}${rung.step ?? ''}`;
+}
+
+/** The axis and its number, in words: what the digits above actually count. */
+export function rungSpokenFor(copy: I18n, rule: UnlockRule): string {
+  const rung = rungOf(rule);
+  return copy.say(RUNG_KEYS[rung.unit], { n: rung.step ?? '' });
+}
+
+/**
+ * The card's whole spoken name, in the one order every card on this sheet uses: what it is, which
+ * rung opens it, and whether it is still shut.
+ *
+ * Four grids used to write this sentence themselves — the rooms with all three parts, the props and
+ * the skins without the rung, and the rod tiles with a lock mark bolted on at the end. The version
+ * that left the rung out was not shorter for a screen reader, it was silent about the one fact that
+ * tells you why the card is dim.
+ */
+export function cardLabel(copy: I18n, name: string, rule: UnlockRule, locked: boolean): string {
+  const parts = [name, rungSpokenFor(copy, rule)];
+  if (locked) parts.push(copy.say('a11y.tileLocked'));
+  return parts.join(' · ');
 }
 
 /** Rooms first-open, then by the number on their own axis, then by axis. */

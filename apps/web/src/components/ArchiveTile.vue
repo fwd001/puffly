@@ -1,12 +1,17 @@
 <script setup lang="ts">
 /**
- * One rod in the 图鉴 (S8). A card is a chip of its own paper colour, its name in the language
- * it was given and the one it is read by, and two gestures: tap to put it in the hand, hold for
- * its archive. A rod that has not been met yet is shown rather than hidden — the ladder is the
- * point of the screen, and an empty grid teaches nothing.
+ * One rod in the 图鉴 (S8). A card is a chip of its own paper colour, the two names it goes by, the
+ * word for what it is like to smoke, and the rung that opens it — with two gestures: tap to put it in
+ * the hand, hold for its archive. A rod that has not been met yet is shown rather than hidden: the
+ * ladder is the point of the screen, and an empty grid teaches nothing.
+ *
+ * The rung is digits on the card and a spoken axis in the label, exactly as the room cards do it,
+ * because a bare number has no axis and the wordless tier cannot carry one.
  */
 import { computed } from 'vue';
-import type { I18n } from '../i18n';
+import type { UnlockRule } from '@puffly/game-core';
+import { cardLabel } from '../scenes';
+import { rodNoteKey, type I18n } from '../i18n';
 import { useLongPress } from '../composables/useLongPress';
 
 const props = defineProps<{
@@ -16,6 +21,9 @@ const props = defineProps<{
   swatch: string;
   locked: boolean;
   selected: boolean;
+  /** This rod's own rung, already marked: `◷14`, `65`, or empty for the one that is free. */
+  rung: string;
+  unlock: UnlockRule;
   copy: I18n;
 }>();
 
@@ -28,11 +36,20 @@ const hold = useLongPress(
   },
 );
 
-/** The dot that marks a card as unreadable is decoration; the name has to carry it instead. */
-const label = computed(() => {
-  const named = props.copy.say('a11y.tile', { name: props.name, zhName: props.zhName });
-  return props.locked ? `${named} · ${props.copy.say('a11y.tileLocked')}` : named;
+/** S8's second line: what this rod is like to smoke. A word, so the icons tier drops it. */
+const note = computed(() => {
+  const key = rodNoteKey(props.id);
+  return key === undefined ? null : props.copy.t(key);
 });
+/** The dot that marks a card as unreadable is decoration; the name has to carry it instead. */
+const label = computed(() =>
+  cardLabel(
+    props.copy,
+    props.copy.say('a11y.tile', { name: props.name, zhName: props.zhName }),
+    props.unlock,
+    props.locked,
+  ),
+);
 </script>
 
 <template>
@@ -52,9 +69,11 @@ const label = computed(() => {
   >
     <span class="chip" :style="{ background: swatch }" aria-hidden="true" />
     <span v-if="locked" class="lock" aria-hidden="true">·</span>
+    <span v-if="locked && rung !== ''" class="rung digits" aria-hidden="true">{{ rung }}</span>
     <span v-if="copy.t('shelf.rods') !== null" class="names">
       <span class="name">{{ name }}</span>
       <span class="zh">{{ zhName }}</span>
+      <span v-if="note !== null" class="note">{{ note }}</span>
     </span>
   </button>
 </template>
@@ -101,6 +120,19 @@ const label = computed(() => {
 }
 
 .zh {
+  color: var(--smoke-gray);
+  font-size: calc(15px * var(--text-scale));
+}
+
+/* The number a locked card is waiting for. In the flow rather than the sheet's corner position,
+   because the dot that says "locked" already owns this card's corner. */
+.rung {
+  color: var(--soft-white);
+  font-size: calc(15px * var(--text-scale));
+  font-weight: 500;
+}
+
+.note {
   color: var(--smoke-gray);
   font-size: calc(15px * var(--text-scale));
 }

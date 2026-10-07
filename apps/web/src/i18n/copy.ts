@@ -178,6 +178,31 @@ export const EN = {
   'shelf.kind.filter': 'filtered',
   'a11y.tile': '{name}, {zhName}',
   'a11y.tileLocked': 'not met yet',
+  // S8's second line on every tile: what the rod is like to smoke. Authored per rod from the
+  // numbers it ships with, and for the five non-cigarette classes the deck's own words are kept.
+  // Words, so the icons tier drops them and the chip plus the digits stay readable.
+  // classic: density 0.92, ash 2.1 g: the middle of the table on every axis
+  'rod.note.classic': 'balanced',
+  // silver: density 0.72 on a 99 mm slim: the thinnest smoke of the six
+  'rod.note.silver': 'light',
+  // night: density 1.08 at turbulence 1.24: a short dark stick whose smoke curls
+  'rod.note.night': 'dark',
+  // long: the slowest burn of the cigarettes (4.6 min) and the tallest rise
+  'rod.note.long': 'long and even',
+  // ember: turbulence 1.42 and 740-800 C: the shortest, busiest rod here
+  'rod.note.ember': 'intense',
+  // mist: dispersion 1.35 at turbulence 0.42: a curtain, not a column
+  'rod.note.mist': 'wide and slow',
+  // ryo: 790-850 C over 7.5 min, hand-built: hot, slow and coarse
+  'rod.note.ryo': 'rustic',
+  // cigarillo: 18 min and 16 puffs on 90 mm; the deck own word for this class
+  'rod.note.cigarillo': 'dense',
+  // cigar: 50 min and 6.5 g of ash; the deck word, kept
+  'rod.note.cigar': 'mellow',
+  // pipe: 40 min at 640-700 C with almost no ash; the deck word, kept
+  'rod.note.pipe': 'aromatic',
+  // hookah: 380-430 C, 40 short draws, 300 mm of stem; the deck word, kept
+  'rod.note.hookah': 'cool',
 
   /**
    * S20. The whole page is the player's own log restated: it compares them to last week and
@@ -377,6 +402,17 @@ const ZH: Table = {
   'shelf.kind.filter': '过滤型',
   'a11y.tile': '{name} · {zhName}',
   'a11y.tileLocked': '还没抽到',
+  'rod.note.classic': '均衡',
+  'rod.note.silver': '清淡',
+  'rod.note.night': '沉郁',
+  'rod.note.long': '绵长',
+  'rod.note.ember': '浓烈',
+  'rod.note.mist': '漫开',
+  'rod.note.ryo': '粗犷',
+  'rod.note.cigarillo': '稠密',
+  'rod.note.cigar': '醇厚',
+  'rod.note.pipe': '沉香',
+  'rod.note.hookah': '冰凉',
 
   'reduction.sticks': '支',
   'reduction.week': '近 7 天',
@@ -471,6 +507,16 @@ export const CTA_KEYS: Record<string, CopyKey> = {
 export function ctaKeyFor(affordance: string, savourMs: number): CopyKey | undefined {
   if (affordance === 'puff' && savourMs > 0) return 'cta.savour';
   return CTA_KEYS[affordance];
+}
+
+/**
+ * S8's second line on a rod tile: the one word for what smoking it is like. A rod id is not a
+ * literal, so the key has to be resolved against the English table rather than cast — a cast would
+ * let a rod whose note was never authored reach `t()` and look like a present key.
+ */
+export function rodNoteKey(id: string): CopyKey | undefined {
+  const key = `rod.note.${id}`;
+  return key in EN ? (key as CopyKey) : undefined;
 }
 
 /** §4: what a screen reader hears, keyed off `GameState.cigarette.state`. */ export const STATE_KEYS: Record<

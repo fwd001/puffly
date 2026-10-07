@@ -3,8 +3,11 @@
  * read by what the hand does, so both are claims about the shipped content that can be wrong.
  */
 
+import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONTENT } from '@puffly/game-content';
+import { createI18n, rodNoteKey } from '../i18n';
+import { cardLabel, rungShownFor } from '../scenes';
 import { nextRodGate, shelfCount, shelvesOf } from '../shelf';
 
 const rods = DEFAULT_CONTENT.cigarettes;
@@ -53,9 +56,79 @@ describe('the 图鉴 (§ S8, § S8b)', () => {
     expect(nextRodGate(rods, 420)).toBeNull();
   });
 
+  it('every rod has one word for what it is like to smoke, in both tiers that say words', () => {
+    // S8's second line on each tile. A word, not a sentence and not a number: the tile is read by
+    // the chip and the rung on the icons tier, and a figure here would need the card's 口径 line to
+    // mean anything.
+    for (const locale of ['en', 'zh-CN'] as const) {
+      for (const rod of rods) {
+        // Read through the same lookup the tile uses, so this also proves the key is *registered*
+        // rather than merely cast into the key type.
+        const key = rodNoteKey(rod.id);
+        expect(key, `${rod.id} has no note in the English table`).toBeTypeOf('string');
+        const value = key === undefined ? null : copyOf(locale).t(key);
+        expect(value, `${locale}:${rod.id}`).toBeTypeOf('string');
+        const text = value ?? '';
+        expect(text.trim(), `${locale}:${rod.id} is empty`).not.toBe('');
+        expect(text, `${locale}:${rod.id} says a sentence`).not.toMatch(/[.。!?]/);
+        expect(text, `${locale}:${rod.id} carries a figure`).not.toMatch(/[0-9]/);
+      }
+    }
+    // The third tier has nothing to say, and the tile has to be able to show nothing.
+    for (const rod of rods) expect(noteOf('icons', rod.id)).toBeNull();
+  });
+
+  it('a locked rod card carries the rung it is waiting on, as digits', () => {
+    const marks = rods.map((rod) => rungShownFor(rod.unlock));
+    // The one free rod shows no number, because it has no threshold to show.
+    expect(marks[0] ?? '').toBe('');
+    for (const [index, rod] of rods.entries()) {
+      if (index === 0) continue;
+      expect(marks[index], rod.id).toMatch(/^[^0-9]*[0-9]+$/);
+    }
+    // And no two locked rods share a mark, or the row cannot be read as a ladder.
+    const rest = marks.slice(1);
+    expect(new Set(rest).size, JSON.stringify(rest)).toBe(rest.length);
+  });
+
+  it('the card sentence has one home, and it always says which rung opens', () => {
+    const spoken = cardLabel(copyOf('zh-CN'), '夜航 Night', { kind: 'sessions', count: 40 }, true);
+    expect(spoken).toContain('40');
+    expect(spoken.split(' · ')).toHaveLength(3);
+    expect(spoken, 'the locked mark has to come last, in every language').toMatch(/还没抽到$/);
+    expect(cardLabel(copyOf('en'), 'X', { kind: 'default' }, false).split(' · ')).toHaveLength(2);
+    expect(
+      cardLabel(copyOf('en'), 'X', { kind: 'default' }, true),
+      'a free card still needs the lock said once',
+    ).toMatch(/not met yet$/);
+
+    // The sentence used to be written four times, twice without the rung. One home is only true while
+    // the components stop bolting their own versions together.
+    const files = readdirSync(new URL('../components', import.meta.url)).filter((name) =>
+      name.endsWith('.vue'),
+    );
+    const handWritten = files
+      .map((name) => readFileSync(new URL(`../components/${name}`, import.meta.url), 'utf8'))
+      // Comments are allowed to name the key — this file's own reasoning does — so they come out
+      // before the scan, the same way the architecture guards strip them.
+      .map((text) => text.replace(/\/\*[\S\s]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' '))
+      .filter((text) => text.includes("'a11y.tileLocked'"));
+    expect(handWritten, 'a component is composing the card sentence again').toEqual([]);
+  });
+
   it('never invents a family the ordering does not know about', () => {
     for (const rod of rods) {
       expect(['inhale', 'savor', 'filter']).toContain(rod.archive.kind);
     }
   });
 });
+
+function copyOf(locale: 'en' | 'zh-CN' | 'icons') {
+  return createI18n(locale);
+}
+
+/** What the tile would actually show for this rod, in this tier. */
+function noteOf(locale: 'en' | 'zh-CN' | 'icons', id: string): string | null {
+  const key = rodNoteKey(id);
+  return key === undefined ? null : copyOf(locale).t(key);
+}

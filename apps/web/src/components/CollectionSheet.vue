@@ -23,7 +23,7 @@ import type { Puffly } from '../composables/usePuffly';
 import ArchiveTile from './ArchiveTile.vue';
 import { PACKS, SKINS } from '@puffly/game-content';
 import { nextRodGate, shelfCount, shelvesOf } from '../shelf';
-import { RUNG_KEYS, byRung, rungCount, rungOf, rungShown } from '../scenes';
+import { byRung, cardLabel, rungCount, rungShown, rungShownFor } from '../scenes';
 
 const props = defineProps<{
   open: boolean;
@@ -103,18 +103,16 @@ const sceneCount = computed(() => rungCount(scenes.value, [...metScenes.value]))
 
 /**
  * A card shows digits, which is what the wordless tier can carry. What it *counts* — days, breaks,
- * boxes — is only ever spoken, because "3" without an axis is a number with no door on it.
+ * boxes — is only ever spoken, because "3" without an axis is a number with no door on it. The
+ * sentence itself lives in `cardLabel`, one order for every grid on this sheet.
  */
-function rungSpoken(item: CollectionItem): string {
-  const rung = rungOf(item.unlock);
-  return copy.value.say(RUNG_KEYS[rung.unit], { n: rung.step ?? '' });
-}
-
-/** Name, then which rung opens it, then whether it is still shut — in that order in every language. */
 function sceneLabel(item: CollectionItem): string {
-  const parts = [copy.value.say('a11y.scene', { name: item.name }), rungSpoken(item)];
-  if (!metScenes.value.has(item.id)) parts.push(copy.value.say('a11y.tileLocked'));
-  return parts.join(' · ');
+  return cardLabel(
+    copy.value,
+    copy.value.say('a11y.scene', { name: item.name }),
+    item.unlock,
+    !metScenes.value.has(item.id),
+  );
 }
 
 function isUnlocked(item: CollectionItem): boolean {
@@ -125,8 +123,8 @@ function isUnlocked(item: CollectionItem): boolean {
  * Everything dimmed on this sheet is dimmed for the same reason, and the reason has to be said:
  * a card that is only greyer reads as a design choice rather than as something not yet met.
  */
-function nameFor(label: string, locked: boolean): string {
-  return locked ? `${label} · ${copy.value.say('a11y.tileLocked')}` : label;
+function nameFor(item: CollectionItem, locked: boolean): string {
+  return cardLabel(copy.value, item.name, item.unlock, locked);
 }
 
 function isChosen(item: CollectionItem): boolean {
@@ -222,6 +220,8 @@ watch(
           :swatch="rgbToCss(rod.palette.paper)"
           :locked="!met.has(rod.id)"
           :selected="chosen === rod.id"
+          :rung="rungShownFor(rod.unlock)"
+          :unlock="rod.unlock"
           :copy="copy"
           @use="game.select({ cigarette: $event })"
           @archive="emit('archive', $event)"
@@ -274,7 +274,12 @@ watch(
           :data-selected="worn === skin.id"
           :aria-pressed="worn === skin.id"
           :aria-label="
-            nameFor(copy.say('a11y.skin', { name: skin.name }), !unlockedSkins.has(skin.id))
+            cardLabel(
+              copy,
+              copy.say('a11y.skin', { name: skin.name }),
+              skin.unlock,
+              !unlockedSkins.has(skin.id),
+            )
           "
           @click="unlockedSkins.has(skin.id) && game.setSettings({ skin: skin.id })"
         >
@@ -331,7 +336,7 @@ watch(
           :class="{ fresh: fresh.has(`${item.category}:${item.id}`) }"
           :data-locked="!isUnlocked(item)"
           :data-selected="isChosen(item)"
-          :aria-label="nameFor(item.name, !isUnlocked(item))"
+          :aria-label="nameFor(item, !isUnlocked(item))"
           :aria-pressed="isChosen(item)"
           @click="use(item)"
         >
