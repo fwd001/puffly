@@ -185,33 +185,165 @@ export function drawLighter(
   ctx.ellipse(at.x, at.y + bodyH * 0.72, bodyW * 0.72, bodyH * 0.12, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Case: one vertical metal ramp, dark at the edges, lit where the key light lands.
+  // The form is the flip-top, because that is the lighter almost everyone on earth recognises: a
+  // fuel tank, a chimney with a wick in it, a knurled wheel peeking out on one side, and one cap on
+  // a hinge at the back that throws open. The cap is driven by `state.lighter.lid` rather than by
+  // the flame, so the object reads as open the instant it is struck, and the tank keeps the exact
+  // footprint `lighterBox` promises — that box is what a finger is aimed at.
   const key = state.world.light.keyDirectionDeg;
-  const metal = ctx.createLinearGradient(at.x - bodyW / 2, 0, at.x + bodyW / 2, 0);
   const base = state.style.lighter.hue;
-  metal.addColorStop(0, rgbToCss(mixRgb(base, [12, 12, 16], 0.78)));
-  metal.addColorStop(
-    0.35 + Math.cos((key * Math.PI) / 180) * 0.1,
-    rgbToCss(mixRgb(base, [236, 236, 240], 0.5)),
+  const lid = clamp01(state.lighter.lid);
+  const halfW = bodyW / 2;
+
+  // Three bands, top down. The cap is a *cover*, so its bottom edge is the top of the tank and the
+  // chimney it hides belongs to the tank — not to a second box stacked on the first, which is what
+  // made the previous version read as a tin.
+  const capH = bodyH * 0.44;
+  const chimH = bodyH * 0.11;
+  const seamY = top + capH;
+  const chimTop = seamY - chimH;
+  const tankBottom = top + bodyH;
+
+  // One metal ramp, restarted per band. `shift` moves the specular off the tank's so the seam reads
+  // as a step in the silhouette instead of a line drawn across one continuous cylinder.
+  const ramp = (darken: number, shift: number): void => {
+    const metal = ctx.createLinearGradient(at.x - halfW, 0, at.x + halfW, 0);
+    metal.addColorStop(0, rgbToCss(mixRgb(base, [10, 10, 14], Math.min(0.95, 0.8 + darken))));
+    metal.addColorStop(
+      clamp01(0.33 + Math.cos((key * Math.PI) / 180) * 0.1 + shift),
+      rgbToCss(mixRgb(base, [238, 238, 242], Math.max(0.14, 0.52 - darken * 0.2))),
+    );
+    metal.addColorStop(1, rgbToCss(mixRgb(base, [10, 10, 14], Math.min(0.95, 0.7 + darken))));
+    ctx.fillStyle = metal;
+  };
+
+  // The chimney, which only becomes visible as the cap lifts: a narrower band of darker metal with
+  // two holes in it, so what the cap uncovers is a part with a job and not a shadow.
+  ramp(0.4, 0.06);
+  ctx.fillRect(at.x - bodyW * 0.3, chimTop, bodyW * 0.6, chimH);
+  // The wick, because that is what the flame is actually standing on.
+  ctx.fillStyle = rgbToCss(mixRgb([238, 230, 214], base, 0.35));
+  ctx.fillRect(at.x - bodyW * 0.09, chimTop - bodyH * 0.05, bodyW * 0.18, bodyH * 0.07);
+
+  // The tank.
+  ramp(0, 0);
+  roundRect(ctx, at.x - halfW, seamY, bodyW, tankBottom - seamY, bodyW * 0.16);
+  ctx.fill();
+  // A foot, so the case has a base rather than only a bottom edge.
+  ctx.fillStyle = rgbToCss(mixRgb(base, [8, 8, 12], 0.72), 0.5);
+  ctx.fillRect(at.x - halfW, tankBottom - bodyH * 0.07, bodyW, bodyH * 0.07);
+  // The seam is the strongest cue the object has while it is closed, so it is drawn as a gap and a
+  // shoulder rather than one line: dark where the cap's skirt ends, bright where the tank's top
+  // edge catches the light just below it.
+  ctx.fillStyle = rgbToCss(mixRgb(base, [0, 0, 0], 0.72), 0.8);
+  ctx.fillRect(at.x - halfW, seamY, bodyW, Math.max(1, bodyH * 0.022));
+  ctx.fillStyle = rgbToCss(mixRgb(base, [232, 232, 238], 0.5), 0.4);
+  // Inset, because the tank's own corners are rounded: a full-width line at the shoulder pokes past
+  // them and reads as a bar laid across the front of the case.
+  ctx.fillRect(
+    at.x - bodyW * 0.42,
+    seamY + Math.max(1, bodyH * 0.022),
+    bodyW * 0.84,
+    Math.max(0.7, bodyH * 0.008),
   );
-  metal.addColorStop(1, rgbToCss(mixRgb(base, [12, 12, 16], 0.66)));
-  ctx.fillStyle = metal;
-  roundRect(ctx, at.x - bodyW / 2, top, bodyW, bodyH, bodyW * 0.22);
-  ctx.fill();
+  // The hinge barrel, one knuckle at each end of the seam. Kept inside the silhouette: a tab that
+  // breaks the outline reads as a handle rather than a joint.
+  ctx.fillStyle = rgbToCss(mixRgb(base, [30, 29, 34], 0.6), 0.9);
+  for (const side of [-1, 1]) {
+    ctx.fillRect(
+      at.x + side * halfW - (side > 0 ? bodyW * 0.1 : 0),
+      seamY + Math.max(1, bodyH * 0.02),
+      bodyW * 0.1,
+      Math.max(1.4, bodyH * 0.04),
+    );
+  }
 
-  // Cap and hinge: two thin bands are enough to say "this opens".
-  ctx.fillStyle = rgbToCss(mixRgb(base, [220, 222, 228], 0.62), 0.95);
-  ctx.fillRect(at.x - bodyW / 2, top - bodyH * 0.1, bodyW, bodyH * 0.12);
-  ctx.fillStyle = rgbToCss(mixRgb(base, [0, 0, 0], 0.55), 0.8);
-  ctx.fillRect(at.x - bodyW / 2, top + bodyH * 0.02, bodyW, Math.max(1, bodyH * 0.02));
-
-  // Spark wheel, catching the light.
+  // The flint wheel, half out of the chimney's right side: the part that says "thumb this".
+  const wheelR = bodyW * 0.15;
+  const wheelX = at.x + bodyW * 0.28;
+  const wheelY = chimTop + chimH * 0.45;
   ctx.beginPath();
-  ctx.arc(at.x + bodyW * 0.26, top - bodyH * 0.04, bodyW * 0.16, 0, Math.PI * 2);
-  ctx.fillStyle = rgbToCss(mixRgb(base, [90, 88, 92], 0.5));
+  ctx.arc(wheelX, wheelY, wheelR, 0, Math.PI * 2);
+  ctx.fillStyle = rgbToCss(mixRgb(base, [66, 64, 70], 0.62));
   ctx.fill();
+  // Knurling. At this size five short strokes are enough to stop it reading as a flat dot.
+  ctx.lineWidth = Math.max(0.6, bodyW * 0.028);
+  ctx.strokeStyle = rgbToCss(mixRgb(base, [18, 18, 22], 0.72), 0.8);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + 0.42;
+    ctx.beginPath();
+    ctx.moveTo(wheelX + Math.cos(a) * wheelR * 0.4, wheelY + Math.sin(a) * wheelR * 0.4);
+    ctx.lineTo(wheelX + Math.cos(a) * wheelR * 0.94, wheelY + Math.sin(a) * wheelR * 0.94);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(wheelX, wheelY, wheelR * 0.97, 0, Math.PI * 2);
+  ctx.strokeStyle = rgbToCss(mixRgb(base, [242, 242, 246], 0.6), 0.5);
+  ctx.stroke();
+
+  // The cap. It hinges at the *back* of the case, so in this front view it does not swing sideways
+  // like a door — it tips away from the camera: it shortens, its far edge narrows, and its own
+  // inside becomes the surface you are looking at. Every point is emitted in canvas space because
+  // the placement guard reads them back to check that what is drawn is what is tapped.
+  // Closed, the cap's skirt reaches the tank's shoulder and hides the chimney entirely; opening it
+  // is the skirt lifting off the hinge, not the whole object sliding up. The cap is also a hair
+  // wider than the tank because it fits *over* it — that overhang is the silhouette cue that says
+  // "this part comes off", and without it the closed lighter reads as one turned can.
+  const capHalf = halfW * 1.035;
+  // The skirt clears the chimney at about half open, so the flame never appears to be burning
+  // through the cap.
+  const capBottom = seamY - lid * chimH * 2.2;
+  const capTop = capBottom - capH * (0.96 - 0.36 * lid);
+  const inset = bodyW * 0.13 * lid;
+  const topHalf = capHalf - inset;
+  const r = Math.min(bodyW * 0.13, capH * 0.16);
+  const capCorners: Array<[number, number]> = [
+    [at.x - capHalf, capBottom],
+    [at.x - capHalf, capTop + r],
+    [at.x - capHalf + r * 0.42, capTop + r * 0.12],
+    [at.x - topHalf + r * 0.6, capTop],
+    [at.x + topHalf - r * 0.6, capTop],
+    [at.x + capHalf - r * 0.42, capTop + r * 0.12],
+    [at.x + capHalf, capTop + r],
+    [at.x + capHalf, capBottom],
+  ];
+  ctx.beginPath();
+  capCorners.forEach(([x, y], index) => {
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ramp(0.16, 0.24);
+  ctx.fill();
+  // The inside of the cap is a hollow shell, and that is the detail that says something was
+  // *covering* the chimney. It only shows once the cap has tipped back.
+  if (lid > 0.02) {
+    const shrink = bodyW * 0.11;
+    ctx.beginPath();
+    ctx.moveTo(at.x - capHalf + shrink, capBottom - bodyH * 0.015);
+    ctx.lineTo(at.x - capHalf + shrink * 1.7, capTop + chimH * 0.5);
+    ctx.lineTo(at.x + capHalf - shrink * 1.7, capTop + chimH * 0.5);
+    ctx.lineTo(at.x + capHalf - shrink, capBottom - bodyH * 0.015);
+    ctx.closePath();
+    // Not black: the flame is drawn over this with `lighter`, and a dark enough shell turns the
+    // base of the flame into a blown-out disc instead of a flame.
+    ctx.fillStyle = rgbToCss(mixRgb(base, [26, 23, 26], 0.72), clamp01(lid * 0.62));
+    ctx.fill();
+  }
+  // A specular riding the far edge, placed by the key light rather than stretched across the whole
+  // width: a full-width bar is what made the closed cap look like the rim of a tin.
+  const spec = Math.cos((key * Math.PI) / 180) * topHalf * 0.26;
+  ctx.lineWidth = Math.max(0.7, bodyH * 0.012);
+  ctx.strokeStyle = rgbToCss(mixRgb(base, [240, 242, 248], 0.72), 0.5);
+  ctx.beginPath();
+  ctx.moveTo(at.x + spec - topHalf * 0.52, capTop + Math.max(0.7, bodyH * 0.006));
+  ctx.lineTo(at.x + spec + topHalf * 0.52, capTop + Math.max(0.7, bodyH * 0.006));
+  ctx.stroke();
 
   if (flame > 0.01) {
+    // The flame stands on the wick, not on the top of the closed case. With the cap thrown
+    // back those two are ~13 px apart on a phone, and the gap read as fire from nowhere.
+    const flameBase = chimTop - bodyH * 0.05;
     const jitter = wander(state.nowMs / 1000, 11) * 0.12 + state.lighter.flicker * 0.4;
     const height =
       state.style.lighter.flameHeight *
@@ -220,27 +352,31 @@ export function drawLighter(
       (1 + jitter * 0.25) *
       (1 - sputter * 0.7);
     const width = height * 0.42;
-    const tipY = top - height;
+    // A flame is narrowest where it leaves the wick and widest a little way up. Starting the path at
+    // the full `width` gave the base a flat bottom the same span as the case, which at this size is
+    // a white disc rather than a flame.
+    const baseW = Math.min(width, bodyW * 0.2);
+    const tipY = flameBase - height;
 
-    const gradient = ctx.createLinearGradient(at.x, top, at.x, tipY);
-    gradient.addColorStop(0, rgbToCss(mixRgb(state.style.lighter.hue, [255, 255, 255], 0.55), 0.9));
+    const gradient = ctx.createLinearGradient(at.x, flameBase, at.x, tipY);
+    gradient.addColorStop(0, rgbToCss(mixRgb(state.style.lighter.hue, [255, 252, 240], 0.42), 0.7));
     gradient.addColorStop(0.45, rgbToCss(state.style.lighter.hue, 0.85));
     gradient.addColorStop(1, rgbToCss(mixRgb(state.style.lighter.hue, [60, 40, 90], 0.6), 0));
 
     ctx.globalCompositeOperation = 'lighter';
     ctx.beginPath();
-    ctx.moveTo(at.x - width / 2, top);
+    ctx.moveTo(at.x - baseW / 2, flameBase);
     ctx.quadraticCurveTo(
       at.x - width * 0.62 + jitter * width,
-      top - height * 0.55,
+      flameBase - height * 0.5,
       at.x + jitter * width * 0.6,
       tipY,
     );
     ctx.quadraticCurveTo(
       at.x + width * 0.6 + jitter * width,
-      top - height * 0.55,
-      at.x + width / 2,
-      top,
+      flameBase - height * 0.5,
+      at.x + baseW / 2,
+      flameBase,
     );
     ctx.closePath();
     ctx.fillStyle = gradient;
@@ -248,7 +384,7 @@ export function drawLighter(
 
     // The blue throat of a real flame, kept subtle (§58: no neon gradient soup).
     ctx.beginPath();
-    ctx.ellipse(at.x, top - height * 0.12, width * 0.34, height * 0.16, 0, 0, Math.PI * 2);
+    ctx.ellipse(at.x, flameBase - height * 0.2, width * 0.3, height * 0.13, 0, 0, Math.PI * 2);
     ctx.fillStyle = rgbToCss([110, 170, 255], 0.35 * flame);
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';

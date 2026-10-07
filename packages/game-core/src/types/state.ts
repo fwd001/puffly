@@ -209,6 +209,12 @@ export interface LighterSnapshot {
   flicker: number;
   /** 1 for a moment when `lighter_failure` bites (§21). */
   sputter: number;
+  /**
+   * 0..1 how far the hinged lid has thrown back. This is state and not a drawing trick because
+   * the flip-top's whole identity is the moment the lid is mid-way open — and the picture, the
+   * click it should make, and the idle flourishes all have to agree on when that is.
+   */
+  lid: number;
 }
 
 /**

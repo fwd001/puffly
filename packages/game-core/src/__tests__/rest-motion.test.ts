@@ -17,7 +17,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONTENT } from '@puffly/game-content';
-import { updateWobble, type CigarettePose } from '../systems/pose';
+import { updateWobble } from '../systems/pose';
+import type { CigarettePose } from '../types/state';
 import { harness, lit } from './harness';
 
 const STEP_MS = 1000 / 60;

@@ -261,6 +261,7 @@ export function createEngine(options: EngineOptions): GameEngine {
       heldMs: 0,
       flicker: 0,
       sputter: 0,
+      lid: 0,
     },
     ui: createUiHints(0, settings.sessionTargetMs),
     anchors: computeAnchors(rod.pose, rod.ash.length, layout0),
@@ -582,6 +583,9 @@ export function createEngine(options: EngineOptions): GameEngine {
     rt.timers.lighterHeldMs = lighter.engaged ? rt.timers.lighterHeldMs + STEP_MS : 0;
     lighter.heldMs = rt.timers.lighterHeldMs;
     lighter.sputter = Math.max(0, lighter.sputter - STEP_MS / 1200);
+    // A lid snaps open and falls shut: the same target, two rates. The flame is already on this
+    // line's `target`, so the two never disagree about when the thing is lit.
+    lighter.lid = approach(lighter.lid, target, lighter.engaged ? 13 : 5.5, STEP_MS);
     lighter.flicker = rt.rng.range(-0.2, 0.2) * (0.4 + lighter.flame);
 
     if (rt.state.cigarette.state !== 'LIGHTING') return;
