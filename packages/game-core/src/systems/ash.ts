@@ -6,7 +6,7 @@
  * renderer on any platform draws the same fall (§79).
  */
 
-import { clamp01 } from '@puffly/shared';
+import { clamp01, degToRad } from '@puffly/shared';
 import { ASH, LAYOUT, THRESHOLDS, TIMING } from '../constants';
 import { emit, record } from '../emit';
 import { isLit } from '../stateMachine';
@@ -19,26 +19,53 @@ import type { EngineRuntime } from '../runtime';
 /** How long a settled fragment stays on screen before the renderer forgets it. */
 const FRAGMENT_MEMORY_MS = 2200;
 
-function makeFragments(rt: EngineRuntime, count: number, bend: number): AshFragment[] {
+function makeStump(rt: EngineRuntime, shards: number, bend: number): AshFragment {
   const { pose, ash } = rt.state.cigarette;
-  const wind = rt.state.world.wind;
-  const fragments: AshFragment[] = [];
-  for (let i = 0; i < count; i++) {
-    const along = ash.length * rt.rng.range(0.35, 1);
-    const origin = offset(pose.tip, along, pose.angleDeg + bend * rt.rng.range(0.4, 1));
-    fragments.push({
+  // The column leaves the rod as the body it was: lying along the bend it had sagged into, and
+  // about as long as it stood. S7's 「先从灰柱断裂」 is this frame, not the scatter after it.
+  const origin = offset(pose.tip, ash.length * 0.62, pose.angleDeg + bend);
+  return {
+    id: rt.ids.next('ashf'),
+    seed: rt.rng.int(1, 0x7ffffffe),
+    origin,
+    size: ASH.stumpThickness,
+    length: ash.length,
+    breaksAtMs: rt.state.nowMs + rt.rng.range(ASH.breakFuseMinMs, ASH.breakFuseMaxMs),
+    shards,
+    rotation: degToRad(pose.angleDeg + bend),
+    spin: rt.rng.range(-1.6, 1.6),
+    vx: rt.rng.range(-0.012, 0.012) + rt.state.world.wind * 0.05,
+    vy: rt.rng.range(-0.01, 0.02),
+    settledAtMs: 0,
+  };
+}
+
+/**
+ * The piece comes apart where it currently is, carrying its own fall. A flake that broke into grains
+ * at the rod again would be the old single frame with an extra step in front of it.
+ */
+function shatter(rt: EngineRuntime, stump: AshFragment): AshFragment[] {
+  const grains: AshFragment[] = [];
+  for (let i = 0; i < stump.shards; i++) {
+    grains.push({
       id: rt.ids.next('ashf'),
       seed: rt.rng.int(1, 0x7ffffffe),
-      origin,
+      origin: {
+        x: stump.origin.x + rt.rng.range(-ASH.shardDrift, ASH.shardDrift),
+        y: stump.origin.y + rt.rng.range(-ASH.shardDrift, ASH.shardDrift),
+      },
       size: rt.rng.range(0.004, 0.012),
+      length: 0,
+      breaksAtMs: 0,
+      shards: 0,
       rotation: rt.rng.range(-Math.PI, Math.PI),
       spin: rt.rng.range(-3, 3),
-      vx: rt.rng.range(-0.012, 0.012) + wind * 0.05,
-      vy: rt.rng.range(-0.01, 0.02),
+      vx: stump.vx + rt.rng.range(-0.008, 0.008),
+      vy: stump.vy + rt.rng.range(0, 0.01),
       settledAtMs: 0,
     });
   }
-  return fragments;
+  return grains;
 }
 
 export function dropAsh(
@@ -52,7 +79,7 @@ export function dropAsh(
 
   const ratio = clamp01(length / Math.max(ash.maxLength, 0.0001));
   const count = Math.max(1, Math.round(ASH.fragmentsPerFlick * (0.5 + ratio)));
-  ash.falling.push(...makeFragments(rt, count, ash.bend));
+  ash.falling.push(makeStump(rt, count, ash.bend));
 
   ash.length = 0;
   ash.ratio = 0;
@@ -106,6 +133,19 @@ function tickFragments(rt: EngineRuntime, dtMs: number): void {
       fragment.spin *= 0.2;
       fragment.settledAtMs = rt.state.nowMs;
     }
+  }
+
+  // 再散开: the pieces whose fuse is up become the grains the record counted, and one that reached
+  // the tray whole breaks there rather than resting as a flake on top of the mound.
+  const breaking = ash.falling.filter(
+    (fragment) =>
+      fragment.shards > 0 && (fragment.settledAtMs > 0 || rt.state.nowMs >= fragment.breaksAtMs),
+  );
+  if (breaking.length > 0) {
+    ash.falling = [
+      ...ash.falling.filter((fragment) => !breaking.includes(fragment)),
+      ...breaking.flatMap((stump) => shatter(rt, stump)),
+    ];
   }
 
   ash.falling = ash.falling.filter(

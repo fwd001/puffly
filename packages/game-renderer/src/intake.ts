@@ -37,8 +37,11 @@ export interface IntakeOptions {
 /**
  * The tobacco's own material — a melted filter, a grain of ash, the dust a rod knocks loose.
  * A skin may recolour smoke; it has no business recolouring what is not smoke.
+ *
+ * Exported for the plume measurements: a point cloud that mixes a falling ash column into the breath
+ * is not a picture of the smoke, and its footprint then moves whenever a column happens to drop.
  */
-const MATERIAL_BURSTS: ReadonlySet<BurstKind> = new Set(['ember', 'ash', 'impact']);
+export const MATERIAL_BURSTS: ReadonlySet<BurstKind> = new Set(['ember', 'ash', 'impact']);
 
 /**
  * How fast still air brings each kind of particle back to rest, per second.

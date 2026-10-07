@@ -18,13 +18,14 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Burst } from '@puffly/game-core';
-import { FIELD_SCALE, intakeBurst } from '../intake';
+import { FIELD_SCALE, MATERIAL_BURSTS, intakeBurst } from '../intake';
 import { ParticlePool } from '../particles';
 import { harness, lit } from '../../../game-core/src/__tests__/harness';
 
 const STEP = 1000 / 60;
 
 interface Shape {
+  /** CSS pixels on the phone's stage box, so the two are the same kind of number. */
   sigmaX: number;
   sigmaY: number;
   elongation: number;
@@ -61,12 +62,23 @@ function airTheScene(seconds: number): ParticlePool {
     h.engine.advance(STEP);
     clockMs += STEP;
     for (const burst of pending.splice(0, pending.length)) {
+      // The breath only. A column that fell while the rod was burning rides the same pool, and
+      // mixing it in makes this file's footprint depend on when the ash happened to come off.
+      if (MATERIAL_BURSTS.has(burst.kind)) continue;
       intakeBurst(burst, pool, { densityScale: 1 });
     }
     pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, clockMs / 1000, null);
   }
   return pool;
 }
+
+/**
+ * The phone the brief puts first (§ mobile 390×844), because "taller than wide" is a claim about
+ * pixels: positions are normalised (§55), so the same cloud is tall on a portrait stage and squat on
+ * a wide one. Lengths inside the cloud scale with `min(width / 0.75, height)` — what `viewport.len`
+ * uses — while the two axes scale with the stage's own edges.
+ */
+const PHONE = { width: 390, height: 844, unit: 520 };
 
 function shapeOf(pool: ParticlePool): Shape {
   const xs: number[] = [];
@@ -76,13 +88,15 @@ function shapeOf(pool: ParticlePool): Shape {
   let minY = Infinity;
   let maxY = -Infinity;
   pool.forEachActive((particle) => {
-    const r = particle.radius * particle.scale * particle.size;
-    xs.push(particle.x);
-    ys.push(particle.y);
-    minX = Math.min(minX, particle.x - r);
-    maxX = Math.max(maxX, particle.x + r);
-    minY = Math.min(minY, particle.y - r);
-    maxY = Math.max(maxY, particle.y + r);
+    const r = particle.radius * particle.scale * particle.size * PHONE.unit;
+    const px = particle.x * PHONE.width;
+    const py = particle.y * PHONE.height;
+    xs.push(px);
+    ys.push(py);
+    minX = Math.min(minX, px - r);
+    maxX = Math.max(maxX, px + r);
+    minY = Math.min(minY, py - r);
+    maxY = Math.max(maxY, py + r);
   });
   expect(xs.length, 'the scene had a plume to measure').toBeGreaterThan(20);
   const sigmaX = sd(xs);
@@ -91,21 +105,42 @@ function shapeOf(pool: ParticlePool): Shape {
     sigmaX,
     sigmaY,
     elongation: sigmaY / Math.max(sigmaX, 1e-6),
-    coverage: (maxX - minX) * (maxY - minY),
+    // Still a share of the stage's area, so the number does not change with the box it was drawn in.
+    coverage: ((maxX - minX) / PHONE.width) * ((maxY - minY) / PHONE.height),
   };
 }
 
 describe('the smoke moves as one body (§15)', () => {
-  it('the plume the player sees is taller than it is wide, and narrow', () => {
+  it('the plume the player sees is one body of air, not fog', () => {
     const shape = shapeOf(airTheScene(2.5));
-    // Re-measured 2026-10-07 with the lighting travel in the scene: the rod now goes out to the
-    // flame and walks home, so the column's first second is born along that path. sigmaX 0.0947 of
-    // a stage, stretched 2.34x taller than wide, body footprint 0.499. The failure this guards
-    // against — a per-particle noise lattice — measured 0.370 and a footprint of 3.47 stages, so
-    // both bounds still sit an order of magnitude away from the fog they are here to catch.
-    expect(shape.elongation).toBeGreaterThanOrEqual(1.5);
-    expect(shape.sigmaX).toBeLessThanOrEqual(0.11);
-    expect(shape.coverage).toBeLessThanOrEqual(0.62);
+    console.log(
+      `PLUME px sigmaX=${shape.sigmaX.toFixed(1)} sigmaY=${shape.sigmaY.toFixed(1)} elongation=${shape.elongation.toFixed(3)} footprint=${(shape.coverage * 100).toFixed(1)}% of the stage`,
+    );
+    // Re-measured 2026-10-08, twice corrected, and both corrections moved the number *down* — which
+    // is the reason they are written here rather than quietly folded in. Both rows below are this
+    // same ruler on the same 2.5 s scene, printed with the filter switched off and then on:
+    //
+    //   smoke only   sigmaX 31.3  sigmaY 38.2    elongation 1.223  footprint 22.2%
+    //   as aired     sigmaX 33.1  sigmaY 177.4   elongation 5.356  footprint 66.7%
+    //
+    // 1. The sample is the plume bodies only. The scene also airs the cherry's sparks, and they are
+    //    thrown straight up: with them in, the cloud reads 4.6x taller than the smoke is spread. The
+    //    old bound was largely a picture of sparks.
+    // 2. The two axes are compared in one unit. Positions are normalised (§55), so a raw `sigmaY` /
+    //    `sigmaX` divides a spread over 844 pixels by a spread over 390 and calls the quotient a
+    //    shape. On the phone's box this plume is 31.3px wide and 38.2px tall.
+    //
+    // What the bounds are here to catch is the per-particle noise lattice the header names, and that
+    // failure was measured by putting it back: `curl2`'s seed set to each particle's own gives
+    // footprint 45.0% and elongation 1.596 — the bound below reddens, while a taller/thinner bound
+    // would have *passed* the fog, because a swarm scatters vertically as much as it does sideways.
+    //
+    // Two bounds this case used to carry are gone, and the reason is the same measurement. Against a
+    // cloud whose buoyancy was switched off (elongation 1.033) and one whose sideways swing was
+    // raised 4.9x (sigmaX 32.2), `elongation >= 1.5` and `sigmaX <= 0.11` both stayed green: they were
+    // reading the size of the breath, which no failure mode moves. Narrowness is claimed where it is
+    // actually produced, by `plume-column.test.ts`.
+    expect(shape.coverage).toBeLessThanOrEqual(0.35);
   });
 
   it('two puffs still do not trace the same path (§16)', () => {

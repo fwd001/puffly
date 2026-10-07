@@ -51,7 +51,20 @@ export interface AshFragment {
   id: string;
   seed: number;
   origin: Point;
+  /** Half-thickness of the piece, normalised units. A grain is the whole body; a flake is its edge. */
   size: number;
+  /**
+   * S7's 「先从灰柱断裂」: the length of a piece that broke off as a body, in normalised units, or `0`
+   * for a grain. It is the column's own length rather than a drawing choice, because a renderer that
+   * invented one would put the ash's tip somewhere the core has never heard of.
+   */
+  length: number;
+  /**
+   * The frame this piece stops being one body. `0` means it never breaks — which is what a grain is.
+   */
+  breaksAtMs: number;
+  /** How many grains a piece becomes when its time comes. `0` for a grain. */
+  shards: number;
   rotation: number;
   spin: number;
   /** Normalised units per second. */

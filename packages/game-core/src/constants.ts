@@ -67,6 +67,20 @@ export const ASH = {
   /** Falling fragments per flick, scaled by column length. */
   fragmentsPerFlick: 4,
   gravityPerSecond: 0.55,
+  /**
+   * S7's 「先从灰柱断裂，再散开」: how long the piece that came off the rod stays a piece.
+   *
+   * Measured, not guessed. A flicked column reaches the tray about a second after the tap, so a fuse
+   * in this window is what makes 断裂 and 散开 two beats the eye can separate instead of one frame
+   * that turns a column into five dots. Longer than this and the flake lands whole, which is a sound
+   * the deck does not have; shorter and the two beats merge back into the old single frame.
+   */
+  breakFuseMinMs: 90,
+  breakFuseMaxMs: 170,
+  /** Half-thickness of a broken column — the same ash that later reads as grains. */
+  stumpThickness: 0.009,
+  /** Sideways scatter when a piece becomes grains, normalised units. */
+  shardDrift: 0.012,
 } as const;
 
 export const SMOKE = {

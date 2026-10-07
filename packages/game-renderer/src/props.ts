@@ -761,12 +761,16 @@ function drawFallingAsh(
   for (const fragment of falling) {
     const at = viewport.px(fragment.origin);
     const size = viewport.len(fragment.size);
+    // A piece that broke off the column is drawn as long as the core says it is; a grain keeps the
+    // body it always had. `length` is state rather than a stretch factor here for the same reason
+    // the rod's tip is: a shape the renderer invented would not be the ash the sim is carrying.
+    const reach = fragment.length > 0 ? viewport.len(fragment.length) / 2 : size;
     ctx.save();
     ctx.translate(at.x, at.y);
     ctx.rotate(fragment.rotation);
     ctx.fillStyle = rgbToCss(mixRgb(style, [255, 255, 255], 0.15), 0.9);
     ctx.beginPath();
-    ctx.ellipse(0, 0, size, size * 0.55, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, reach, size * 0.55, 0, 0, Math.PI * 2);
     ctx.fill();
     // Restored rather than re-set to the frame transform: the frame transform is no longer one
     // fixed matrix — the ignition push (S7) is a camera the whole frame shares — and a hard
