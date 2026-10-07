@@ -10,6 +10,7 @@
  */
 
 import { clamp01, mixRgb, rgbToCss, type Rgb } from '@puffly/shared';
+import { emberPresence } from '@puffly/game-core';
 import type {
   Burst,
   ContrastMode,
@@ -398,7 +399,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
    */
   const drawCherryLight = (state: GameStateView): void => {
     const ember = state.cigarette.ember;
-    const total = clamp01(ember.brightness + ember.flare * 0.6);
+    const total = emberPresence(ember);
     if (total <= 0.02) return;
     if (!state.cigarette.pose.visible) return;
 

@@ -65,6 +65,7 @@ export interface AudioStateSlice {
     readonly ember: {
       readonly brightness: number;
       readonly flare: number;
+      readonly flicker: number;
       readonly lit: boolean;
     };
     readonly puff: {

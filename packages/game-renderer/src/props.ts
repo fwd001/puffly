@@ -8,7 +8,7 @@
  */
 
 import { clamp01, mixRgb, rgbToCss } from '@puffly/shared';
-import { type GameStateView } from '@puffly/game-core';
+import { emberPresence, type GameStateView } from '@puffly/game-core';
 import { wander } from './noise';
 import type { Viewport } from './viewport';
 
@@ -518,7 +518,7 @@ function drawHeatBleed(
   rodLength: number,
 ): void {
   const ember = state.cigarette.ember;
-  const total = clamp01(ember.brightness + ember.flare * 0.5);
+  const total = emberPresence(ember);
   if (total <= 0.05 || rodLength <= 1) return;
 
   const reach = Math.min(rodLength * 0.4, viewport.len(0.05) * (1 + total));
@@ -613,7 +613,7 @@ function drawEmber(
   rodLength: number,
 ): void {
   const ember = state.cigarette.ember;
-  const total = clamp01(ember.brightness + ember.flare * 0.5);
+  const total = emberPresence(ember);
   if (total <= 0.01 && ember.lit === false) return;
 
   const centre = { x: rodLength, y: 0 };

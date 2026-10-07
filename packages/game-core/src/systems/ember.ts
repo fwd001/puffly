@@ -13,6 +13,7 @@ import { isLit } from '../stateMachine';
 import { SessionEventType } from '../types/events';
 import { flareBurst, sparkBurst } from './emissions';
 import type { EngineRuntime } from '../runtime';
+import type { EmberState } from '../types/state';
 
 function emberTarget(rt: EngineRuntime): number {
   const cigarette = rt.state.cigarette;
@@ -98,6 +99,19 @@ export function tickEmber(rt: EngineRuntime, dtMs: number): void {
     lerp(EMBER.baselineGlow, EMBER.maxGlow, total) * (1 + cigarette.puff.intensity * 0.35);
   ember.lit = total >= THRESHOLDS.litBrightness;
 }
+
+/**
+ * The ember as it is *perceived*: its steady heat, breathed on by the flicker `tickEmber` just
+ * drew. One home, because the cherry's glow and the burn's level have to wobble on the same number
+ * — otherwise the player watches a flickering tip and hears a still picture (§4 声音跟画面连接).
+ * Read by three sites in the renderer and two in the audio engine.
+ *
+ * `tickEmber` itself does not use this for `lit` or `temperature`: those decide state, and an
+ * ignition that depended on a random draw could not be replayed (§71).
+ */
+export const emberPresence = (
+  ember: Pick<EmberState, 'brightness' | 'flare' | 'flicker'>,
+): number => clamp01((ember.brightness + ember.flare * 0.5) * (1 + ember.flicker * 0.08));
 
 /** Ignition is the one place the ember is lit before the state says it is (§11 LIGHTING). */
 export function ignite(rt: EngineRuntime): void {

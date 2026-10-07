@@ -12,7 +12,7 @@
  * the level of the bed they hang off, so the room thins out and fills up instead of looping.
  */
 
-import type { AudioLayer, AudioVoiceId } from '@puffly/game-core';
+import { emberPresence, type AudioLayer, type AudioVoiceId } from '@puffly/game-core';
 import { clamp, clamp01, type Rng } from '@puffly/shared';
 import { SPARSE_LOOP_MS } from './profiles';
 import type { BedHandle } from './voices';
@@ -310,7 +310,7 @@ export function bedTargets(
   const puff = state.cigarette.puff;
   const intensity = clamp01(puff.intensity);
   const flame = clamp01(state.lighter.flame);
-  const ember = clamp01(state.cigarette.ember.brightness + state.cigarette.ember.flare * 0.5);
+  const ember = emberPresence(state.cigarette.ember);
   const density = clamp01(state.smoke.density);
   const detail = reducedMotion ? 0.5 : 1;
   const ambientTrim = reducedMotion ? 0.6 : 1;

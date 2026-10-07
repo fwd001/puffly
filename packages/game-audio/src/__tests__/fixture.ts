@@ -91,6 +91,7 @@ export interface StateOverrides {
   readonly lighterEngaged?: boolean;
   readonly brightness?: number;
   readonly flare?: number;
+  readonly flicker?: number;
   readonly lit?: boolean;
   readonly ambientGain?: number;
   readonly wind?: number;
@@ -121,6 +122,7 @@ export function makeState(overrides: StateOverrides = {}): AudioStateSlice {
       ember: {
         brightness,
         flare: o.flare ?? 0,
+        flicker: o.flicker ?? 0,
         lit: o.lit ?? brightness > 0.12,
       },
       puff: {

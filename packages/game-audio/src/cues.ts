@@ -17,7 +17,7 @@ import type {
   BurstKind,
   WorldEventOccurrence,
 } from '@puffly/game-core';
-import { WorldEventId } from '@puffly/game-core';
+import { WorldEventId, emberPresence } from '@puffly/game-core';
 import { clamp01 } from '@puffly/shared';
 import { SessionEventType } from '@puffly/game-core';
 import { selectLayers } from './profiles';
@@ -258,7 +258,7 @@ export function planCues(
  * burning, and a draw detail must never outshout the release it belongs to (§27).
  */
 function cueGain(cue: AudioCueId, state: AudioStateSlice): number {
-  const ember = clamp01(state.cigarette.ember.brightness + state.cigarette.ember.flare * 0.5);
+  const ember = emberPresence(state.cigarette.ember);
   switch (cue) {
     case 'ignite':
       return 0.55 + ember * 0.45;
