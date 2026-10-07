@@ -22,11 +22,19 @@ const sheet = ref<SheetName>('none');
 const section = ref<string | null>(null);
 
 /**
- * S17's card, and whether the player pinned it. Pinning is the only reason tier three exists:
- * a held card that disappears when the finger moves is a tooltip, not an archive.
+ * S17's card, and whether the player pinned it. The deck's own sentence is 「松手只收卡片、不掐灭烟」:
+ * the card follows the finger while it is held and goes away when the finger leaves, and pinning is
+ * what makes it stay. That is also the only reason tier three — the long prose — exists, because a
+ * reader has to be able to put the phone down with the card still open.
  */
 const archiveFacts = ref<ArchiveFacts | null>(null);
 const archivePinned = ref(false);
+
+/** Lifting the finger off the mark closes the card, unless it was pinned. Never touches the rod. */
+const dismissArchive = (): void => {
+  if (archivePinned.value) return;
+  archiveFacts.value = null;
+};
 
 // A swipe down folds the interface, and a sheet left open is the loudest part of it.
 watch(
@@ -120,6 +128,7 @@ function openSheet(next: SheetName, nextSection: string | null = null): void {
       @shelf="openSheet('shelf')"
       @break="openSheet('break')"
       @archive="archiveFacts = game.archive.value"
+      @archive-close="dismissArchive"
     />
 
     <ArchiveCard

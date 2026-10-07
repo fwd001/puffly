@@ -112,9 +112,12 @@ const wave = computed(() => {
       <span v-if="label !== null" class="word">{{ label }}</span>
     </button>
 
-    <!-- 阻力波形条: the lungs' resistance, drawn while the draw is happening (§9.2). -->
+    <!-- 阻力波形条: the lungs' resistance, drawn while the draw is happening (§9.2).
+         The 品鉴型 have no lungs in this design's vocabulary — 「雪茄、斗烟、水烟都不是往肺里吸的」 —
+         and the deck rules their feedback must not show a resistance readout. `loadPerPuff` is 0 for
+         them in content, so a bar here would be reporting a quantity the simulation holds at zero. -->
     <svg
-      v-if="summary.phase === 'puff'"
+      v-if="summary.phase === 'puff' && game.archive.value?.kind !== 'savor'"
       class="art wave"
       viewBox="0 0 120 24"
       aria-hidden="true"

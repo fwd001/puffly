@@ -22,7 +22,7 @@ import { rgbToCss } from '@puffly/shared';
 import type { Puffly } from '../composables/usePuffly';
 import ArchiveTile from './ArchiveTile.vue';
 import { PACKS, SKINS } from '@puffly/game-content';
-import { shelfCount, shelvesOf } from '../shelf';
+import { nextRodGate, shelfCount, shelvesOf } from '../shelf';
 import { RUNG_KEYS, byRung, rungCount, rungOf, rungShown } from '../scenes';
 
 const props = defineProps<{
@@ -41,6 +41,9 @@ const rods = DEFAULT_CONTENT.cigarettes;
 const shelves = computed(() => shelvesOf(rods));
 const met = computed(() => new Set(props.game.unlocked.value.cigarettes ?? []));
 const count = computed(() => shelfCount(rods, [...met.value]));
+/** Sticks kept is the unit the rod ladder counts in, so the ladder line and the tiles agree. */
+const sticks = computed(() => props.game.summary.value.state?.progress.sessionCount ?? 0);
+const ladder = computed(() => nextRodGate(rods, sticks.value));
 const chosen = computed(() => props.game.settings.value.selection?.cigarette);
 
 /**
@@ -186,6 +189,17 @@ watch(
     <header class="head">
       <span class="mark">✦</span>
       <span class="count digits">{{ count }}</span>
+      <!-- 累计 42 支 · 下一档解锁 75 支, said in digits and an arrow so it survives the icons tier;
+           the sentence lives in the label, which is the only place a screen reader is reading. -->
+      <span
+        v-if="ladder !== null"
+        class="ladder digits"
+        :aria-label="
+          copy.say('shelf.rods.ladder', { total: String(sticks), next: String(ladder.at) })
+        "
+      >
+        {{ String(sticks) }} → {{ String(ladder.at) }}
+      </span>
       <button class="icon-button close" :aria-label="copy.say('a11y.close')" @click="emit('close')">
         ×
       </button>
@@ -194,6 +208,9 @@ watch(
     <div v-for="shelf in shelves" :key="shelf.kind" class="group" data-group="rods">
       <p v-if="copy.t('shelf.rods') !== null" class="kind">
         {{ copy.t(`shelf.kind.${shelf.kind}` as 'shelf.kind.inhale') }}
+        <!-- 吸入型 7 / 品鉴型 3 / 过滤型 1: the deck prints the size of each family next to its
+             name, because the count is what says the split is a real partition and not three labels. -->
+        <span class="digits">{{ String(shelf.rods.length) }}</span>
       </p>
       <div class="tiles">
         <ArchiveTile
@@ -332,6 +349,13 @@ watch(
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
+}
+
+/* 累计 → 下一档: pushed to the right of the count, and at the deck's own 15px floor for digits. */
+.ladder {
+  margin-left: auto;
+  color: var(--smoke-gray);
+  font-size: calc(15px * var(--text-scale));
 }
 
 .mark {

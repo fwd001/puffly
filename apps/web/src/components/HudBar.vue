@@ -14,12 +14,13 @@ import type { Puffly } from '../composables/usePuffly';
 import { useLongPress } from '../composables/useLongPress';
 
 const props = defineProps<{ game: Puffly }>();
-const emit = defineEmits<{ shelf: []; break: []; archive: [] }>();
+const emit = defineEmits<{ shelf: []; break: []; archive: []; archiveClose: [] }>();
 
 /** The stick mark is a tap and a hold at once: the shelf, or S17's card about this rod. */
 const mark = useLongPress(
   () => emit('archive'),
   () => emit('shelf'),
+  () => emit('archiveClose'),
 );
 
 const copy = computed(() => props.game.copy.value);
@@ -76,10 +77,13 @@ const reading = computed(() => {
         mark: '',
         value: String(sticks),
         fraction: rod.rodRemaining,
-        primary: clock,
+        // 已燃 next to 剩余: the two numbers have to be about the same object, which is the
+        // consistency the deck's own audit page checked when it caught 「剩余 52% 与 03:12 不匹配」.
+        // The session countdown is a different clock and belongs to the idle row, not this pair.
+        primary: summary.value.burned,
         secondary: left,
         label: copy.value.say('a11y.hud.sticks'),
-        numLabel: 'a11y.hud.clock' as CopyKey,
+        numLabel: 'a11y.hud.burned' as CopyKey,
         altLabel: 'a11y.hud.remaining' as CopyKey,
       };
     }

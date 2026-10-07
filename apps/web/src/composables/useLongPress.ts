@@ -17,7 +17,13 @@ export interface HoldHandlers {
   onClick(): void;
 }
 
-export function useLongPress(onLongPress: () => void, onTap: () => void): HoldHandlers {
+export function useLongPress(
+  onLongPress: () => void,
+  onTap: () => void,
+  /** 松手只收卡片: the finger leaving the mark closes what the hold opened, unless the card is
+   *  pinned. Without this the card is a tooltip that only ever grows. */
+  onRelease?: () => void,
+): HoldHandlers {
   let timer = 0;
   let held = false;
 
@@ -32,6 +38,10 @@ export function useLongPress(onLongPress: () => void, onTap: () => void): HoldHa
 
   const cancel = (): void => {
     window.clearTimeout(timer);
+    if (held) {
+      held = false;
+      onRelease?.();
+    }
   };
 
   return {

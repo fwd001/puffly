@@ -142,7 +142,10 @@ export interface ArchiveFacts {
 
 export interface Summary {
   state: GameStateView | null;
+  /** The break's countdown, mm:ss — what is left of the time the player asked for. */
   clock: string;
+  /** 已燃: how long this rod has actually been burning, mm:ss. */
+  burned: string;
   sessionActive: boolean;
   controlsVisible: boolean;
   affordance: string;
@@ -239,6 +242,7 @@ export function createPuffly(): Puffly {
   const summary = ref<Summary>({
     state: null,
     clock: formatClock(0),
+    burned: formatClock(0),
     sessionActive: false,
     controlsVisible: true,
     affordance: 'none',
@@ -447,6 +451,7 @@ export function createPuffly(): Puffly {
     summary.value = {
       state,
       clock: formatClock(state.ui.sessionRemainingMs),
+      burned: formatClock(state.cigarette.burnMsElapsed),
       sessionActive: state.ui.sessionActive,
       controlsVisible: state.ui.controlsVisible,
       affordance: state.ui.affordance,
