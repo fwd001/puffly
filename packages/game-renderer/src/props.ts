@@ -207,6 +207,11 @@ export function drawLighter(
   const bodyH = viewport.len(LIGHTER_SIZE.height);
   const flame = state.lighter.flame;
   const sputter = state.lighter.sputter;
+  // A flourish throws the case a little way off the table. Applied to the anchor rather than with
+  // `ctx.rotate`/`translate` so every coordinate this function emits is still in canvas space — the
+  // placement guard reads them back, and it reads them at rest, where this is zero.
+  const fidget = clamp01(state.lighter.fidget);
+  at.y -= Math.sin(fidget * Math.PI) * bodyH * 0.22;
   const top = at.y - bodyH * 0.3;
 
   ctx.save();

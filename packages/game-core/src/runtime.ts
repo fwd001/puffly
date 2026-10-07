@@ -46,6 +46,8 @@ export interface SessionLog {
 
 export interface Timers {
   lighterHeldMs: number;
+  /** Time since the lighter last flourished, in milliseconds. See `tickFlourish`. */
+  flourishMs: number;
   lighterAttempts: number;
   ignitionMs: number;
   ignitionTargetMs: number;
@@ -152,6 +154,7 @@ export function createWorldBoost(): WorldBoost {
 export function createTimers(nowMs: number): Timers {
   return {
     lighterHeldMs: 0,
+    flourishMs: 0,
     lighterAttempts: 0,
     ignitionMs: 0,
     ignitionTargetMs: 0,

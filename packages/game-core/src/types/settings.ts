@@ -48,6 +48,13 @@ export interface Settings {
   /** §30: only consumed by native shells. */
   haptics: boolean;
   /**
+   * Whether the lighter may do a small flourish when nobody is doing anything with it — a cap
+   * flicked open and shut, a throw of sparks. The table is the one thing on screen that is not the
+   * rod, and a break where nothing ever moves is not a room, it is a still frame. Off means off:
+   * the lighter then only ever moves because a finger told it to.
+   */
+  idleFlourishes: boolean;
+  /**
    * Which content the player is currently using. Optional so a settings object from an
    * older save still parses; the engine falls back to the default unlocked item.
    */
@@ -82,5 +89,6 @@ export function createDefaultSettings(utcOffsetMinutes = 0): Settings {
     hints: true,
     utcOffsetMinutes,
     haptics: false,
+    idleFlourishes: true,
   };
 }

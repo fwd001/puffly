@@ -227,6 +227,12 @@ export interface LighterSnapshot {
   /** 1 for a moment when `lighter_failure` bites (§21). */
   sputter: number;
   /**
+   * 0..1 impulse of a flourish: the cap flicked and the wheel thrown once. Decays on its own, so
+   * it is a *happening* rather than a mode — which is what lets the same field carry a player's
+   * idle flick of the wrist and the room doing it to itself.
+   */
+  fidget: number;
+  /**
    * 0..1 how far the hinged lid has thrown back. This is state and not a drawing trick because
    * the flip-top's whole identity is the moment the lid is mid-way open — and the picture, the
    * click it should make, and the idle flourishes all have to agree on when that is.

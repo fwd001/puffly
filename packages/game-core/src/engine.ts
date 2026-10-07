@@ -54,7 +54,13 @@ import {
   tickWorld,
   timeOfDayForHour,
 } from './systems/world';
-import { discardImpactBurst, driftBurst, extinguishBurst, lighterBurst } from './systems/emissions';
+import {
+  discardImpactBurst,
+  driftBurst,
+  extinguishBurst,
+  lighterBurst,
+  sparkBurst,
+} from './systems/emissions';
 import { SessionEventType } from './types/events';
 import {
   collectionSnapshot,
@@ -268,6 +274,7 @@ export function createEngine(options: EngineOptions): GameEngine {
       flicker: 0,
       sputter: 0,
       lid: 0,
+      fidget: 0,
     },
     ashtray: {
       typeId: ashtray.id,
@@ -340,7 +347,13 @@ export function createEngine(options: EngineOptions): GameEngine {
     const current = rt.state.cigarette.state;
     if (current === 'DISCARDED' || current === 'EXTINGUISHED') return;
     if (current === 'IDLE') pickUp();
-    if (rt.state.cigarette.state !== 'PICKED_UP') return;
+    if (rt.state.cigarette.state !== 'PICKED_UP') {
+      // The rod is already alight, so the lighter has no job — and until now a tap on it did
+      // literally nothing, which is the dead button §26 is written against. Flicking a flip-top
+      // for no reason is the reason it has a lid.
+      fidgetLighter(rt, 1);
+      return;
+    }
 
     rt.state.lighter.engaged = true;
     rt.timers.lighterAutoHold = autoHold;
@@ -409,6 +422,8 @@ export function createEngine(options: EngineOptions): GameEngine {
     switch (target) {
       case 'lighter':
         if (current === 'PICKED_UP' || current === 'IDLE') engageLighter(true);
+        // Already alight: the tap has no work to do, so it gets an answer rather than a `break`.
+        else fidgetLighter(rt, 1);
         break;
       case 'ash':
         flickAsh(rt);
@@ -584,6 +599,45 @@ export function createEngine(options: EngineOptions): GameEngine {
     }
   };
 
+  /** How long a flourish takes to fall away once thrown. */
+  const FIDGET_MS = 620;
+  /** The window the room waits in before it plays with the lighter by itself. */
+  const FIDGET_IDLE_MIN_MS = 7000;
+  const FIDGET_IDLE_SPAN_MS = 9000;
+
+  /**
+   * One throw of the wheel: the cap goes up, the wheel clicks, sparks come off it, and a flame
+   * blips and dies. No ignition attempt and no cherry involved — this is the gesture without the
+   * cigarette, which is what makes it worth doing for nothing.
+   */
+  function fidgetLighter(rt: EngineRuntime, strength: number): void {
+    const lighter = rt.state.lighter;
+    lighter.fidget = Math.max(lighter.fidget, strength);
+    lighter.flame = Math.max(lighter.flame, 0.34 * strength);
+    rt.timers.flourishMs = 0;
+    emit(rt, { kind: 'burst', atMs: rt.state.nowMs, burst: sparkBurst(rt, 0.7 * strength) });
+  }
+
+  /**
+   * The lighter is the only thing on the table a player is allowed to fiddle with, and a break where
+   * nothing is ever fiddled with is a photograph. The draw is taken whether the switch is on or not,
+   * so turning it off changes what happens and not the number of times the simulation asks the dice —
+   * which is the one thing a replay cannot survive (§71).
+   */
+  const tickFlourish = (): void => {
+    // The spread comes from the flicker the line above already drew, so turning this feature on or
+    // off changes what happens and not how many times the simulation asks the dice. Adding a second
+    // `rng.next()` here re-rolled every particle downstream: three unrelated plume and render guards
+    // reddened on a stream shift before the shift was found (§71).
+    const roll = clamp01((rt.state.lighter.flicker + 0.2) / 0.4);
+    rt.timers.flourishMs += STEP_MS;
+    if (!rt.settings.idleFlourishes) return;
+    if (rt.state.lighter.engaged || rt.state.lighter.fidget > 0) return;
+    if (rt.state.cigarette.state !== 'IDLE') return;
+    if (rt.timers.flourishMs < FIDGET_IDLE_MIN_MS + roll * FIDGET_IDLE_SPAN_MS) return;
+    fidgetLighter(rt, 0.85);
+  };
+
   const tickLighter = (): void => {
     const lighter = rt.state.lighter;
     const target = lighter.engaged ? 1 : 0;
@@ -596,8 +650,12 @@ export function createEngine(options: EngineOptions): GameEngine {
     lighter.sputter = Math.max(0, lighter.sputter - STEP_MS / 1200);
     // A lid snaps open and falls shut: the same target, two rates. The flame is already on this
     // line's `target`, so the two never disagree about when the thing is lit.
-    lighter.lid = approach(lighter.lid, target, lighter.engaged ? 13 : 5.5, STEP_MS);
+    // A flourish opens the cap too, and the cap does not know which of the two it is answering.
+    const fidgetTarget = target > 0 || lighter.fidget > 0.4 ? 1 : 0;
+    lighter.lid = approach(lighter.lid, fidgetTarget, lighter.engaged ? 13 : 5.5, STEP_MS);
+    lighter.fidget = Math.max(0, lighter.fidget - STEP_MS / FIDGET_MS);
     lighter.flicker = rt.rng.range(-0.2, 0.2) * (0.4 + lighter.flame);
+    tickFlourish();
 
     if (rt.state.cigarette.state !== 'LIGHTING') return;
     if (lighter.flame < 0.45) return;

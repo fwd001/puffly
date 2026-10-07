@@ -72,6 +72,7 @@ export function cloneSettings(settings: Settings): Settings {
     hints: settings.hints,
     utcOffsetMinutes: settings.utcOffsetMinutes,
     haptics: settings.haptics,
+    idleFlourishes: settings.idleFlourishes,
   };
   // Keep "absent" absent: an export must not turn an unset anchor into `undefined`.
   if (typeof settings.quitAnchorTimestamp === 'number') {

@@ -216,6 +216,21 @@ watch(
     </div>
 
     <div class="row">
+      <span v-if="word('settings.fidget') !== null" class="label">{{
+        word('settings.fidget')
+      }}</span>
+      <button
+        class="icon-button"
+        data-setting="fidget"
+        :aria-pressed="settings.idleFlourishes"
+        :aria-label="copy.say('a11y.fidget')"
+        @click="game.setSettings({ idleFlourishes: !settings.idleFlourishes })"
+      >
+        ✦
+      </button>
+    </div>
+
+    <div class="row">
       <span v-if="word('settings.word') !== null" class="label">{{ word('settings.word') }}</span>
       <button
         class="icon-button"

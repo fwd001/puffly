@@ -638,6 +638,9 @@ export function readSettings(
   const haptics = requireBoolean(record, 'haptics', path, errors);
   // A save written before §28's hint word existed has no opinion about it: the default stands.
   const hints = booleanWithDefault(record, 'hints', true, path, errors);
+  // Same reason as `hints`: a save written before the lighter was allowed to play with itself has no
+  // opinion about it, and losing the whole settings record over one absent key is not an option.
+  const idleFlourishes = booleanWithDefault(record, 'idleFlourishes', true, path, errors);
   const selection = optionalSelection(record, path, errors);
   const language = optionalToken(record, 'language', path, errors);
   const skin = optionalToken(record, 'skin', path, errors);
@@ -671,6 +674,7 @@ export function readSettings(
     hints,
     utcOffsetMinutes,
     haptics,
+    idleFlourishes,
   };
   // §84: the quit anchor is the player's own statement, so it is optional, never defaulted.
   const quitAnchor = optionalNumber(
