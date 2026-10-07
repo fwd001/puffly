@@ -51,7 +51,7 @@ describe('settings and mixer (§26, §64)', () => {
 
   it('puts the ambience slider on the ambient bus, so the room obeys the player', () => {
     const h = createHarness({ settings: { ambientVolume: 0 } });
-    h.frame(makeState({ ambientGain: 0.9 }));
+    h.frame(makeState({ ambientGain: 0.9, cigaretteState: 'BURNING' }));
     expect(h.ctx.param('bus:ambient', 'gain')?.last()?.value).toBe(0);
     // The bed still follows the world; it is the bus that is closed.
     expect(h.engine.bedLevel('ambient')).toBeGreaterThan(0);

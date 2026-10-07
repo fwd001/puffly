@@ -113,17 +113,22 @@ export interface StateOverrides {
 export function makeState(overrides: StateOverrides = {}): AudioStateSlice {
   const o = overrides;
   const brightness = o.brightness ?? 0;
+  // A fixture that reports a lit cherry while the machine says `IDLE` describes a state the live
+  // game can never reach, and any rule about "is a break actually happening" reads it wrong. So
+  // the ember's own threshold decides the state too, unless the caller names one.
+  const lit = o.lit ?? brightness > 0.12;
+  const state = o.cigaretteState ?? (lit ? 'BURNING' : 'IDLE');
   return {
     nowMs: o.nowMs ?? 0,
     cigarette: {
-      state: o.cigaretteState ?? 'IDLE',
+      state,
       soundProfileId: o.soundProfileId ?? 'draw-warm',
       rodRemaining: 1,
       ember: {
         brightness,
         flare: o.flare ?? 0,
         flicker: o.flicker ?? 0,
-        lit: o.lit ?? brightness > 0.12,
+        lit,
       },
       puff: {
         active: o.puffActive ?? false,

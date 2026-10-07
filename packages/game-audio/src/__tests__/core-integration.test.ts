@@ -76,13 +76,19 @@ describe('audio driven by the real Game Core', () => {
 
     expect(audio.isReady()).toBe(true);
     pump(160);
-    // A room that is present but never loud: bed × bus, with ambience at 0.3 (§27).
-    expect(audio.bedLevel('ambient')).toBeGreaterThan(0);
+    // Before the rod is picked up the room is not merely quiet, it is silent: 「没有点烟的时候
+    // 背景不需要音乐」. The player's own ambience slider still sits on the bus at 0.3 (§27) — a
+    // slider is not a sound.
+    expect(audio.bedLevel('ambient')).toBe(0);
     expect(ctx.param('bus:ambient', 'gain')?.last()?.value).toBeCloseTo(0.3, 6);
     expect(audio.bedLevel('draw')).toBe(0);
 
     tap('cigarette');
     expect(core.getState().cigarette.state).toBe('PICKED_UP');
+    // The room comes up *with* the break. That it arrives by ramp rather than by a switch is the
+    // claim `beds.test.ts > writes smooth ramps` owns; here the fact is simply that it is open.
+    pump(120);
+    expect(audio.bedLevel('ambient')).toBeGreaterThan(0);
 
     tap('lighter');
     pump(80);
@@ -188,6 +194,10 @@ describe('audio driven by the real Game Core', () => {
     expect(() => audio.sync(view)).not.toThrow();
     expect(view.cigarette.soundProfileId).toBe('draw-warm');
     expect(view.environment.ambientAudio.profileId).toBe('room-quiet');
+    // …and the room it resolves to is silent until the break is live (§27, 「没有点烟的时候」).
+    expect(audio.bedLevel('ambient')).toBe(0);
+    core.send({ type: 'tap', x: 0.5, y: 0.5, timestamp: 0, target: 'cigarette' });
+    pump(600);
     expect(audio.bedLevel('ambient')).toBeGreaterThan(0);
   });
 });

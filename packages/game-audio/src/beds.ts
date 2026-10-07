@@ -12,7 +12,7 @@
  * the level of the bed they hang off, so the room thins out and fills up instead of looping.
  */
 
-import { emberPresence, type AudioLayer, type AudioVoiceId } from '@puffly/game-core';
+import { emberPresence, isHeld, type AudioLayer, type AudioVoiceId } from '@puffly/game-core';
 import { clamp, clamp01, type Rng } from '@puffly/shared';
 import { SPARSE_LOOP_MS } from './profiles';
 import type { BedHandle } from './voices';
@@ -303,6 +303,15 @@ export class BedController {
  * `reducedMotion` (§64) trims the layers a player never notices, never the cues that tell them
  * something happened.
  */
+/**
+ * 「没有点烟的时候 背景不需要音乐」, made one place instead of two conditions. The room's own
+ * voice — the bed it hums on and the weather it throws — sounds only while a break is live. What the
+ * player does to the game (picking the rod up, a spark, a flake of ash) is not background and stays
+ * audible. The bed chases a target, so opening a break fades the room in and discarding the rod
+ * fades it out rather than throwing a switch at either end.
+ */
+export const backgroundIsOpen = (state: AudioStateSlice): boolean => isHeld(state.cigarette.state);
+
 export function bedTargets(
   state: AudioStateSlice,
   reducedMotion: boolean,
@@ -341,7 +350,7 @@ export function bedTargets(
       cutoff: 640 + ember * 430,
     },
     ambient: {
-      gain: clamp01(state.world.ambientGain) * ambientTrim,
+      gain: clamp01(state.world.ambientGain) * ambientTrim * (backgroundIsOpen(state) ? 1 : 0),
       cutoff: 700 + clamp01(state.world.wind) * 900 + state.world.light.ambient * 240,
     },
   };

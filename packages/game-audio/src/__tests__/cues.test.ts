@@ -117,6 +117,55 @@ describe('discrete cues (§26)', () => {
     }
   });
 
+  it('does not let the room make its own weather while nothing is being smoked', () => {
+    // 「没有点烟的时候 背景不需要音乐」 reaches the discrete half too: a gust, a sheet of rain or a
+    // swell of street noise is the room speaking, and while the rod is on the table unlit the room
+    // has nothing to say. Both halves of the rule read the same predicate (`backgroundIsOpen`).
+    const idle = makeState({ ambientGain: 0.8, wind: 0.4 });
+    const smoking = makeState({ ambientGain: 0.8, wind: 0.4, cigaretteState: 'BURNING' });
+    const store = createProfileStore(PROFILES);
+    const weather = [
+      WorldEventId.WIND,
+      WorldEventId.RAIN,
+      WorldEventId.SMOKE_SWIRL,
+      WorldEventId.ENVIRONMENT_NOISE,
+      WorldEventId.LIGHT_CHANGE,
+      WorldEventId.SHADOW_CHANGE,
+      WorldEventId.AMBIENT_EVENT,
+    ];
+    for (const type of weather) {
+      const event = worldEvent(type, 0.6, 2000);
+      expect(planCues(event, idle, store), `${String(type)} while idle`).toEqual([]);
+      expect(
+        planCues(event, smoking, store).length,
+        `${String(type)} during a break`,
+      ).toBeGreaterThan(0);
+    }
+
+    // What the player *does* is not background, and the gate must stop there: a flake of ash, a
+    // flare of the cherry and a failed spark are all answers to the rod, so gating the whole world
+    // branch would eat them too. Picking the rod up is the very moment the room opens.
+    for (const type of [
+      WorldEventId.ASH_FALL,
+      WorldEventId.EMBER_FLARE,
+      WorldEventId.LIGHTER_FAILURE,
+    ]) {
+      expect(
+        planCues(worldEvent(type, 0.6, 2000), idle, store).length,
+        `${String(type)} is not the background`,
+      ).toBeGreaterThan(0);
+    }
+    const pickedUp: EngineEvent = {
+      kind: 'transition',
+      atMs: 0,
+      from: 'IDLE',
+      to: 'PICKED_UP',
+    };
+    expect(
+      planCues(pickedUp, makeState({ cigaretteState: 'PICKED_UP' }), store).map((cue) => cue.cue),
+    ).toContain('lift');
+  });
+
   it('an unlock is one soft bell, and nothing else', () => {
     const h = once(sessionEvent('UNLOCK'));
     expect(cueNodes(h, 'chime')).toBeGreaterThan(0);

@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { CigaretteStateId } from '@puffly/game-core';
 import { burstEvent, makeState } from './fixture';
 import { FakeBuffer } from './fake-audio';
 import { createHarness } from './harness';
@@ -80,13 +81,17 @@ describe('continuous beds (§27)', () => {
   });
 
   it('keeps the room quiet: ambience is state × slider, and the bed is the state part', () => {
+    // The room only has a voice while a break is live (「没有点烟的时候 背景不需要音乐」), so these
+    // states are all held — the point of this claim is the *split* between bed and bus, not whether
+    // the room is open. `beds.test.ts > the room is silent until…` is where the open/close lives.
     const h = createHarness();
-    h.frame(makeState({ ambientGain: 0.5 }));
+    const smoking = { cigaretteState: 'BURNING' } as const;
+    h.frame(makeState({ ambientGain: 0.5, ...smoking }));
     expect(target(h, 'bed.ambient.room:level')).toBeGreaterThan(0);
 
-    h.run(200, makeState({ ambientGain: 1 }));
+    h.run(200, makeState({ ambientGain: 1, ...smoking }));
     const loud = h.ctx.param('bed.ambient.room:level', 'gain')?.lastTarget() ?? 0;
-    h.run(200, makeState({ ambientGain: 0 }));
+    h.run(200, makeState({ ambientGain: 0, ...smoking }));
     expect(target(h, 'bed.ambient.room:level')).toBe(0);
 
     // The player's ambience slider lands on the ambient bus, not on the bed.
@@ -96,6 +101,23 @@ describe('continuous beds (§27)', () => {
       6,
     );
     expect(loud).toBeGreaterThan(0);
+  });
+
+  it('gives the room a voice only while a break is live', () => {
+    // 「没有点烟的时候 背景不需要音乐」. `ambientGain` is the same in every case on purpose: the only
+    // thing being changed is whether anything is actually being smoked. A test that only checked
+    // "silent while idle" would be satisfied by a dead bed, so the held states are checked too.
+    const gainFor = (state: CigaretteStateId): number => {
+      const h = createHarness();
+      h.frame(makeState({ ambientGain: 0.9, cigaretteState: state }));
+      return h.ctx.param('bed.ambient.room:level', 'gain')?.lastTarget() ?? -1;
+    };
+    for (const quiet of ['IDLE', 'DISCARDED'] as const) {
+      expect(gainFor(quiet), quiet).toBe(0);
+    }
+    for (const live of ['PICKED_UP', 'LIGHTING', 'BURNING', 'EXTINGUISHED'] as const) {
+      expect(gainFor(live), live).toBeGreaterThan(0);
+    }
   });
 
   it('re-seeds a bed instead of looping it, once it has been audible for a while', () => {

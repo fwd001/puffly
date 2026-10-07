@@ -21,6 +21,7 @@ import { WorldEventId, emberPresence } from '@puffly/game-core';
 import { clamp01 } from '@puffly/shared';
 import { SessionEventType } from '@puffly/game-core';
 import { selectLayers } from './profiles';
+import { backgroundIsOpen } from './beds';
 import type { ProfileStore, ResolvedProfile } from './profiles';
 import type { AudioCueId, AudioProfileRole, AudioStateSlice } from './types';
 import type { EngineEvent } from '@puffly/game-core';
@@ -199,6 +200,9 @@ export function planCues(
       const profile = store.resolve(shape.role, state);
       const strength = clamp01(finite(event.occurrence.strength, 0.5));
       const background = cue === 'wind' || cue === 'rain' || cue === 'room';
+      // Same rule as the ambient bed, read from the same predicate: while nothing is being smoked
+      // the room does not get to make its own weather sounds.
+      if (background && !backgroundIsOpen(state)) return [];
       const velocity = strength * (background ? 0.55 * ambientScale : 0.8);
       return [
         build(
