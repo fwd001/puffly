@@ -296,6 +296,12 @@ function fireWorldEvent(rt: EngineRuntime, gapScale: number): void {
   rt.timers.nextWorldEventMs = rt.state.nowMs + gap;
 }
 
+/**
+ * How much of the room's light a full shadow takes away. Exported because the claim "a passing
+ * shadow is visible" has to be measured against this number rather than a copy of it.
+ */
+export const SHADOW_SHARE = 0.7;
+
 export function tickWorld(rt: EngineRuntime, dtMs: number): void {
   const now = rt.state.nowMs;
   const world = rt.state.world;
@@ -362,13 +368,21 @@ export function tickWorld(rt: EngineRuntime, dtMs: number): void {
 
   const light: LightingField = world.light;
   const rainDarkening = clamp01(boost.rain) * 0.14;
-  light.ambient = clamp01(lerp(lighting.ambient, lighting.ambient * 0.72, clamp01(boost.rain)));
+  world.shadow = clamp01(boost.shadow);
+  // A shadow passing outside is the same kind of fact as rain: it takes light away. It folds into
+  // `ambient` here rather than becoming a ninth place the renderer must remember to darken — every
+  // one of the eight readers of `light.ambient` (sky, windows, floor pool, bokeh, the props' key
+  // light, the dust) dims together, which is what a shadow is. Nothing downstream may subtract
+  // `world.shadow` again.
+  light.ambient = clamp01(
+    lerp(lighting.ambient, lighting.ambient * 0.72, clamp01(boost.rain)) *
+      (1 - world.shadow * SHADOW_SHARE),
+  );
   light.warmth = lighting.warmth;
   light.keyDirectionDeg = lighting.keyDirectionDeg;
   light.contrast = lighting.contrast;
   light.smokeVisibility = lighting.smokeVisibility;
   light.flash = clamp01(boost.flash * 0.35 - rainDarkening);
-  world.shadow = clamp01(boost.shadow);
   world.ambientGain = clamp01(
     resolveAmbient(environment, world.timeOfDay).gain * (1 + boost.ambient * 0.8) -
       (isLit(rt.state.cigarette.state) ? 0 : 0.05),

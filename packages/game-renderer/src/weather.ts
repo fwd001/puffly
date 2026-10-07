@@ -134,13 +134,18 @@ export function drawDust(
   const seconds = state.nowMs / 1000;
   const light = 0.25 + state.world.light.ambient * 0.75;
   const speed = reducedMotion ? 0 : 1;
+  // Dust is the visible half of `smoke.turbulence`. The field is a slow weather (its per-frame
+  // change is guarded in §22), so swinging the motes wider cannot shiver — and it is what dust
+  // actually does when the air starts turning. Without this the swirl event is a sound with no
+  // picture, which is the one thing §26 will not accept.
+  const churn = 1 + clamp01(state.smoke.turbulence) * 0.6;
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const mote of motes) {
     const wobble = fbm2(seconds * 0.08 * speed + mote.seed, mote.drift * 10, 31);
-    const x = (mote.x + wobble * 0.05 + seconds * 0.004 * speed * state.world.wind) % 1;
-    const y = mote.y + Math.sin(seconds * 0.21 * speed + mote.seed) * 0.012;
+    const x = (mote.x + wobble * 0.05 * churn + seconds * 0.004 * speed * state.world.wind) % 1;
+    const y = mote.y + Math.sin(seconds * 0.21 * speed + mote.seed) * 0.012 * churn;
     const at = viewport.px({ x, y });
     const radius = viewport.len(mote.size) * (1 + Math.abs(wobble) * 0.6);
     const alpha = clamp01(0.05 + light * 0.12 + wobble * 0.05);

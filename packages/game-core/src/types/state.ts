@@ -199,7 +199,11 @@ export interface WorldSnapshot {
   wind: number;
   windDirectionDeg: number;
   light: LightingField;
-  /** 0..1, from `shadow_change`. */
+  /**
+   * 0..1, from `shadow_change`. The darkening it causes is already folded into
+   * `light.ambient` (see `tickWorld`), so a reader must not subtract it a second time; it is
+   * kept as the reported fact of the event, which is what makes the event replayable.
+   */
   shadow: number;
   ambientGain: number;
   activeEvents: WorldEventOccurrence[];
