@@ -9,7 +9,7 @@
 
 import { clamp01, mixRgb, rgbToCss } from '@puffly/shared';
 import { emberPresence, type GameStateView } from '@puffly/game-core';
-import { wander } from './noise';
+import { noise2, wander } from './noise';
 import type { Viewport } from './viewport';
 
 const TIP_GRADIENT_STEPS = 5;
@@ -551,8 +551,24 @@ export function drawCigarette(
 }
 
 /**
+ * How far past the smooth char front the grains bite, as a share of the rod's thickness, and the
+ * seed the grain field is sampled from. S12's realistic half — 「炭化线沿纸面逐段推进，边界有颗粒状
+ * 毛边」 — and neither number is free: the whole thickness would read as a second rod lying beside
+ * the first, and a tenth would not be visible at the 8–10 px a phone draws this at.
+ */
+const CHAR_BIT = 0.46;
+const CHAR_GRAIN_SEED = 1332;
+
+/**
  * Fire travels: the paper just behind the cherry chars and glows, which is what sells the
  * rod as something burning rather than a rectangle with a red dot on it (§17).
+ *
+ * The colour ramp alone did not do that. It ended in a rounded cap, so the boundary between char
+ * and paper was one smooth arc — and a burn line that smooth is a *paint stroke*, not fire. Paper is
+ * a fibre: the line eats across it grain by grain, each millimetre at its own depth. The grains are
+ * keyed to their index through a fixed noise field, never to the clock, so the same millimetre of
+ * paper chars the same way in every frame; advancing the burn carries the whole field forward with
+ * it, which is what 逐段推进 means and what a per-frame twinkle would not be.
  */
 function drawHeatBleed(
   ctx: CanvasRenderingContext2D,
@@ -583,6 +599,25 @@ function drawHeatBleed(
   ctx.globalCompositeOperation = 'lighter';
   ctx.fillStyle = char;
   ctx.fillRect(rodLength - reach * 0.55, -thickness * 0.42, reach * 0.55, thickness * 0.84);
+
+  // The toothed front itself: a row of char grains sitting *this side* of the ramp's edge, where
+  // the paper has not gone yet. Small and dark by construction — the cherry's own glow is the ramp.
+  const boundary = rodLength - reach;
+  const size = Math.max(1, thickness * 0.16);
+  const grains = Math.max(9, Math.min(38, Math.round((thickness / size) * 5)));
+  ctx.fillStyle = rgbToCss([30, 21, 17]);
+  for (let i = 0; i < grains; i += 1) {
+    const across = noise2(i * 0.53, 0.5, CHAR_GRAIN_SEED);
+    const bite = noise2(i * 0.31, 1.7, CHAR_GRAIN_SEED);
+    const side = size * (0.6 + 0.8 * bite);
+    ctx.globalAlpha = (0.26 + 0.5 * bite) * total;
+    ctx.fillRect(
+      boundary - bite * thickness * CHAR_BIT,
+      -thickness * 0.5 + across * thickness,
+      side,
+      side,
+    );
+  }
   ctx.restore();
 }
 
