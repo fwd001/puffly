@@ -711,10 +711,10 @@ export function createEngine(options: EngineOptions): GameEngine {
 
     if (cigarette.extinguishProgress < 1) return;
 
-    cigarette.ember.brightness = 0;
-    cigarette.ember.flare = 0;
-    cigarette.ember.lit = false;
-    cigarette.ember.glowRadius = 0;
+    // Nothing is zeroed here. `tickEmber` runs every step whatever the state says, `emberTarget`
+    // already answers 0 for a rod that is out, and `ember.lit` is gated on the state — so the heat
+    // leaves on the simulation's own clock (S7's 「…→ 熄灭」 is a stage, and a cherry put out at 0 in
+    // one frame is a picture that switches off rather than dies).
     rt.timers.waningMs = 0;
     setState(rt, 'EXTINGUISHED');
     record(rt, SessionEventType.EXTINGUISH, {

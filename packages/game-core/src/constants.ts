@@ -89,6 +89,23 @@ export const SMOKE = {
 export const EMBER = {
   baselineGlow: 0.024,
   maxGlow: 0.075,
+  /**
+   * The band `temperature` is written into: 0.4 at a dead cherry, 1.0 at a full draw. The renderer
+   * has to know it because S7's 「余烬按真实温度映射颜色：暗红 → 橙 → 白芯 → 熄灭」 is a claim about the
+   * *whole* band — anchored to the raw number, the coolest thing the simulation ever writes (0.4)
+   * already reads as pale tan and 暗红 never appears. `emberHeat` below is the one place that turns
+   * the number into that band's position.
+   */
+  temperatureFloor: 0.4,
+  temperatureSpan: 0.6,
+  /**
+   * How fast a cherry that is *out* loses its heat, per second — faster than the 2.4 of a resting rod,
+   * because the deck's 「暗红 → 橙 → 白芯 → 熄灭」 ends on a stage, not on a cut. Measured on the shipped
+   * classic from the frame the rod goes out: it leaves the lit threshold in about 0.3 s, reaches the
+   * dark red of a dead cherry a little after that, and stops being drawn at all in about 0.75 s — long
+   * enough to read as a death, short enough that nobody mistakes it for a light.
+   */
+  deathCoolRate: 6,
   /** Flare chance is evaluated once per this many ms (§17: "偶尔"). */
   flareCheckMs: 500,
 } as const;

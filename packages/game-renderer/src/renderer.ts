@@ -10,7 +10,7 @@
  */
 
 import { clamp01, mixRgb, rgbToCss, type Rgb } from '@puffly/shared';
-import { emberPresence, ventDraught } from '@puffly/game-core';
+import { emberHeat, emberPresence, ventDraught } from '@puffly/game-core';
 import type {
   Burst,
   ContrastMode,
@@ -475,7 +475,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     if (!state.cigarette.pose.visible) return;
 
     const at = viewport.px(state.anchors.ember);
-    const hot = mixRgb([255, 120, 32], [255, 236, 190], ember.temperature);
+    // The same band the cherry itself is drawn from, so the light on the smoke cannot read hotter
+    // than the thing it comes from (§4 声音跟画面连接's colour twin).
+    const hot = mixRgb([255, 120, 32], [255, 236, 190], emberHeat(ember.temperature));
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

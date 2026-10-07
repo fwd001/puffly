@@ -90,7 +90,7 @@ export {
 } from './engine';
 export { replaySession, sessionEventTypes, type ReplayOptions, type ReplayResult } from './replay';
 export { deriveSmokeCharacter, ventDraught } from './systems/smoke';
-export { emberPresence } from './systems/ember';
+export { emberHeat, emberPresence } from './systems/ember';
 export { plumeFor, type PlumeShape } from './systems/emissions';
 
 export {

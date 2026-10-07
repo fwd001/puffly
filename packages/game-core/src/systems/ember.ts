@@ -78,8 +78,11 @@ export function tickEmber(rt: EngineRuntime, dtMs: number): void {
   const modifier = rt.environment.emberModifier;
 
   const target = emberTarget(rt);
-  // Brightens quickly while drawing, cools slowly — the asymmetry is the whole feel (§59).
-  const rate = target > ember.brightness ? 9 : 2.4;
+  // Brightens quickly while drawing, cools slowly — the asymmetry is the whole feel (§59). A rod that
+  // is out cools faster still: `emberTarget` already answers 0 once the state says so, and the only
+  // thing left to decide is how long the dark red takes to leave the table.
+  const out = cigarette.state === 'EXTINGUISHED' || cigarette.state === 'DISCARDED';
+  const rate = target > ember.brightness ? 9 : out ? EMBER.deathCoolRate : 2.4;
   ember.brightness = clamp01(approach(ember.brightness, target, rate, dtMs) * modifier.brightness);
 
   tickFlare(rt, dtMs);
@@ -94,10 +97,14 @@ export function tickEmber(rt: EngineRuntime, dtMs: number): void {
   );
 
   const total = clamp01(ember.brightness + ember.flare * 0.45);
-  ember.temperature = clamp01(0.4 + 0.6 * total);
+  ember.temperature = clamp01(EMBER.temperatureFloor + EMBER.temperatureSpan * total);
   ember.glowRadius =
     lerp(EMBER.baselineGlow, EMBER.maxGlow, total) * (1 + cigarette.puff.intensity * 0.35);
-  ember.lit = total >= THRESHOLDS.litBrightness;
+  // A dying cherry is allowed to glow without being allowed to *burn*: the state machine owns the
+  // difference, and `out` is its answer. Everything else — including LIGHTING, where `ignite()`
+  // lights the tip before the state says the rod is burning — keeps reading the brightness, which is
+  // what `emberTarget` and the sound of a catching cherry both key off.
+  ember.lit = !out && total >= THRESHOLDS.litBrightness;
 }
 
 /**
@@ -112,6 +119,15 @@ export function tickEmber(rt: EngineRuntime, dtMs: number): void {
 export const emberPresence = (
   ember: Pick<EmberState, 'brightness' | 'flare' | 'flicker'>,
 ): number => clamp01((ember.brightness + ember.flare * 0.5) * (1 + ember.flicker * 0.08));
+
+/**
+ * Where a cherry's temperature sits in the band the simulation can actually write, 0 at a dead one
+ * and 1 at a full draw. The colour ramps are the renderer's own, but the *band* is the core's, so it
+ * is derived here and value-imported (§48) — a ramp anchored to the raw number instead skips the
+ * coolest 40% of its own range, and that is the 暗红 the deck's first 写实 item asks for.
+ */
+export const emberHeat = (temperature: number): number =>
+  clamp01((temperature - EMBER.temperatureFloor) / EMBER.temperatureSpan);
 
 /** Ignition is the one place the ember is lit before the state says it is (§11 LIGHTING). */
 export function ignite(rt: EngineRuntime): void {

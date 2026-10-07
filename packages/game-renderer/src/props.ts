@@ -7,8 +7,8 @@
  * a long column visibly *asks* to be flicked (§6, §18).
  */
 
-import { clamp01, mixRgb, rgbToCss } from '@puffly/shared';
-import { emberPresence, type GameStateView } from '@puffly/game-core';
+import { clamp01, mixRgb, rgbToCss, type Rgb } from '@puffly/shared';
+import { emberHeat, emberPresence, type GameStateView } from '@puffly/game-core';
 import { noise2, wander } from './noise';
 import type { Viewport } from './viewport';
 
@@ -589,7 +589,7 @@ function drawHeatBleed(
   char.addColorStop(0.6, rgbToCss([46, 30, 22], 0.35 * total));
   char.addColorStop(
     1,
-    rgbToCss(mixRgb([255, 150, 60], [255, 240, 200], ember.temperature), 0.55 * total),
+    rgbToCss(mixRgb([255, 150, 60], [255, 240, 200], emberHeat(ember.temperature)), 0.55 * total),
   );
 
   ctx.save();
@@ -683,6 +683,10 @@ function sagAt(bend: number, ashLength: number, t: number): number {
   return Math.pow(t, 2) * bend * ashLength * 0.55;
 }
 
+const EMBER_COOL: Rgb = [120, 40, 24];
+const EMBER_MID: Rgb = [255, 120, 40];
+const EMBER_HOT: Rgb = [255, 228, 168];
+
 /** §17: brightness, heat colour, glow radius and the occasional flare. */
 function drawEmber(
   ctx: CanvasRenderingContext2D,
@@ -696,7 +700,15 @@ function drawEmber(
   if (total <= 0.01 && ember.lit === false) return;
 
   const centre = { x: rodLength, y: 0 };
-  const hot = mixRgb([120, 40, 24], [255, 228, 168], ember.temperature);
+  // S7's first 写实 item, in three stops rather than two: 暗红 → 橙 → 白芯. A single straight mix from
+  // dark red to near-white put the coolest cherry the simulation can write (0.4) at a pale tan and
+  // reserved 暗红 for a temperature that never happens; measured before this, a cherry at rest read
+  // (216, 174, 126) and only an inhale was orange. The middle stop is where a resting cherry sits.
+  const heat = emberHeat(ember.temperature);
+  const hot =
+    heat < 0.5
+      ? mixRgb(EMBER_COOL, EMBER_MID, heat / 0.5)
+      : mixRgb(EMBER_MID, EMBER_HOT, (heat - 0.5) / 0.5);
   const cherry = mixRgb(hot, state.style.scene.ember, 0.6);
 
   ctx.save();
