@@ -8,7 +8,8 @@
  * that need sentences and therefore need the ≈ mark (§ dataHonesty).
  */
 import { computed } from 'vue';
-import type { ArchiveFacts, Puffly } from '../composables/usePuffly';
+import type { CopyKey } from '../i18n';
+import type { ArchiveFacts, Puffly, RodArchiveFacts } from '../composables/usePuffly';
 
 const props = defineProps<{
   game: Puffly;
@@ -21,19 +22,49 @@ const emit = defineEmits<{ close: []; pin: [pinned: boolean] }>();
 const copy = computed(() => props.game.copy.value);
 const facts = computed(() => props.facts);
 
+/** The card's rod half, or null when the hand asked about a box. */
+const rod = computed<RodArchiveFacts | null>(() =>
+  facts.value?.subject === 'rod' ? facts.value : null,
+);
+const box = computed(() => (facts.value?.subject === 'box' ? facts.value : null));
+
+/**
+ * S18's five fields in the deck's own order, with the reference range first because the tier line
+ * is what it belongs to. Fields the archive does not carry are dropped rather than filled in: the
+ * deck gives text for nine brands and none for the tenth, and a sentence invented to keep a row
+ * even is the fabrication §10 rules out.
+ */
+const boxFields = computed(() => {
+  const opened = box.value;
+  if (!opened) return [];
+  const rows: { key: CopyKey; text: string | undefined }[] = [
+    { key: 'archive.price', text: opened.price },
+    { key: 'archive.history', text: opened.history },
+    { key: 'archive.occasion', text: opened.occasion },
+    { key: 'archive.crowd', text: opened.crowd },
+    { key: 'archive.gender', text: opened.gender },
+    { key: 'archive.daily', text: opened.daily },
+  ];
+  return rows
+    .filter((row) => typeof row.text === 'string' && row.text !== '')
+    .map((row) => ({ key: row.key, text: row.text as string }));
+});
+
 /** Tier two: the three measurements, in the order the brief lists them. */
 const cells = computed(() => {
-  const rod = facts.value;
-  if (!rod) return [];
+  const rodFacts = rod.value;
+  if (!rodFacts) return [];
   return [
     {
       key: 'archive.duration' as const,
-      value: `${rod.minutes}${copy.value.t('archive.unitMin') ?? ''}`,
+      value: `${rodFacts.minutes}${copy.value.t('archive.unitMin') ?? ''}`,
     },
-    { key: 'archive.puffs' as const, value: `${rod.puffs}` },
+    { key: 'archive.puffs' as const, value: `${rodFacts.puffs}` },
     {
       key: 'archive.temp' as const,
-      value: `${String(rod.tempLow)}–${String(rod.tempHigh)}${copy.value.t('archive.unitTemp') ?? ''}`,
+      value: `${String(rodFacts.tempLow)}–${String(rodFacts.tempHigh)}${
+        copy.value.t('archive.unitTemp') ?? ''
+      }`,
     },
   ];
 });
@@ -49,13 +80,26 @@ const cells = computed(() => {
   >
     <header class="head">
       <span class="name">{{ facts.name }}</span>
-      <span v-if="copy.t('archive.duration') !== null" class="zh">{{ facts.zhName }}</span>
+      <span v-if="rod && copy.t('archive.duration') !== null" class="zh">{{ rod.zhName }}</span>
+      <!-- S18: a box is filed by tier, and the tier is the only ranking-free thing it can say. -->
+      <span v-else-if="box" class="zh">{{
+        copy.t(`archive.tier.${box.tier}` as 'archive.tier.low')
+      }}</span>
       <button class="icon-button close" :aria-label="copy.say('a11y.close')" @click="emit('close')">
         ×
       </button>
     </header>
 
-    <dl class="cells">
+    <!-- S18's five fields, in the deck's order, and only the ones the archive actually has. A
+         brand the deck gives no text for shows no row for it rather than a sentence nobody wrote. -->
+    <dl v-if="box" class="fields">
+      <template v-for="field in boxFields" :key="field.key">
+        <dt>{{ copy.t(field.key) }}</dt>
+        <dd>{{ field.text }}</dd>
+      </template>
+    </dl>
+
+    <dl v-else class="cells">
       <template v-for="cell in cells" :key="cell.key">
         <dt v-if="copy.t(cell.key) !== null">{{ copy.t(cell.key) }}</dt>
         <dd class="digits">{{ cell.value }}</dd>
@@ -65,13 +109,18 @@ const cells = computed(() => {
     <!-- Tier three: the parts that can only be said, and the one figure that must be marked as
          an estimate. It is a range with a source, never a percentage nobody published. -->
     <template v-if="pinned">
-      <p v-if="facts.scenes.length > 0" class="scenes">
+      <p v-if="box !== null && copy.t('archive.disclaimer') !== null" class="range">
+        {{ copy.t('archive.disclaimer') }}
+      </p>
+      <p v-if="rod !== null && rod.scenes.length > 0" class="scenes">
         <span v-if="copy.t('archive.scenes') !== null" class="label">{{
           copy.t('archive.scenes')
         }}</span>
-        <span v-for="scene in facts.scenes" :key="scene" class="chip">{{ scene }}</span>
+        <span v-for="scene in rod.scenes" :key="scene" class="chip">{{ scene }}</span>
       </p>
-      <p v-if="copy.t('archive.range') !== null" class="range">{{ copy.t('archive.range') }}</p>
+      <p v-if="rod !== null && copy.t('archive.range') !== null" class="range">
+        {{ copy.t('archive.range') }}
+      </p>
     </template>
 
     <button
@@ -146,6 +195,28 @@ const cells = computed(() => {
   margin: 2px 0 0;
   font-size: calc(15px * var(--text-scale));
   color: var(--ember-core);
+}
+
+/* The box's fields are sentences rather than measurements: one label per row, and the text wraps
+   under it instead of squeezing into a third of the card. */
+.fields {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 0;
+}
+
+.fields dt {
+  color: var(--smoke-gray);
+  font-size: calc(15px * var(--text-scale));
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.fields dd {
+  margin: 0;
+  font-size: calc(15px * var(--text-scale));
+  line-height: 1.45;
 }
 
 .digits {

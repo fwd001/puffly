@@ -123,23 +123,8 @@ export interface HintWord {
   y: number;
 }
 
-/**
- * What S17's archive card says about the rod in the hand. Everything here is content or the
- * rod's own arithmetic: the card has no number that the simulation did not already have, and
- * the one estimate it quotes carries its own ≈ and its own source (§10).
- */
-export interface ArchiveFacts {
-  name: string;
-  zhName: string;
-  kind: 'inhale' | 'savor' | 'filter';
-  /** Minutes for the whole stick, to a tenth: the middle of this rod's own burn range. */
-  minutes: string;
-  puffs: number;
-  tempLow: number;
-  tempHigh: number;
-  /** 场合, named by the rooms the content says this rod belongs in. */
-  scenes: string[];
-}
+export type { ArchiveFacts, BoxArchiveFacts, RodArchiveFacts } from '../archiveModel';
+import { archiveFacts as factsFor, type ArchiveFacts } from '../archiveModel';
 
 export interface Summary {
   state: GameStateView | null;
@@ -279,24 +264,7 @@ export function createPuffly(): Puffly {
   );
   const copy = computed<I18n>(() => createI18n(locale.value));
 
-  /** The rod in the hand, described for S17's card. Follows the simulation, not the picker. */
-  const archiveOf = (id: string): ArchiveFacts | null => {
-    const rod = content.cigarettes().find((entry) => entry.id === id);
-    if (!rod) return null;
-    const middle = (rod.burnDuration.min + rod.burnDuration.max) / 2;
-    return {
-      name: rod.name,
-      zhName: rod.archive.zhName,
-      kind: rod.archive.kind,
-      minutes: (middle / 60_000).toFixed(1),
-      puffs: rod.physical.puffs.target,
-      tempLow: rod.physical.centerTempC[0],
-      tempHigh: rod.physical.centerTempC[1],
-      scenes: rod.environmentBias
-        .map((envId) => content.environments().find((env) => env.id === envId)?.name)
-        .filter((name): name is string => typeof name === 'string'),
-    };
-  };
+  const archiveOf = (id: string): ArchiveFacts | null => factsFor(content, id);
 
   const progressPacks = computed<string[]>(() => [
     ...(summary.value.state?.progress.collectedPacks ?? []),

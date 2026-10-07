@@ -117,7 +117,10 @@ const wave = computed(() => {
          and the deck rules their feedback must not show a resistance readout. `loadPerPuff` is 0 for
          them in content, so a bar here would be reporting a quantity the simulation holds at zero. -->
     <svg
-      v-if="summary.phase === 'puff' && game.archive.value?.kind !== 'savor'"
+      v-if="
+        summary.phase === 'puff' &&
+        (game.archive.value?.subject === 'rod' ? game.archive.value.kind : 'inhale') !== 'savor'
+      "
       class="art wave"
       viewBox="0 0 120 24"
       aria-hidden="true"
