@@ -87,6 +87,10 @@ const maxLuminance = (canvas: PixelCanvas): number => {
 };
 
 describe('a place carries the shapes that stand in it (S21)', () => {
+  // Fifteen full-frame pixel walks on a 195×422 canvas is the heaviest case in the repository: about
+  // 3s alone, and twice that while the rest of the suite competes for the pool, which is what tripped
+  // vitest's 5s default and turned a passing picture into a red run. The extra budget is for the
+  // measurement, not for the assertions — those stay exact.
   it('paints every feature id, one at a time, onto the same room', () => {
     const plain = paint(undefined);
     const plainPeak = maxLuminance(plain);
@@ -114,7 +118,7 @@ describe('a place carries the shapes that stand in it (S21)', () => {
       expect(share, `${feature} out-lights the room`).toBeLessThanOrEqual(1.6);
     }
     console.log(`FEATURES peak delta: ${report.join(' ')}`);
-  });
+  }, 30_000);
 
   it('tells apart every pair of places that shares a backdrop shape', () => {
     const byKind = new Map<string, { id: string; features: string }[]>();

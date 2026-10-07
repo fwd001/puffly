@@ -335,6 +335,35 @@ const ONE_SHOTS: Record<AudioVoiceId, OneShotRecipe> = {
       return Math.max(graph.punch(env.gain, at, peak, 0.05, 0.4), at + 0.46);
     },
   },
+  /**
+   * The airway going empty — the deck's 「低通骤降」. `draw` is air moving *through* the rod and
+   * `hiss` is a bright steam, and neither of them can be stretched over the second and a half the
+   * deck asks for the last draw, so this is the one voice whose length comes from the cue.
+   */
+  hollow: {
+    seconds: 0.6,
+    build: (graph, into, peak, at) => {
+      const body = graph.filter('body', 'lowpass', graph.jittered(430, 0.1), 0.8);
+      const cavity = graph.filter('cavity', 'bandpass', graph.jittered(190, 0.12), 1.4);
+      const env = graph.gain('env', SILENT);
+      body.connect(env);
+      cavity.connect(env);
+      env.connect(into);
+      // Looped for the same reason `hiss` is: a tail of 1.2 s would run out of buffer mid-sweep.
+      const air = graph.noise('air', specOf('brown', 0.6, undefined, 2), 1, true);
+      if (air) air.connect(body);
+      const breath = graph.noise('breath', specOf('pink', 0.5, undefined, 1), 1.2, true);
+      if (breath) breath.connect(cavity);
+      const seconds = Math.min(1.6, Math.max(0.3, graph.args.durationSec || 0.45));
+      // Both bands fall while the envelope dies: the opening is the suction, the closing is the
+      // cavity left behind, and a band that held still would just be a low noise.
+      body.frequency.setValueAtTime(graph.jittered(430, 0.05), at + LEAD);
+      body.frequency.exponentialRampToValueAtTime(graph.jittered(150, 0.05), at + seconds);
+      cavity.frequency.setValueAtTime(graph.jittered(210, 0.05), at + LEAD);
+      cavity.frequency.exponentialRampToValueAtTime(graph.jittered(120, 0.05), at + seconds);
+      return Math.max(graph.punch(env.gain, at, peak, 0.012, seconds * 0.92), at + seconds + 0.02);
+    },
+  },
   crackle: {
     seconds: 0.32,
     build: (graph, into, peak, at) => {

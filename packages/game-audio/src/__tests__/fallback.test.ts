@@ -128,6 +128,8 @@ describe('degrading to silence (§63)', () => {
     expect(engine.cueForEvent({ kind: 'unlock', atMs: 0, category: 'trays', id: 'glass' })).toEqual(
       [],
     );
-    expect(engine.cueForEvent(burstEvent('ash', 2))).toEqual(['ash']);
+    // The body first, then the accent the deck pairs with it: the grains and the break are two
+    // registers of one happening, and the silent engine still names both.
+    expect(engine.cueForEvent(burstEvent('ash', 2))).toEqual(['ash', 'fracture']);
   });
 });

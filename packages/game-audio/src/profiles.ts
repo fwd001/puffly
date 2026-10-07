@@ -25,6 +25,16 @@ export const VOICE_DEFAULTS: Record<AudioVoiceId, AudioLayer> = {
   click: { voice: 'click', gain: 0.45, pitchSpread: 2, timingSpreadMs: 10, pan: -0.2, loop: false },
   flame: { voice: 'flame', gain: 0.32, pitchSpread: 2, timingSpreadMs: 26, pan: -0.2, loop: true },
   draw: { voice: 'draw', gain: 0.38, pitchSpread: 1.5, timingSpreadMs: 20, pan: 0.1, loop: true },
+  // Not a loop: the hollow is the end of a draw, a thing that happens once, and a looping version
+  // of it would be the room breathing by itself.
+  hollow: {
+    voice: 'hollow',
+    gain: 0.34,
+    pitchSpread: 1.5,
+    timingSpreadMs: 16,
+    pan: 0.08,
+    loop: false,
+  },
   crackle: {
     voice: 'crackle',
     gain: 0.2,
@@ -58,6 +68,7 @@ const ROLE_FALLBACK: Record<AudioProfileRole, readonly AudioLayer[]> = {
     { voice: 'draw', gain: 0.4, pitchSpread: 1.5, timingSpreadMs: 20, pan: 0.1, loop: true },
     { voice: 'crackle', gain: 0.16, pitchSpread: 3, timingSpreadMs: 60, pan: 0.15, loop: true },
     { voice: 'puff', gain: 0.34, pitchSpread: 2, timingSpreadMs: 24, pan: 0.05, loop: false },
+    { voice: 'hollow', gain: 0.34, pitchSpread: 1.5, timingSpreadMs: 16, pan: 0.08, loop: false },
   ],
   tray: [{ voice: 'ash', gain: 0.4, pitchSpread: 2, timingSpreadMs: 22, pan: 0.35, loop: false }],
   extinguish: [

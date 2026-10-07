@@ -2350,7 +2350,73 @@ typecheck 也管不到），改成表内已有的 `--smoke-gray`，字号按稿�
 不是 COPY 表里那格 —— 把十个标签全删也照样绿。改成读表（`COPY[locale]?.[key]`），再用"从 en 删掉
 `archive.crowd`"这一处变异验它：恰好红那一条，报 `en:archive.crowd: expected undefined to be type of 'string'`。
 
+### 声音清单还缺三条：灰柱崩裂 / 吸附 / 吸尽（2026-10-07）
+
+稿子第 20 页给了 12 个声音事件，仓里对得上 9 个，缺 3 个：**灰柱·崩裂**（方波 1.8kHz·极短包络，90ms·0.6）、
+**吸附·吸入末期**（低通骤降＋混响拉长，400ms·0.65）、**吸尽·结束标记**（低通 400→200Hz 缓降，1.2s·0.7）。
+
+三条各自缺的原因不一样，所以三条各自的做法也不一样：
+
+- **崩裂**：`dropAsh()` 只发一个 ash burst，`BURST_CUE.ash` 只映射到一条 cue ⇒ 柱子"断"和灰"落"是同一个音。
+  ⇒ 加 `BURST_ACCENT`：一个事件的**两个音区**，body 排在前面，所以任何读 `planCues(...)[0]` 的东西
+  仍然拿到"这件事关于的材料"（烟灰缸）。`fracture` 走 role `draw`（烟种自己的材料）而不是 `tray` ——
+  换个烟灰缸不该改变"柱子断开"那一声。
+- **吸附**：以前根本没有事件源，`SESSION_CUE` 里 PUFF 是空的（吐气由 exhale burst 管）。
+- **吸尽**与吸附挂在同一个 PUFF 事件上，用**一个数**分家：`drawEndCue(rodRemaining)` 直接 import core 的
+  `THRESHOLDS.nearEndRodFraction` —— 状态机判 NEAR_END 用的就是同一个数 ⇒ 声音和状态机不可能对
+  "什么时候算烟头"各说一套。
+
+新音色 `hollow` 是**量出来的**，不是想起什么就加的：全仓 `Record<AudioVoiceId>` 只有两处需要补
+（ONE_SHOTS、VOICE_DEFAULTS），但真正的问题在**长度**。14 个一次性 voice recipe 里读 `args.durationSec`
+的是 6 个：`hollow`（新）＋`hiss`＋`wind`/`rain`/`room`/`city`。后四个是**天气的 swell**（没人把一次吸气
+吹成一阵风），`hiss` 的音色是 highpass 2300 + bandpass 5200（亮的蒸汽），而稿子那两条要 400→200Hz 的暗落
+⇒ 可伸长的暗音色一个都没有。复用 `hiss` 等于把掐灭那声一起改掉；`draw` 是"空气穿过烟"、`ember` 长度写死 0.2s。
+⇒ `hollow` = lowpass 430→150 叠 cavity bandpass 210→120，长度由 cue 说了算（夹在 0.3–1.6s）。
+复跑（打印每条 durationSec 归哪个 voice，7 行对应 6 个）：
+`awk '/^  [a-z]+: \{$/{v=$1} /graph.args.durationSec/{print v, FNR}' packages/game-audio/src/voices.ts`。
+
+`VOICE_ORDER` 把 `hollow` 加在**末尾**：那个下标会混进每次触发的种子，插在中间等于把后面每条 cue 的音色重排一遍。
+
+实测数（真 core 跑出来的 ash burst 与真 PUFF 事件，不是夹具造的数）：
+`ash` v=0.459–0.516 / `fracture` v=0.764–0.860 ⇒ 比值 1.66–1.67（稿子 0.6 vs 0.3＝裂要比散响），
+两边都没顶到 1.0（顶上去就分不出手抖的轻重了）；`vacuum` v=0.650 d=400；`burnt-out` v=0.700 d=1200。
+`fracture.durationMs` 保持 90 —— 只有 body 跟着 burst 的寿命走，"断"就是九十毫秒，不管灰之后飘多久。
+
+**又被变异抓到一条空转判据**：我写了"换烟灰缸动不了那道裂"，然后 M4（把 `fracture` 的 role 改成 `tray`）
+—— **全绿**。原因：role 错了以后 `selectLayers` 在 tray 里找不到 crackle，就退回 `VOICE_DEFAULTS`，
+石盒和铁盒拿到同一份默认 ⇒ "换盒子它不动"照样成立。**蕴含式的正面那半我漏了**：必须再断言
+"换烟种要动它"。补上那半条之后 M4 恰好红那一格，报 `the rod owns the crack: expected 'crackle:0.2' not to be 'crackle:0.2'`。
+
+变异五处，各红其所：去掉 accent → 5 条；把 400 换成 1200 → 2 条；阈值改成 0（永远不算烟头）→ 3 条；
+role 换成 tray → 1 条（补完正面判据之后）；从出厂内容里删掉一条 draw 的 hollow 层 → 1 条。
+
+三处**没做到**的，写清楚不假装：
+- 稿子的时序表把 屏息(4–5s) 与 吐烟(5–6.5s) 分成两秒，而 `endPuff()` 在同一个瞬间同时发 exhale burst 和
+  PUFF 事件 ⇒ 这一片里吸附与吐气是**同一瞬间的两个音区**（一个暗落的气腔、一个宽开的气流，不是同一个音叠两遍）。
+  要真分出那一秒，得让 core 的状态机多一拍（PUFFING → 一个 hold 状态 → 呼出），那是一处跨 core/渲染/界面的
+  改动，仍是**欠的**。今天有归属的那几拍：火的起落（`flameRiseMs` 260）、点按那口的长度（`microPuffMs` 180）、
+  松手后的 RESTING 窗（`restSettleMs` 900）；而 **屏息** 只有"含住不吐"那一类烟才有时间
+  （`puffProfile.savourMs > 0`，吸入型的这根是 0 ⇒ 松手即吐，中间那一拍在引擎里不存在）。
+  复跑：`grep -n "TIMING = {" -A 30 packages/game-core/src/constants.ts`、
+  `grep -rn "savourMs" packages/game-core/src/systems/puff.ts`。
+- 吸尽挂在"最后一口"上 ⇒ 一支自己烧到底、没人再吸的烟，不会有那声结束标记。
+- 还有 4 条时长/音量与稿子不一致（开盖 70↔120ms、烟灰 160 单击↔600ms 的 4–6 粒、吐气 420↔900ms、
+  掐灭现在是亮嘶↔稿子要 60Hz 钝响 220ms·0.8）。**光改 cue 上的数字不会响**，逐条说是哪一层挡着：
+  开盖用 `click`、烟灰用 `ash`(+`chime`)、吐气用 `puff`+`draw` —— 这四个 recipe 都不读 `durationSec`，
+  长度写死在 recipe 里；掐灭用 `hiss`，它读，但它的下限是 `Math.max(0.35, …)`＝350ms，比稿子要的 220ms 长，
+  而且它的音色是亮的、稿子要 60Hz 的钝响 ⇒ 要动的是 recipe（给 ash 做 4–6 粒错落、给 掐灭 一个低频体），
+  不是数字。留给同一任务的下一片。
+
+顺带一条与本片无关但挡住了发版的红：`place-features.test.ts` 那条"每个 feature 各画一次"在全量跑里
+**超时**（5s 默认上限；单独跑 3.0s，并发下 6.5–7.1s），报的是 `Test timed out in 5000ms`，不是断言。
+它要扫十五张 195×422 的整幅像素，是仓里最重的一条。处置 = 给这一条单独 30s 预算并写明为什么，
+**不是**把像素阈值放宽（阈值都是量出来的，降分辨率要全部重测）。
+
 ## 6.1 场景挂在等级上，不是挂在日历上（2026-10-07）
+
+> 这一节下面的表和 `LEVEL_THRESHOLDS` 那串数字是**当初九档**的时候写的。现在是 21 档、二十一个地方，
+> 名单与取值以 §22.z 为准（复跑：`grep -n "LEVEL_THRESHOLDS" -A 3 packages/game-core/src/levels.ts`）。
+> 留着这段是因为它记的是"为什么把理由从日历换成玩家做过几次"这个决定本身，那一条没变。
 
 原来七个地方是按 `{ kind: 'day', day: N }` 开的 —— 一个房间开放的理由是"过了 30 天"，
 这不是任何人**做了**什么；而且七个房间摊在 45 天里，玩家遇到它们的顺序是"这个 app 恰好被打开

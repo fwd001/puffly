@@ -58,6 +58,9 @@ const VOICE_ORDER: readonly AudioVoiceId[] = [
   'room',
   'city',
   'chime',
+  // Last on purpose: the index is mixed into every cue's per-trigger seed, so putting a new voice
+  // in the middle would retime the timbre of every cue that comes after it.
+  'hollow',
 ];
 
 /** Which stage a cue belongs to: background swells obey the ambience slider (§27). */
@@ -70,6 +73,11 @@ const CUE_BUS: Record<AudioCueId, AudioBusId> = {
   'draw-detail': 'cue',
   release: 'cue',
   ash: 'cue',
+  // The column letting go, the hollow at the end of a draw, and the same hollow on the last one:
+  // all three are the player's own gesture, so they belong on the cue bus and not under the beds.
+  fracture: 'cue',
+  vacuum: 'cue',
+  'burnt-out': 'cue',
   hiss: 'cue',
   impact: 'cue',
   lift: 'cue',
@@ -273,7 +281,9 @@ class LiveAudioEngine implements AudioEngine, GrooveHost {
   }
 
   cueForEvent(event: EngineEvent): readonly AudioCueId[] {
-    return cueIdsFor(event);
+    // With the state it last saw, so a draw on a stub previews the ending rather than the ordinary
+    // hollow the mapper would have to guess at.
+    return cueIdsFor(event, this.lastState ?? undefined);
   }
 
   // ---------------------------------------------------------------- GrooveHost

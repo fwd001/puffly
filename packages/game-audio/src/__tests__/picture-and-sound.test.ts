@@ -99,10 +99,14 @@ describe('the tray you can see is the tray you hear (§26)', () => {
     // means something is the set of voices the tray asked for.
     const voices = (names: string[]): string[] =>
       [...new Set(names.map((name) => name.replace(/^cue\./, '').split(':')[0] ?? ''))].sort();
-    expect(voices(stone), 'no cue was built at all').toEqual(['ash']);
+    expect(voices(stone), 'no cue was built at all').toEqual(['ash', 'crackle']);
+    // `crackle` is the column breaking (S20 灰柱·崩裂): the rod's own material, which the tray has
+    // nothing to do with. The tray's contribution is the rest, and that is what has to differ.
+    const fromTray = (names: string[]): string[] => names.filter((voice) => voice !== 'crackle');
+    expect(fromTray(voices(stone))).toEqual(['ash']);
     // Stone is the one tray that does not ring. If the identity never reached the planner this is
     // `['ash']` for both, which is exactly the bug this file is about.
-    expect(voices(glass)).toEqual(['ash', 'chime']);
+    expect(fromTray(voices(glass))).toEqual(['ash', 'chime']);
   });
 });
 

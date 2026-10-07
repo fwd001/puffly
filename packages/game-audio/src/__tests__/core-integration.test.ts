@@ -123,6 +123,11 @@ describe('audio driven by the real Game Core', () => {
     expect(
       ctx.sources.filter((source) => source.name.startsWith('cue.puff')).length,
     ).toBeGreaterThan(0);
+    // 吸附: the hollow the same release leaves in the mouth. This is the deck's S20 event arriving
+    // on the session half of the contract, which is the half that used to be silent for a puff.
+    expect(
+      ctx.sources.filter((source) => source.name.startsWith('cue.hollow')).length,
+    ).toBeGreaterThan(0);
     expect(
       seen.some((event) => event.kind === 'session' && event.event.type === SessionEventType.PUFF),
     ).toBe(true);

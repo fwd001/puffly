@@ -99,6 +99,8 @@ export interface StateOverrides {
   readonly density?: number;
   readonly cigaretteState?: CigaretteStateId;
   readonly extinguishProgress?: number;
+  /** How much unburnt paper is left. The last draws sound different, so this is a knob. */
+  readonly rodRemaining?: number;
   readonly soundProfileId?: string;
   readonly ambientProfileId?: string;
   readonly trayId?: string;
@@ -123,7 +125,7 @@ export function makeState(overrides: StateOverrides = {}): AudioStateSlice {
     cigarette: {
       state,
       soundProfileId: o.soundProfileId ?? 'draw-warm',
-      rodRemaining: 1,
+      rodRemaining: o.rodRemaining ?? 1,
       ember: {
         brightness,
         flare: o.flare ?? 0,

@@ -17,7 +17,7 @@ import type {
   BurstKind,
   WorldEventOccurrence,
 } from '@puffly/game-core';
-import { WorldEventId, emberPresence } from '@puffly/game-core';
+import { THRESHOLDS, WorldEventId, emberPresence } from '@puffly/game-core';
 import { clamp01 } from '@puffly/shared';
 import { SessionEventType } from '@puffly/game-core';
 import { selectLayers } from './profiles';
@@ -47,6 +47,15 @@ export const CUE_MIN_GAP_MS: Record<AudioCueId, number> = {
   'draw-detail': 320,
   release: 90,
   ash: 80,
+  // A column breaks once per flick, and the crack itself is 90 ms — so the gap is just long enough
+  // that a shaking hand cannot turn it into a buzz.
+  fracture: 120,
+  // One per draw, and the draw itself is rate-limited by the core; this only keeps a tap and a
+  // release from both answering.
+  vacuum: 160,
+  // The ending marker is meant to be heard once per rod, and a stub re-enters `NEAR_END` every time
+  // it is drawn on, so the gap is what makes it a marker rather than a stutter.
+  'burnt-out': 1200,
   lift: 140,
   hiss: 260,
   impact: 90,
@@ -69,7 +78,18 @@ const CUE_SHAPE: Record<AudioCueId, CueShape> = {
   ignite: { role: 'draw', voices: ['crackle', 'ember'], durationMs: 260 },
   'draw-detail': { role: 'draw', voices: ['draw', 'crackle'], durationMs: 320 },
   release: { role: 'draw', voices: ['puff', 'draw'], durationMs: 420 },
+  // The column letting go, heard before the grains it turns into. It is on the rod's own profile
+  // and not the tray's because the tray has nothing to do with a break that happens in the air
+  // above it — and because that is the difference between this and the `ash` cue below, which is
+  // the grains landing in somebody else's material.
+  fracture: { role: 'draw', voices: ['crackle'], durationMs: 90 },
   ash: { role: 'tray', voices: ['ash', 'chime'], durationMs: 160 },
+  // The hollow of the mouth at the end of a draw, and the same hollow held out because there is no
+  // rod left to fill it. One voice, two lengths: the deck gives 吸附 400 ms and 吸尽 1.2 s, and of the
+  // voices that could read as a dark, drawn breath, `hollow` is the only one whose length comes from
+  // the cue (the four weather voices stretch too, but nobody inhales a gust).
+  vacuum: { role: 'draw', voices: ['hollow'], durationMs: 400 },
+  'burnt-out': { role: 'draw', voices: ['hollow'], durationMs: 1200 },
   hiss: { role: 'extinguish', voices: ['hiss', 'ash'], durationMs: 900 },
   impact: { role: 'tray', voices: ['ash', 'click', 'chime'], durationMs: 220 },
   lift: { role: 'surface', voices: ['click', 'ash'], durationMs: 120 },
@@ -91,6 +111,32 @@ const BURST_CUE: Record<BurstKind, AudioCueId | null> = {
   discard: 'impact',
   impact: 'impact',
 };
+
+/**
+ * The second register of a happening that is two sounds in the world: the column breaks (`fracture`)
+ * and then the grains land (`ash`). The body is listed first so a cue reader looking at `[0]` still
+ * finds the material the event is about.
+ */
+const BURST_ACCENT: Partial<Record<BurstKind, AudioCueId>> = {
+  ash: 'fracture',
+};
+
+/** The burst's own cue plus its accent, in the order the engine should fire them. */
+export function burstCues(kind: BurstKind): readonly AudioCueId[] {
+  const body = BURST_CUE[kind];
+  if (!body) return [];
+  const accent = BURST_ACCENT[kind];
+  return accent === undefined ? [body] : [body, accent];
+}
+
+/**
+ * Which of the two hollows a finished draw is: an ordinary one, or the last one on a stub.
+ *
+ * One number decides it, and it is the number the core already uses to call the state `NEAR_END`
+ * (§11), so the sound and the state machine cannot disagree about when the rod is a stub.
+ */
+export const drawEndCue = (rodRemaining: number): AudioCueId =>
+  rodRemaining <= THRESHOLDS.nearEndRodFraction ? 'burnt-out' : 'vacuum';
 
 /** `drift` is the lazy column of smoke the bed already carries: no sound of its own. */
 const WORLD_CUE: Record<string, AudioCueId | null> = {
@@ -120,6 +166,21 @@ const SESSION_CUE: Record<string, AudioCueId | null> = {
   [SessionEventType.UNLOCK]: 'chime',
   [SessionEventType.SESSION_TARGET]: 'chime',
 };
+
+/**
+ * Which cue a session event answers with, or `null` for the events that stay quiet.
+ *
+ * The end of a draw is the one happening whose sound is decided by the rod rather than by the
+ * event: an ordinary draw goes hollow for 400 ms, the last one on a stub for a second and a half.
+ * Without a state to read, the mapper names the ordinary one, which is what a draw is nine times
+ * out of ten.
+ */
+function sessionCueId(type: string, rodRemaining?: number): AudioCueId | null {
+  if (type === SessionEventType.PUFF) {
+    return rodRemaining === undefined ? 'vacuum' : drawEndCue(rodRemaining);
+  }
+  return SESSION_CUE[type] ?? null;
+}
 
 const finite = (value: number, fallback: number): number =>
   Number.isFinite(value) ? value : fallback;
@@ -185,12 +246,26 @@ export function planCues(
 
   switch (event.kind) {
     case 'burst': {
-      const cue = BURST_CUE[event.burst.kind];
-      if (!cue) return [];
-      const shape = CUE_SHAPE[cue];
-      const profile = store.resolve(shape.role, state);
-      const velocity = burstVelocity(event.burst) * cueGain(cue, state);
-      return [build(cue, profile, velocity, event.burst.seed, burstDuration(event.burst, shape))];
+      const cueIds = burstCues(event.burst.kind);
+      if (cueIds.length === 0) return [];
+      const density = burstVelocity(event.burst);
+      const planOne = (cue: AudioCueId, stretched: boolean): PlannedCue => {
+        const shape = CUE_SHAPE[cue];
+        // Each register resolves through its own role: the break is the rod's material and the
+        // landing is the tray's, so changing the tray cannot change the crack.
+        return build(
+          cue,
+          store.resolve(shape.role, state),
+          density * cueGain(cue, state),
+          event.burst.seed,
+          // The body follows the smoke's own life; an accent keeps the deck's fixed length, because
+          // the break is not a cloud that hangs around. What the player hears of it is `crackle`'s
+          // own decay — that voice does not read `durationSec`, so this number is the plan's claim
+          // about the gesture, not a measurement of the sound.
+          stretched ? burstDuration(event.burst, shape) : shape.durationMs,
+        );
+      };
+      return cueIds.map((cue, index) => planOne(cue, index === 0));
     }
 
     case 'world': {
@@ -216,14 +291,24 @@ export function planCues(
     }
 
     case 'session': {
-      const cue = SESSION_CUE[event.event.type];
+      const cue = sessionCueId(event.event.type, state.cigarette.rodRemaining);
       if (!cue) return [];
       const shape = CUE_SHAPE[cue];
       const profile = store.resolve(shape.role, state);
       // The click of a lighter that caught is quieter than the flick of the wheel: the catch
       // is an accent, and the ember burst arriving in the same instant is the body (§26).
+      // The two hollows take the deck's own figures (S20: 吸附 0.65, 吸尽 0.7), and the ending is
+      // the louder of them because it is the one that says the rod is over.
       const velocity =
-        cue === 'sputter' ? 0.5 : cue === 'click' ? 0.52 : 0.42 * (0.6 + ambientScale * 0.4);
+        cue === 'sputter'
+          ? 0.5
+          : cue === 'vacuum'
+            ? 0.65
+            : cue === 'burnt-out'
+              ? 0.7
+              : cue === 'click'
+                ? 0.52
+                : 0.42 * (0.6 + ambientScale * 0.4);
       return [
         build(
           cue,
@@ -270,6 +355,14 @@ function cueGain(cue: AudioCueId, state: AudioStateSlice): number {
       return 0.34 + clamp01(state.cigarette.puff.intensity) * 0.3;
     case 'ash':
       return state.cigarette.ember.lit ? 0.9 : 0.7;
+    case 'fracture': {
+      // The deck pairs the break at 0.6 against the scatter at 0.3, and the trim has to be said
+      // against `ash`'s own (which already carries the "is anything burning" half) rather than as a
+      // number of its own. Held under 1.5 because a trim that pushes the plan past 1 would make
+      // every crack equally loud, which is the mechanical button §26 forbids.
+      const scatter = cueGain('ash', state);
+      return Math.min(1.5, scatter * 2);
+    }
     case 'release':
       return 0.75 + clamp01(state.smoke.density) * 0.25;
     case 'impact':
@@ -292,15 +385,27 @@ export function hashId(id: string, salt: number): number {
   return (hash ^ (hash >>> 13)) >>> 0 || 1;
 }
 
-/** The cue ids an event maps to, without touching content: the shell's preview hook. */
-export function cueIdsFor(event: EngineEvent): readonly AudioCueId[] {
-  const cue =
-    event.kind === 'burst'
-      ? BURST_CUE[event.burst.kind]
-      : event.kind === 'world'
-        ? (WORLD_CUE[event.occurrence.type] ?? null)
-        : event.kind === 'session'
-          ? (SESSION_CUE[event.event.type] ?? null)
-          : null;
-  return cue === null ? [] : [cue];
+/**
+ * The cue ids an event maps to; pure, no side effects.
+ *
+ * `state` is optional because the shell's preview hook only has the event. Where an event's sound
+ * depends on the rod (the two hollows), passing no state answers with the common one, and the
+ * engine — which is always given the live state — passes the state it was last handed so its
+ * answer is the one it would really have fired.
+ */
+export function cueIdsFor(event: EngineEvent, state?: AudioStateSlice): readonly AudioCueId[] {
+  if (event.kind === 'burst') return burstCues(event.burst.kind);
+  if (event.kind === 'world') {
+    const cue = WORLD_CUE[event.occurrence.type];
+    return cue === null || cue === undefined ? [] : [cue];
+  }
+  if (event.kind === 'session') {
+    const cue = sessionCueId(event.event.type, state?.cigarette.rodRemaining);
+    return cue === null ? [] : [cue];
+  }
+  // The only transition with a sound of its own; the rest of the lifecycle is visual (§26).
+  if (event.kind === 'transition' && event.from === 'IDLE' && event.to === 'PICKED_UP') {
+    return ['lift'];
+  }
+  return [];
 }

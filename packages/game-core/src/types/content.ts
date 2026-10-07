@@ -176,6 +176,13 @@ export type AudioVoiceId =
   | 'click'
   | 'flame'
   | 'draw'
+  /**
+   * The hollow of an empty airway: a low band that falls while it dies away. It exists because the
+   * deck's 吸附 and 吸尽 are both 「低通骤降」 — the last of the draw going empty — and every voice
+   * in the vocabulary was either a bright hiss (`hiss`, `crackle`) or a fixed-length body (`draw`,
+   * `ember`) that could not be stretched over a second and a half.
+   */
+  | 'hollow'
   | 'crackle'
   | 'ember'
   | 'puff'

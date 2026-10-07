@@ -32,14 +32,23 @@ export type AudioBedId = 'draw' | 'flame' | 'ember' | 'ambient';
 /** Gain stages, so a player-facing slider has something to talk to. */
 export type AudioBusId = 'cue' | 'bed' | 'ambient';
 
-/** Every discrete happening the engine can turn into sound. */
+/**
+ * Every discrete happening the engine can turn into sound.
+ *
+ * The last three are the deck's own list (S20) arriving late: 灰柱崩裂 is the column letting go
+ * rather than the grains landing, 吸附 is the hollow at the end of a draw, and 吸尽 is the same
+ * hollow held for a second and a half because the rod is over.
+ */
 export type AudioCueId =
   | 'click'
   | 'sputter'
   | 'ignite'
   | 'draw-detail'
   | 'release'
+  | 'fracture'
   | 'ash'
+  | 'vacuum'
+  | 'burnt-out'
   | 'hiss'
   | 'impact'
   | 'lift'
