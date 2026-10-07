@@ -122,7 +122,7 @@ const cells = computed(() => {
            is not the real world's: a rod here lasts the length its own content says. Without the
            line, 「3.2 分钟」 and the design table's 「10.0 分钟」 look like a contradiction between two
            claims about a stick, when they are one claim about a game and one about life. -->
-      <p v-if="rod !== null && copy.t('archive.basis') !== null" class="range">
+      <p v-if="rod !== null && copy.t('archive.basis') !== null" class="basis">
         {{ copy.t('archive.basis') }}
       </p>
       <p v-if="rod !== null && copy.t('archive.range') !== null" class="range">
@@ -251,7 +251,10 @@ const cells = computed(() => {
   font-size: calc(15px * var(--text-scale));
 }
 
-.range {
+/* Shared with .basis: a line that quotes where a figure came from is typeset like one whatever the
+   source was — a published range or this game's own table. */
+.range,
+.basis {
   margin: 0;
   color: var(--smoke-gray);
   font-size: calc(15px * var(--text-scale));

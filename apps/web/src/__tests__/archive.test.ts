@@ -60,6 +60,15 @@ describe('the archive data rules (§10, §13)', () => {
     const open = card.slice(card.lastIndexOf('<p', at), card.indexOf('>', at));
     expect(open, 'the basis line is not gated on a rod').toContain('rod !== null');
     expect(open, 'the basis line moved to a box card').not.toContain('box !== null');
+    // `.range` is the class the browser layer reads to find *the estimate* — the line whose figure
+    // carries ≈. Reusing it for a line that quotes the game's own table made the first `.range` in
+    // the card the wrong one, and the real browser caught it; the class is the marker, so the
+    // marker's uniqueness is the thing to hold.
+    expect(
+      open,
+      'the basis line borrowed the class that means "this figure is an estimate"',
+    ).toContain('class="basis"');
+    expect(card.match(/class="range"/g)?.length ?? 0).toBe(2);
   });
 
   it('every rod names its own category and family, because the card has nothing else to say', () => {
