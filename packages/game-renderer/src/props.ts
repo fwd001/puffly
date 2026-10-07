@@ -159,12 +159,21 @@ export function drawPack(
   ctx.fillStyle = rgbToCss(mixRgb(band, [255, 255, 255], 0.3));
   ctx.fill();
 
-  // Rods standing in the opening, at three heights, each with its filter end up: the pack and the
-  // rod in hand have to be recognisably the same object.
-  const rodW = w * 0.16;
+  // The opening is a hole. Without this the rods stand on paper and the pack reads as a printed
+  // card: what you actually see past them is the inside of the box, in shadow, and it is the only
+  // dark value on the object.
+  ctx.fillStyle = rgbToCss(mixRgb(band, [3, 3, 5], 0.94), 0.95);
+  ctx.fillRect(-w * 0.4, -h * 0.5, w * 0.8, h * 0.13);
+
+  // Two rows of rods, the back row shorter and cooler: a pack holds about nine in a row and what
+  // reads at this size is *depth*, not count. The front row carries the filter ends, because the
+  // pack and the rod in hand have to be recognisably the same object.
+  const rodW = w * 0.15;
   const RISES = [0.2, 0.27, 0.16];
   RISES.forEach((rise, i) => {
     const x = -w * 0.27 + i * w * 0.27 - rodW / 2;
+    ctx.fillStyle = rgbToCss(mixRgb(paper, [150, 156, 168], 0.4), 0.8);
+    ctx.fillRect(x + rodW * 0.42, -h * (0.44 + rise * 0.62), rodW * 0.7, h * (0.14 + rise * 0.4));
     ctx.fillStyle = rgbToCss(paper, 0.95);
     ctx.fillRect(x, -h * (0.46 + rise), rodW, h * (rise + 0.14));
     ctx.fillStyle = rgbToCss(state.style.cigarette.filter, 0.95);
@@ -183,6 +192,25 @@ export function drawPack(
   // Foil showing at the fold, which is the brightest thing on a real pack.
   ctx.fillStyle = rgbToCss(mixRgb(paper, [186, 188, 196], 0.28), 0.9);
   ctx.fillRect(-w * 0.42, -h * 0.53, w * 0.84, Math.max(1, h * 0.045));
+
+  // The cellophane. A soft pack is wrapped, and the wrap is what the eye actually catches on one:
+  // a sheen that runs diagonally because the sheet is stretched over an edge, a seam folded down
+  // the far side, and a pull tab where the flap meets it. Drawn over the box rather than as the
+  // box, so the pack keeps its colour underneath and the highlight stays a highlight.
+  const sheen = ctx.createLinearGradient(-w * 0.5, h * 0.5, w * 0.5, -h * 0.5);
+  sheen.addColorStop(0, 'rgba(255,255,255,0)');
+  sheen.addColorStop(0.34, rgbToCss(mixRgb(paper, [255, 255, 255], 0.7), 0.16));
+  sheen.addColorStop(0.44, 'rgba(255,255,255,0.3)');
+  sheen.addColorStop(0.58, rgbToCss(mixRgb(paper, [255, 255, 255], 0.7), 0.1));
+  sheen.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sheen;
+  roundRect(ctx, -w / 2, -h * 0.34, w, h * 0.84, w * 0.1);
+  ctx.fill();
+  // The folded seam, one step in from the right edge, and the tab that breaks it out.
+  ctx.fillStyle = rgbToCss(mixRgb(paper, [190, 194, 204], 0.4), 0.34);
+  ctx.fillRect(w * 0.3, -h * 0.34, w * 0.055, h * 0.84);
+  ctx.fillStyle = rgbToCss(mixRgb(paper, [228, 230, 236], 0.5), 0.62);
+  ctx.fillRect(w * 0.2, -h * 0.4, w * 0.15, h * 0.075);
 
   // The band across the front, and one hairline above it. Colour only: §3 says no mark, no word.
   ctx.fillStyle = rgbToCss(mixRgb(band, [255, 255, 255], 0.5), 0.9);
