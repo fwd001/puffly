@@ -197,6 +197,13 @@ export function drawPack(
   ctx.restore();
 }
 
+/**
+ * How far a flip-top actually throws: past vertical, short of lying flat along the tank. Exported
+ * because `lid-hinge.test.ts` checks the drawn shell against `cos` of this angle, and a second copy
+ * of the number in a test file is two numbers the day someone tunes one of them.
+ */
+export const LID_THROW_DEG = 78;
+
 export function drawLighter(
   ctx: CanvasRenderingContext2D,
   state: GameStateView,
@@ -253,6 +260,74 @@ export function drawLighter(
     metal.addColorStop(1, rgbToCss(mixRgb(base, [10, 10, 14], Math.min(0.95, 0.7 + darken))));
     ctx.fillStyle = metal;
   };
+
+  // The cap. It hinges at the back of the case, at the shoulder, so in this front view it does not
+  // swing sideways like a door and it does not shrink: it *turns*. One length, one pivot, and the
+  // angle is the only input — the height it still occupies is `length × cos(angle)`, the skirt's
+  // lower edge never leaves the hinge, and the far end narrows only by what perspective asks for.
+  // That is why this block is drawn before the chimney: a shell tipped back is behind it, and a
+  // shell drawn in front of the chimney at 78° would hide the one part the whole gesture uncovers.
+  // Every point is still emitted in canvas space, because the placement guard reads them back.
+  // Closed, the cap's skirt reaches the tank's shoulder and hides the chimney entirely; opening it
+  // is the skirt lifting off the hinge, not the whole object sliding up. The cap is also a hair
+  // wider than the tank because it fits *over* it — that overhang is the silhouette cue that says
+  // "this part comes off", and without it the closed lighter reads as one turned can.
+  const capHalf = halfW * 1.035;
+  const lidAngle = (lid * LID_THROW_DEG * Math.PI) / 180;
+  const lean = Math.cos(lidAngle);
+  // The hinge end is pinned to the shoulder and the shell is rigid, so the only thing that changes
+  // is how much of its own length is still standing up. At full throw the band left above the
+  // shoulder is `0.22 × capH` — just under the chimney, which is the point: the chimney and the
+  // wick come out from behind it rather than out of the middle of it.
+  const capBottom = seamY;
+  const capTop = seamY - capH * lean;
+  const topHalf = capHalf * (1 - 0.09 * (1 - lean));
+  const r = Math.min(bodyW * 0.13, capH * 0.16);
+  const capCorners: Array<[number, number]> = [
+    [at.x - capHalf, capBottom],
+    [at.x - capHalf, capTop + r],
+    [at.x - capHalf + r * 0.42, capTop + r * 0.12],
+    [at.x - topHalf + r * 0.6, capTop],
+    [at.x + topHalf - r * 0.6, capTop],
+    [at.x + capHalf - r * 0.42, capTop + r * 0.12],
+    [at.x + capHalf, capTop + r],
+    [at.x + capHalf, capBottom],
+  ];
+  ctx.beginPath();
+  capCorners.forEach(([x, y], index) => {
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.closePath();
+  ramp(0.16, 0.24);
+  ctx.fill();
+  // The inside of the cap is a hollow shell, and that is the detail that says something was
+  // *covering* the chimney. How much of it is facing the camera is exactly how far the shell has
+  // tipped, so the band grows as `1 − cos` and is nothing at all while the lid is shut.
+  if (lid > 0.02) {
+    const shrink = bodyW * 0.11;
+    const shows = 1 - lean;
+    const innerTop = capTop + chimH * (0.5 + 1.4 * shows);
+    ctx.beginPath();
+    ctx.moveTo(at.x - capHalf + shrink, capBottom - bodyH * 0.015);
+    ctx.lineTo(at.x - capHalf + shrink * 1.7, innerTop);
+    ctx.lineTo(at.x + capHalf - shrink * 1.7, innerTop);
+    ctx.lineTo(at.x + capHalf - shrink, capBottom - bodyH * 0.015);
+    ctx.closePath();
+    // Not black: the flame is drawn over this with `lighter`, and a dark enough shell turns the
+    // base of the flame into a blown-out disc instead of a flame.
+    ctx.fillStyle = rgbToCss(mixRgb(base, [26, 23, 26], 0.72), clamp01(lid * 0.62));
+    ctx.fill();
+  }
+  // A specular riding the far edge, placed by the key light rather than stretched across the whole
+  // width: a full-width bar is what made the closed cap look like the rim of a tin.
+  const spec = Math.cos((key * Math.PI) / 180) * topHalf * 0.26;
+  ctx.lineWidth = Math.max(0.7, bodyH * 0.012);
+  ctx.strokeStyle = rgbToCss(mixRgb(base, [240, 242, 248], 0.72), 0.5);
+  ctx.beginPath();
+  ctx.moveTo(at.x + spec - topHalf * 0.52, capTop + Math.max(0.7, bodyH * 0.006));
+  ctx.lineTo(at.x + spec + topHalf * 0.52, capTop + Math.max(0.7, bodyH * 0.006));
+  ctx.stroke();
 
   // The chimney, which only becomes visible as the cap lifts: a narrower band of darker metal with
   // two holes in it, so what the cap uncovers is a part with a job and not a shadow.
@@ -316,65 +391,6 @@ export function drawLighter(
   ctx.beginPath();
   ctx.arc(wheelX, wheelY, wheelR * 0.97, 0, Math.PI * 2);
   ctx.strokeStyle = rgbToCss(mixRgb(base, [242, 242, 246], 0.6), 0.5);
-  ctx.stroke();
-
-  // The cap. It hinges at the *back* of the case, so in this front view it does not swing sideways
-  // like a door — it tips away from the camera: it shortens, its far edge narrows, and its own
-  // inside becomes the surface you are looking at. Every point is emitted in canvas space because
-  // the placement guard reads them back to check that what is drawn is what is tapped.
-  // Closed, the cap's skirt reaches the tank's shoulder and hides the chimney entirely; opening it
-  // is the skirt lifting off the hinge, not the whole object sliding up. The cap is also a hair
-  // wider than the tank because it fits *over* it — that overhang is the silhouette cue that says
-  // "this part comes off", and without it the closed lighter reads as one turned can.
-  const capHalf = halfW * 1.035;
-  // The skirt clears the chimney at about half open, so the flame never appears to be burning
-  // through the cap.
-  const capBottom = seamY - lid * chimH * 2.2;
-  const capTop = capBottom - capH * (0.96 - 0.36 * lid);
-  const inset = bodyW * 0.13 * lid;
-  const topHalf = capHalf - inset;
-  const r = Math.min(bodyW * 0.13, capH * 0.16);
-  const capCorners: Array<[number, number]> = [
-    [at.x - capHalf, capBottom],
-    [at.x - capHalf, capTop + r],
-    [at.x - capHalf + r * 0.42, capTop + r * 0.12],
-    [at.x - topHalf + r * 0.6, capTop],
-    [at.x + topHalf - r * 0.6, capTop],
-    [at.x + capHalf - r * 0.42, capTop + r * 0.12],
-    [at.x + capHalf, capTop + r],
-    [at.x + capHalf, capBottom],
-  ];
-  ctx.beginPath();
-  capCorners.forEach(([x, y], index) => {
-    if (index === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.closePath();
-  ramp(0.16, 0.24);
-  ctx.fill();
-  // The inside of the cap is a hollow shell, and that is the detail that says something was
-  // *covering* the chimney. It only shows once the cap has tipped back.
-  if (lid > 0.02) {
-    const shrink = bodyW * 0.11;
-    ctx.beginPath();
-    ctx.moveTo(at.x - capHalf + shrink, capBottom - bodyH * 0.015);
-    ctx.lineTo(at.x - capHalf + shrink * 1.7, capTop + chimH * 0.5);
-    ctx.lineTo(at.x + capHalf - shrink * 1.7, capTop + chimH * 0.5);
-    ctx.lineTo(at.x + capHalf - shrink, capBottom - bodyH * 0.015);
-    ctx.closePath();
-    // Not black: the flame is drawn over this with `lighter`, and a dark enough shell turns the
-    // base of the flame into a blown-out disc instead of a flame.
-    ctx.fillStyle = rgbToCss(mixRgb(base, [26, 23, 26], 0.72), clamp01(lid * 0.62));
-    ctx.fill();
-  }
-  // A specular riding the far edge, placed by the key light rather than stretched across the whole
-  // width: a full-width bar is what made the closed cap look like the rim of a tin.
-  const spec = Math.cos((key * Math.PI) / 180) * topHalf * 0.26;
-  ctx.lineWidth = Math.max(0.7, bodyH * 0.012);
-  ctx.strokeStyle = rgbToCss(mixRgb(base, [240, 242, 248], 0.72), 0.5);
-  ctx.beginPath();
-  ctx.moveTo(at.x + spec - topHalf * 0.52, capTop + Math.max(0.7, bodyH * 0.006));
-  ctx.lineTo(at.x + spec + topHalf * 0.52, capTop + Math.max(0.7, bodyH * 0.006));
   ctx.stroke();
 
   if (flame > 0.01) {
