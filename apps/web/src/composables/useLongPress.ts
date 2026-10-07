@@ -26,10 +26,17 @@ export function useLongPress(
 ): HoldHandlers {
   let timer = 0;
   let held = false;
+  /**
+   * This pointer was a hold, and the click it is about to receive has not been answered yet.
+   * The browser sends `click` *after* `pointerup`, so a flag that the release already consumed
+   * would let the same gesture open the card, close it, and then fire the tap behind it.
+   */
+  let spent = false;
 
   const start = (): void => {
     window.clearTimeout(timer);
     held = false;
+    spent = false;
     timer = window.setTimeout(() => {
       held = true;
       onLongPress();
@@ -40,6 +47,7 @@ export function useLongPress(
     window.clearTimeout(timer);
     if (held) {
       held = false;
+      spent = true;
       onRelease?.();
     }
   };
@@ -55,8 +63,9 @@ export function useLongPress(
     },
     onClick: () => {
       // The click that follows a held pointer must not also fire the tap behind it.
-      if (held) {
+      if (held || spent) {
         held = false;
+        spent = false;
         return;
       }
       onTap();
