@@ -105,11 +105,19 @@ function openSheet(next: SheetName, nextSection: string | null = null): void {
 </script>
 
 <template>
+  <!--
+    The four facts a break is made of, mirrored onto the stage as machine values. The worded hint
+    below says the same thing the `data-affordance` does, but it says it in whatever language the
+    player asked for, so anything that has to *know* which gesture is being nudged reads the
+    attribute: a check that compares words only ever passes in one language.
+  -->
   <main
     class="stage"
     :data-cues="summary.cueChannel"
     :data-break="summary.clock"
     :data-phase="summary.phase"
+    :data-aim="summary.aim"
+    :data-affordance="summary.affordance"
   >
     <canvas ref="canvas" tabindex="0" :aria-label="announced" />
 

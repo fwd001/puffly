@@ -63,7 +63,7 @@ interface PressState {
 }
 
 /** Stage box: the renderer letterboxes the stage, so raw canvas pixels must be mapped back. */
-function toStagePoint(
+export function toStagePoint(
   clientX: number,
   clientY: number,
   rect: DOMRect,
@@ -80,6 +80,30 @@ function toStagePoint(
   return {
     x: (canvasX - viewport.stage.x) / Math.max(1, viewport.stage.width),
     y: (canvasY - viewport.stage.y) / Math.max(1, viewport.stage.height),
+  };
+}
+
+/**
+ * The same mapping run backwards: a stage point becomes a fraction of the canvas element itself.
+ *
+ * It lives next to `toStagePoint` because the two are one rule. Anything that has to aim at a prop
+ * from outside the page (the browser layer, through `.stage[data-aim]`) reads via here, and a second
+ * copy of the letterbox arithmetic would drift the first time the box moved.
+ */
+export function toCanvasFraction(
+  nx: number,
+  ny: number,
+  viewport: {
+    cssWidth: number;
+    cssHeight: number;
+    stage: { x: number; y: number; width: number; height: number };
+  },
+): { x: number; y: number } {
+  return {
+    x: (viewport.stage.x + nx * Math.max(1, viewport.stage.width)) / Math.max(1, viewport.cssWidth),
+    y:
+      (viewport.stage.y + ny * Math.max(1, viewport.stage.height)) /
+      Math.max(1, viewport.cssHeight),
   };
 }
 

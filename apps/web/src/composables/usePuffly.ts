@@ -49,6 +49,7 @@ import { createPersistence, type Persistence } from '../services/persistence';
 import {
   createKeyboardAdapter,
   createPointerAdapter,
+  toCanvasFraction,
   createSurfaceGuard,
   targetForAffordance,
 } from './useInputAdapters';
@@ -57,6 +58,32 @@ import { HINT_KEYS, createI18n, resolveLocale, type I18n, type LocaleCode } from
 import { anchorAtLight } from '../anchor';
 import { isOverLimit } from '../limit';
 import { phaseOf, type Phase } from '../phase';
+
+const AIM_KEYS = ['body', 'ember', 'lighter', 'ashtray'] as const;
+
+/**
+ * The four points a check outside the page aims with, in fractions of the canvas element.
+ *
+ * The props are not at fixed numbers: the table lifts clear of the chrome (§55) and the canvas
+ * letterboxes the stage inside it, so a position is a function of the window. This is why the
+ * browser layer reads them instead of carrying a copy — the copy it used to carry had gone stale
+ * twice over and reported a working game as eight broken ones.
+ */
+function aimOf(
+  state: GameStateView,
+  box: {
+    cssWidth: number;
+    cssHeight: number;
+    stage: { x: number; y: number; width: number; height: number };
+  },
+): string {
+  const round = (value: number): number => Math.round(value * 1e4) / 1e4;
+  return AIM_KEYS.map((key) => {
+    const at = state.anchors[key];
+    const fraction = toCanvasFraction(at.x, at.y, box);
+    return `${key}:${String(round(fraction.x))},${String(round(fraction.y))}`;
+  }).join(' ');
+}
 
 /** How often chrome is allowed to re-render (§54). */
 const SUMMARY_INTERVAL_MS = 200;
@@ -138,6 +165,8 @@ export interface Summary {
   affordance: string;
   /** Which of the design's three phases the rail and the HUD are reading (§9.2). */
   phase: Phase;
+  /** `.stage[data-aim]`: where the touchable things are, in fractions of the canvas. */
+  aim: string;
   /**
    * S20's `onReach`: the ceiling has been passed, so the ring goes grey and its digits become a
    * mark. The break is not stopped, locked or annotated — the interface just stops advertising it.
@@ -230,6 +259,7 @@ export function createPuffly(): Puffly {
     state: null,
     clock: formatClock(0),
     burned: formatClock(0),
+    aim: '',
     sessionActive: false,
     controlsVisible: true,
     affordance: 'none',
@@ -433,6 +463,7 @@ export function createPuffly(): Puffly {
       controlsVisible: state.ui.controlsVisible,
       affordance: state.ui.affordance,
       phase: phaseOf(state.cigarette.state),
+      aim: aimOf(state, viewport),
       overLimit: overLimit(),
       hint: hintWord(state),
       cueChannel: audio?.audible() ? 'audio' : 'visual',

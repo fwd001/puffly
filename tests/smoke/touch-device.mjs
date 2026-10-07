@@ -63,19 +63,25 @@ try {
 }
 console.log(`engine: ${ENGINE}`);
 
-/** Where the tall (portrait) and wide (landscape) prop tables put things, in stage units. */
-const LAYOUTS = {
-  // The stage's own table line, lifted clear of the chrome (CHROME_CLEAR_Y in game-core): these
-  // are where the props are drawn, so a check that taps anywhere else taps empty air.
-  // NOTE: these are the layout's *unlifted* anchors. Since SPEC.md §55 the table rises when the
-  // window is too short for the fixed-pixel chrome (a phone turned sideways), so on such a stage
-  // the real rod sits higher than the numbers below and a tap aimed here misses. Read them from
-  // `state.stage.layout` on the page instead of trusting this copy — see the two stale marks at
-  // the §15 structure check below. This script has never run on the machine that made that change,
-  // so neither has been re-measured.
-  tall: { rod: [0.26, 0.705], lighter: [0.095, 0.49], held: [0.5, 0.52], tray: [0.735, 0.695] },
-  wide: { rod: [0.33, 0.695], lighter: [0.075, 0.47], held: [0.52, 0.45], tray: [0.815, 0.685] },
-};
+/**
+ * Where the touchable things are, read from the page.
+ *
+ * The shell mirrors its own anchors onto `.stage[data-aim]`, in fractions of the canvas element —
+ * the same space `stagePoint` aims in. The alternative was this file's old copy of the numbers,
+ * which had gone stale twice over: the table lifts clear of the chrome (§55) and the canvas
+ * letterboxes the stage, so a prop's position is a function of the window and not a constant.
+ * A check that aims at empty air reports a working game as a broken one.
+ */
+async function propsOf(page) {
+  const raw = await page.evaluate(() => document.querySelector('.stage')?.dataset.aim ?? '');
+  const props = {};
+  for (const part of raw.split(' ')) {
+    const [name, pair] = part.split(':');
+    const [x, y] = (pair ?? '').split(',').map(Number);
+    if (name !== undefined && Number.isFinite(x) && Number.isFinite(y)) props[name] = { x, y };
+  }
+  return props;
+}
 
 async function openPhone({ width, height, dpr, locale }) {
   const context = await browser.newContext({
@@ -146,19 +152,33 @@ const nativeDefaults = (page) =>
     };
   });
 
-/** The two facts a break is made of: what state it is in, and what its clock says. */
+/**
+ * The two facts a break is made of: which stage it is in, and what its clock says.
+ *
+ * Both are read off `.stage`'s machine values, never off the words. The canvas's `aria-label` says
+ * the same thing the phase does — that is its job, since a screen reader is the one audience for
+ * prose — but it says it in whatever language the copy table resolved to, and a check that compares
+ * it to English strings passes on one machine and fails on the next. That is how eight checks here
+ * came to be red at once while the game was fine.
+ */
 const scene = (page) =>
-  page.evaluate(() => ({
-    state: document.querySelector('canvas')?.getAttribute('aria-label') ?? '',
-    clock: document.querySelector('.clock-wrap .digits')?.textContent?.trim() ?? '',
-  }));
+  page.evaluate(() => {
+    const stage = document.querySelector('.stage');
+    return {
+      phase: stage?.dataset.phase ?? 'missing',
+      affordance: stage?.dataset.affordance ?? 'missing',
+      clock: stage?.dataset.break ?? '',
+    };
+  });
 
-/** Which stage of the break the scene is in, read the way a screen reader hears it. */
-const sceneState = (page) =>
-  page.evaluate(() => document.querySelector('canvas')?.getAttribute('aria-label') ?? '');
+/** Which stage of the break the scene is in: `light` / `puff` / `tray` / `out`. */
+const scenePhase = (page) => scene(page).then((now) => now.phase);
+
+/** A rod that is alight: burning, being drawn on, resting between draws, standing ash, or a stub. */
+const LIT = /puff|tray/;
 
 /**
- * Wait for the scene to reach one of these stages.
+ * Wait for the scene to reach one of these phases.
  *
  * A wheel lighter takes over a second to catch, and that length is a design number, not a
  * constant of this test — a fixed sleep here passed by luck and failed by 200 ms.
@@ -166,8 +186,8 @@ const sceneState = (page) =>
 async function waitScene(page, pattern, withinMs = 4000) {
   const deadline = Date.now() + withinMs;
   for (;;) {
-    const state = await sceneState(page);
-    if (pattern.test(state)) return state;
+    const phase = await scenePhase(page);
+    if (pattern.test(phase)) return phase;
     if (Date.now() >= deadline) return '';
     await page.waitForTimeout(120);
   }
@@ -279,21 +299,40 @@ const stagePoint = (page, nx, ny) =>
   );
 
 /**
- * The words a player can read on the stage. There is one of them, and it names the gesture the
- * scene is already nudging (§28); everything else the game says is an `aria-label`.
+ * The words a player can read over the scene, and where each of them is allowed to live.
+ *
+ * The product's rule is not "one word on the screen": the design gives the rail, the pill and the
+ * head-up row a name each (§9.2, S11), and every one of them is translated. What it does not allow
+ * is *prose* — text the scene puts out on its own. That cannot be decided by matching a vocabulary
+ * (a Chinese sentence is one unbroken run of characters, so counting words proves nothing), so this
+ * asks a structural question instead: does every word live inside a container the design named?
+ *
+ * `affordance` comes along because the hint's job is to name the gesture the engine is already
+ * nudging (§28), and the only language-independent way to check that is to read the nudge itself.
  */
+const WORD_HOMES = '.hint, .pill, .rail, .hud, .data-rail, .sheet, .archive';
 const stageWords = (page) =>
-  page.evaluate(() => {
-    const hint = (document.querySelector('.hint')?.textContent ?? '').trim().toLowerCase();
-    // The word is its own block, so it is its own line. Drop that line: whatever is left and
-    // looks like a word is prose, which the product is not allowed to have.
-    const rest = document.body.innerText
-      .split('\n')
-      .filter((line) => line.trim().toLowerCase() !== hint)
-      .join(' ');
-    const tokens = rest.match(/[A-Za-z\u4e00-\u9fff]{2,}/g)?.map((word) => word.toLowerCase());
-    return { hint, other: tokens ?? [] };
-  });
+  page.evaluate((homes) => {
+    // Only text a person can actually see is prose. A sheet that is closed and the desk column a
+    // phone hides are both in the DOM, and flagging them would report words nobody reads.
+    const seen = (el) => (typeof el.checkVisibility === 'function' ? el.checkVisibility() : true);
+    const offenders = [];
+    for (const el of document.querySelectorAll('body *')) {
+      if (!seen(el)) continue;
+      const spoken = [...el.childNodes].some(
+        (node) => node.nodeType === 3 && /\p{L}{2,}/u.test(node.textContent ?? ''),
+      );
+      if (!spoken) continue;
+      if (el.closest(homes) === null) offenders.push(el.className || el.tagName);
+    }
+    const hint = document.querySelector('.hint');
+    return {
+      hint: (hint?.textContent ?? '').trim().toLowerCase(),
+      hints: document.querySelectorAll('.hint').length,
+      affordance: document.querySelector('.stage')?.dataset.affordance ?? 'missing',
+      offenders: [...new Set(offenders)],
+    };
+  }, WORD_HOMES);
 
 /** Which channel the shell currently trusts to carry the cues (§63). */
 const cueChannel = (page) =>
@@ -391,25 +430,31 @@ const hintCentre = async (page) => {
   const untouched = await stageWords(page);
   check(
     'an untouched table names the one thing to do',
-    untouched.hint === 'tap' && untouched.other.length === 0,
+    untouched.affordance === 'pick' && untouched.offenders.length === 0 && untouched.hints === 1,
     JSON.stringify(untouched),
   );
 
-  const layout = LAYOUTS.tall;
-  const rod = await stagePoint(page, ...layout.rod);
+  const props = await propsOf(page);
+  const rod = await stagePoint(page, props.body.x, props.body.y);
   await page.touchscreen.tap(rod.x, rod.y);
   await page.waitForTimeout(300);
   const inHand = await stageWords(page);
   check(
     'once it is in hand the word changes to the next gesture',
-    inHand.hint === 'light' && inHand.other.length === 0,
+    inHand.affordance === 'lighter' &&
+      inHand.offenders.length === 0 &&
+      inHand.hint !== untouched.hint,
     JSON.stringify(inHand),
   );
-  const lighter = await stagePoint(page, ...layout.lighter);
-  await page.touchscreen.tap(lighter.x, lighter.y);
+  const lighter = await stagePoint(page, props.lighter.x, props.lighter.y);
   // The clock's visibility is not the evidence: §10 dims the chrome, including the clock, once
-  // the player is inside the moment. The state machine is what a break starting means.
-  const litState = await waitScene(page, /burning|puffing|resting|ash_ready|near_end/);
+  // the player is inside the moment. The state machine is what a break starting means. And the
+  // cheap wheel is allowed to miss (§13), so starting is "keep trying", not "tap once and pray".
+  let litState = '';
+  for (let attempt = 0; attempt < 3 && litState === ''; attempt += 1) {
+    await page.touchscreen.tap(lighter.x, lighter.y);
+    litState = await waitScene(page, LIT);
+  }
   check('two taps start the break on their own', litState !== '', litState);
   // A phone that sleeps with a lit rod must wake to a rod that kept burning: the simulation is a
   // function of time, not of animation frames, and browsers stop painting a hidden page.
@@ -461,7 +506,9 @@ const hintCentre = async (page) => {
     `${counted}s counted for a ${ASLEEP_MS / 1000}s sleep (clock ${beforeSleep}s -> ${beforeSleep - counted}s)`,
   );
 
-  const held = await stagePoint(page, ...layout.held);
+  // Re-read: the rod is in the hand now, so its anchor is not where it was on the table.
+  const inHandProps = await propsOf(page);
+  const held = await stagePoint(page, inHandProps.body.x, inHandProps.body.y);
   for (let round = 0; round < 2; round += 1) {
     await page.evaluate(
       ([x, y]) => {
@@ -516,19 +563,14 @@ const hintCentre = async (page) => {
     shape.neighbourContrast >= 6.5 || shape.spread >= 0.26,
     `neighbour difference ${shape.neighbourContrast.toFixed(2)}, relative spread ${shape.spread.toFixed(3)}, ${String(shape.cloudSamples)} cloud samples`,
   );
-  check(
-    'the rod is still in hand, not in the tray',
-    (
-      await page.evaluate(() => document.querySelector('canvas')?.getAttribute('aria-label') ?? '')
-    ).match(/burning|puffing|resting|ash_ready|near_end/) !== null,
-  );
+  const inHandAgain = await scenePhase(page);
+  check('the rod is still in hand, not in the tray', LIT.test(inHandAgain), inHandAgain);
 
-  // The whole vocabulary the product owns (§28). Anything else on the screen is a bug.
-  const GESTURES = ['tap', 'light', 'hold', 'flick', 'press', 'drop'];
+  // Drawing on the rod left the scene nudging the next gesture, and the hint names it.
   const words = await stageWords(page);
   check(
-    'the screen carries no prose, at most one gesture word',
-    words.other.length === 0 && (words.hint === '' || GESTURES.includes(words.hint)),
+    'the screen carries no prose, and the hint still names the gesture being nudged',
+    words.offenders.length === 0 && words.hints === 1 && words.affordance === 'puff',
     JSON.stringify(words),
   );
 
@@ -581,14 +623,21 @@ const hintCentre = async (page) => {
   // The row is the only place the stage is allowed digits (§9.2: icons and Arabic numerals).
   // Everything else that shows a number lives inside a sheet, and prose still may not appear.
   const digits = await page.evaluate(() => {
-    const count = (root) => (root?.textContent ?? '').match(/\\d/g)?.length ?? 0;
-    const stage = document.querySelector('.stage');
-    const inRow = count(document.querySelector('.hud'));
+    const count = (text) => (text.match(/[0-9]/g) ?? []).length;
+    const seen = (el) => (typeof el.checkVisibility === 'function' ? el.checkVisibility() : true);
+    let inRow = 0;
     let outside = 0;
-    for (const child of stage.children) {
-      if (child.matches('.hud, .sheet')) continue;
-      if (child.tagName === 'CANVAS') continue;
-      outside += count(child);
+    for (const el of document.querySelectorAll('.stage *')) {
+      if (!seen(el)) continue;
+      for (const node of [...el.childNodes]) {
+        if (node.nodeType !== 3) continue;
+        const found = count(node.textContent ?? '');
+        if (found === 0) continue;
+        // A closed sheet and the desk column are places numbers are allowed to live; the scene
+        // itself is not.
+        if (el.closest('.hud') !== null) inRow += found;
+        else if (el.closest('.sheet, .archive, .data-rail') === null) outside += found;
+      }
     }
     return { inRow, outside };
   });
@@ -606,7 +655,7 @@ const hintCentre = async (page) => {
   const quiet = await stageWords(page);
   check(
     'the hint word is a setting that can be turned off',
-    quiet.hint === '' && quiet.other.length === 0,
+    quiet.hints === 0 && quiet.affordance === 'puff' && quiet.offenders.length === 0,
     JSON.stringify(quiet),
   );
 
@@ -621,11 +670,11 @@ const hintCentre = async (page) => {
   const afterSeconds = await clockSeconds();
   check(
     'a reload comes back to the same break',
-    /burning|puffing|resting|ash_ready|near_end/.test(afterReload.state) &&
+    LIT.test(afterReload.phase) &&
       afterSeconds > 0 &&
       afterSeconds <= beforeReload + 3 &&
       afterSeconds >= beforeReload - 30,
-    `${afterReload.state} at ${afterSeconds}s, was ${beforeReload}s before the reload`,
+    `${afterReload.phase} at ${afterSeconds}s, was ${beforeReload}s before the reload`,
   );
 
   const defaults = await nativeDefaults(page);
@@ -675,14 +724,14 @@ const hintCentre = async (page) => {
     }),
     hint: !!document.querySelector('.hint'),
     sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
-    state: document.querySelector('canvas')?.getAttribute('aria-label') ?? '',
+    phase: document.querySelector('.stage')?.dataset.phase ?? 'missing',
   }));
   check(
     'a swipe down over nothing puts the interface away and leaves the break burning',
     folded.chrome.join(',') === 'hud:hidden,cta:hidden,rail:hidden' &&
       !folded.hint &&
       folded.sheets === 0 &&
-      /burning/.test(folded.state),
+      LIT.test(folded.phase),
     JSON.stringify(folded),
   );
 
@@ -700,27 +749,28 @@ try {
     `${box.width}x${box.height}`,
   );
 
-  const layout = LAYOUTS.wide;
+  const props = await propsOf(page);
   const chromeTop = await page.evaluate(
     () => document.querySelector('.rail')?.getBoundingClientRect().top ?? 9999,
   );
-  const tray = await stagePoint(page, ...layout.tray);
+  const tray = await stagePoint(page, props.ashtray.x, props.ashtray.y);
   check(
     'landscape: the tray is not under the chrome',
     tray.y < chromeTop,
     `tray y=${Math.round(tray.y)}, chrome starts ${Math.round(chromeTop)}`,
   );
 
-  const rod = await stagePoint(page, ...layout.rod);
-  const lighter = await stagePoint(page, ...layout.lighter);
+  const rod = await stagePoint(page, props.body.x, props.body.y);
+  const lighter = await stagePoint(page, props.lighter.x, props.lighter.y);
   await page.touchscreen.tap(rod.x, rod.y);
   await page.waitForTimeout(300);
-  await page.touchscreen.tap(lighter.x, lighter.y);
-  check(
-    'landscape: a break lights with two taps',
-    (await waitScene(page, /burning/)) !== '',
-    await sceneState(page),
-  );
+  // Same retry as the desktop and the pill: the cheap wheel is designed to miss sometimes (§13).
+  let wideCaught = '';
+  for (let attempt = 0; attempt < 3 && wideCaught === ''; attempt += 1) {
+    await page.touchscreen.tap(lighter.x, lighter.y);
+    wideCaught = await waitScene(page, LIT);
+  }
+  check('landscape: a break lights with two taps', wideCaught !== '', await scenePhase(page));
 
   await openSheet(page, 'settings');
   const sheet = await page.evaluate(() => {
@@ -755,39 +805,44 @@ try {
     `${stageAspect}:1`,
   );
 
-  const layout = LAYOUTS.wide;
-  // 0.26 along a 0.34-unit rod lying at its 6° rest angle. That is past the body radius around
-  // the midpoint and short of the cherry's own radius, so the only thing which can answer here
-  // is the rod — which is exactly what a hit test measuring the midpoint alone cannot do.
-  const LIE = { x: Math.cos((6 * Math.PI) / 180), y: Math.sin((6 * Math.PI) / 180) };
-  const farEnd = await stagePoint(page, layout.rod[0] + 0.26 * LIE.x, layout.rod[1] + 0.26 * LIE.y);
+  const props = await propsOf(page);
+  // The end of the rod away from the cherry: `body` is the rod's midpoint, so mirroring the ember
+  // through it lands on the mouth end — past the radius around the middle, short of the cherry's
+  // own, which is what makes this a test of the rod's span rather than of one hit radius.
+  const farEnd = await stagePoint(
+    page,
+    2 * props.body.x - props.ember.x,
+    2 * props.body.y - props.ember.y,
+  );
   await page.mouse.click(farEnd.x, farEnd.y);
   await page.waitForTimeout(300);
-  const pickedUp = await sceneState(page);
+  const pickedUp = await scene(page);
   check(
-    'desktop: a click on the far end of the rod picks it up',
-    pickedUp.includes('held'),
-    pickedUp,
+    // `light` is the phase both of these states share, so what says the rod left the table is the
+    // nudge the engine moved: it now wants the lighter, not the pick-up.
+    pickedUp.phase === 'light' && pickedUp.affordance === 'lighter',
+    JSON.stringify(pickedUp),
   );
 
-  const lighter = await stagePoint(page, ...layout.lighter);
+  const lighter = await stagePoint(page, props.lighter.x, props.lighter.y);
   // A cheap wheel lighter sometimes fails to catch — that is the design (§13), and a sound.
   // Lighting is therefore "keep trying", not "one tap and pray".
   let lit = '';
   for (let attempt = 0; attempt < 3 && lit === ''; attempt += 1) {
     await page.mouse.click(lighter.x, lighter.y);
-    lit = await waitScene(page, /burning|puffing|resting|ash_ready|near_end/);
+    lit = await waitScene(page, LIT);
   }
   check('desktop: the lighter catches a mouse click', lit !== '', lit);
 
-  const held = await stagePoint(page, ...layout.held);
+  const heldProps = await propsOf(page);
+  const held = await stagePoint(page, heldProps.body.x, heldProps.body.y);
   await page.mouse.move(held.x, held.y);
   await page.mouse.down();
   await page.waitForTimeout(700);
   await page.mouse.up();
   await page.waitForTimeout(400);
-  const drew = await sceneState(page);
-  check('desktop: holding the mouse draws', /burning|puffing|resting/.test(drew), drew);
+  const drew = await scenePhase(page);
+  check('desktop: holding the mouse draws', LIT.test(drew), drew);
 
   const refused = await nativeDefaults(page);
   check(
@@ -797,12 +852,13 @@ try {
   );
 
   await openSheet(page, 'settings', true);
+  // Which sheet the rail opened is the fact; what that sheet is *called* is copy.
   const opened = await page.evaluate(
-    () => document.querySelector('.sheet[data-open="true"]')?.getAttribute('aria-label') ?? '',
+    () => document.querySelector('.sheet[data-open="true"]')?.dataset.sheet ?? '',
   );
   check(
     'desktop: the bar answers a mouse click',
-    opened === 'Settings',
+    opened === 'settings',
     opened || 'nothing opened',
   );
   check('desktop: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
@@ -821,7 +877,8 @@ try {
   const { page, errors, context } = await openPhone({ width: 393, height: 852, dpr: 3 });
   const untouched = await cueChannel(page);
 
-  const rod = await stagePoint(page, ...LAYOUTS.tall.rod);
+  const silentProps = await propsOf(page);
+  const rod = await stagePoint(page, silentProps.body.x, silentProps.body.y);
   await page.touchscreen.tap(rod.x, rod.y);
   const afterGesture = await waitChannel(page, 'audio');
 
@@ -858,8 +915,10 @@ try {
     page.evaluate(() => {
       const row = document.querySelector('.hud');
       const cell = (sel) => (row.querySelector(sel)?.textContent ?? '').trim();
+      const stage = document.querySelector('.stage');
       return {
-        phase: document.querySelector('.stage')?.dataset.phase ?? '',
+        phase: stage?.dataset.phase ?? '',
+        affordance: stage?.dataset.affordance ?? 'missing',
         ring: cell('.ring b') || cell('.ring .mark'),
         arc: row.querySelector('.arc')?.getAttribute('stroke-dasharray') ?? '',
         primary: cell('[data-hook="break"]'),
@@ -876,7 +935,9 @@ try {
     'S1: the row reads the stick, the clock and what is left of the rod',
     idle.phase === 'light' &&
       idle.ring === '1' &&
-      idle.primary === '03:00' &&
+      // The row reads 已燃, and before anything is lit nothing has burned. The session's own
+      // countdown is the stage's `data-break`, which the check above reads as the clock.
+      idle.primary === '00:00' &&
       idle.alt === '100%' &&
       idle.arc.startsWith('94.25') &&
       idle.lit.join() === 'light',
@@ -890,12 +951,18 @@ try {
   const picked = await chrome();
   check(
     'the pill picks the rod up and the word on it changes with the affordance',
-    picked.pill === 'light it' && picked.phase === 'light',
+    picked.affordance === 'lighter' && picked.phase === 'light' && picked.pill !== idle.pill,
     JSON.stringify(picked),
   );
 
-  await page.locator('.pill').tap();
-  await page.waitForTimeout(1400);
+  // A cheap wheel lighter sometimes misses, and §13 says that is a sound rather than a bug. The
+  // pill answers with the very same gesture a finger makes, so lighting from here is "try again":
+  // a single attempt reads as a broken pill roughly once every three draws.
+  let caught = '';
+  for (let attempt = 0; attempt < 3 && caught === ''; attempt += 1) {
+    await page.locator('.pill').tap();
+    caught = await waitScene(page, LIT, 2200);
+  }
   const lit = await chrome();
   check(
     'lighting it moves the rail off the flame and the row onto the draw',
@@ -913,51 +980,75 @@ try {
   await page.waitForTimeout(300);
   check(
     'holding the pill draws, and the row says so in seconds',
-    /\\d+\\.\\d+s/.test(drawing.alt) && drawing.arc !== lit.arc,
+    /\d+\.\d+s/.test(drawing.alt) && drawing.arc !== lit.arc,
     `lit=${lit.arc} drawing=${drawing.arc} alt=${drawing.alt}`,
   );
 
-  // S17: a short hold on the stick mark opens the archive over the scene, and the tap that
-  // follows the same pointer must not also open the shelf behind it.
+  // S17 and S19 read together: 按住 0.6 秒 opens the card, 松手只收卡片 closes it again, and the
+  // `click` the browser sends *after* that release belongs to the same gesture — so it must not
+  // also open the shelf behind it. The card is only readable while the finger is down, which is
+  // why the pin is reached by a second finger rather than after the release.
   const mark = page.locator('.hud [data-hook="category"]');
+  const cardReader = () =>
+    page.evaluate(() => {
+      const el = document.querySelector('[data-hook="archive"]');
+      return {
+        card: !!el,
+        cells: [...(el?.querySelectorAll('.cells dd') ?? [])].map((n) =>
+          (n.textContent ?? '').trim(),
+        ),
+        tier3: el?.querySelectorAll('.scenes, .range').length ?? -1,
+        sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
+      };
+    });
+
   await mark.dispatchEvent('pointerdown', { pointerType: 'touch' });
   await page.waitForTimeout(760);
+  const held = await cardReader();
   await mark.dispatchEvent('pointerup', { pointerType: 'touch' });
   await mark.dispatchEvent('click');
   await page.waitForTimeout(340);
-  const card = await page.evaluate(() => {
-    const el = document.querySelector('[data-hook="archive"]');
-    return {
-      cells: [...(el?.querySelectorAll('.cells dd') ?? [])].map((n) =>
-        (n.textContent ?? '').trim(),
-      ),
-      tier3: el?.querySelectorAll('.scenes, .range').length ?? -1,
-      sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
-    };
-  });
+  const dropped = await cardReader();
   check(
-    'a short hold opens the archive at tier two, without also opening the shelf',
-    card.cells.length === 3 && card.tier3 === 0 && card.sheets === 0,
-    JSON.stringify(card),
+    'a hold opens the archive at tier two, and 松手 closes it without opening the shelf',
+    held.card && held.cells.length === 3 && held.tier3 === 0 && held.sheets === 0,
+    JSON.stringify(held),
+  );
+  check(
+    'the release takes the card back, and the click that follows it opens nothing',
+    !dropped.card && dropped.sheets === 0,
+    JSON.stringify(dropped),
   );
 
-  await page.locator('[data-hook="pin"]').click();
+  // A second finger pins it while the first one holds; from then on the card stays, because 钉住
+  // is the reason to keep reading after the finger leaves.
+  await mark.dispatchEvent('pointerdown', { pointerType: 'touch' });
+  await page.waitForTimeout(760);
+  const pin = page.locator('[data-hook="pin"]');
+  await pin.dispatchEvent('pointerdown', { pointerType: 'touch' });
+  await pin.dispatchEvent('pointerup', { pointerType: 'touch' });
+  await pin.dispatchEvent('click');
+  await page.waitForTimeout(200);
+  await mark.dispatchEvent('pointerup', { pointerType: 'touch' });
+  await mark.dispatchEvent('click');
   await page.waitForTimeout(300);
   const pinned = await page.evaluate(() => ({
+    card: !!document.querySelector('[data-hook="archive"]'),
     tier3: document.querySelectorAll('[data-hook="archive"] .scenes, [data-hook="archive"] .range')
       .length,
     approx: (document.querySelector('.archive .range')?.textContent ?? '').includes('\u2248'),
   }));
   check(
     'pinning the card earns tier three, and its estimate carries the \u2248',
-    pinned.tier3 === 2 && pinned.approx,
+    pinned.tier3 === 2 && pinned.approx && pinned.card,
     JSON.stringify(pinned),
   );
 
-  // S8: the cabinet is the ladder. Close the card first, then read the shelf it came from.
+  // S8: the cabinet is the ladder. Close the card first, then reach the shelf the way a player
+  // does — through the mark, which means waking the chrome that had folded itself away by now.
   await page.locator('[data-hook="archive"] .close').click();
   await page.waitForTimeout(260);
-  await page.locator('.hud [data-hook="category"]').tap();
+  await openSheet(page, 'shelf');
   await page.waitForTimeout(420);
   const cabinet = await page.evaluate(() => {
     const sheet = document.querySelector('.sheet[data-open="true"]');
@@ -967,16 +1058,20 @@ try {
       count: (sheet.querySelector('.count')?.textContent ?? '').trim(),
       tiles: tiles.length,
       kinds: [...sheet.querySelectorAll('.kind')].map((el) => (el.textContent ?? '').trim()),
+      rodGroups: sheet.querySelectorAll('[data-group="rods"]').length,
       locked: tiles.filter((tile) => tile.dataset.locked === 'true').length,
       hint: (sheet.querySelector('.browse-hint')?.textContent ?? '').trim(),
     };
   });
   check(
-    'the cabinet shows the eleven-category ladder, grouped by what the hand does',
+    // The deck's 11 类 are 7 + 3 + 1 rods in three families, then the box / skin / scene groups; what
+    // says the split is a real partition is the three rod groups, not a count of every label the
+    // column happens to print.
+    'the cabinet shows the eleven-category ladder, split into three rod families',
     cabinet.sheet === 'shelf' &&
       /^\d+ \/ 11$/.test(cabinet.count) &&
       cabinet.tiles === 11 &&
-      cabinet.kinds.length === 3 &&
+      cabinet.rodGroups === 3 &&
       cabinet.locked === 10,
     JSON.stringify(cabinet),
   );
@@ -1053,7 +1148,7 @@ try {
   const zh = await stageWords(page);
   check(
     'a Chinese device reads the Chinese verb',
-    zh.hint === '点' && zh.other.length === 0,
+    zh.hint === '点' && zh.hints === 1 && zh.offenders.length === 0,
     JSON.stringify(zh),
   );
   const zhHint = await hintCentre(page);
@@ -1107,7 +1202,10 @@ try {
   const arWord = await stageWords(page);
   check(
     'the scene does not mirror: the verb hangs off the same point it did in Chinese',
-    Math.abs(arHint.x - zhHint.x) < 2 && Math.abs(arHint.y - zhHint.y) < 2 && arWord.hint === 'tap',
+    Math.abs(arHint.x - zhHint.x) < 2 &&
+      Math.abs(arHint.y - zhHint.y) < 2 &&
+      arWord.affordance === 'pick' &&
+      arWord.hint === 'tap',
     `x=${Math.round(arHint.x)} vs ${Math.round(zhHint.x)}, word=${arWord.hint}`,
   );
 
@@ -1153,7 +1251,7 @@ try {
   const quiet = await stageWords(page);
   check(
     'with no words the stage says the gesture with the halo alone',
-    quiet.hint === '' && quiet.other.length === 0,
+    quiet.hints === 0 && quiet.offenders.length === 0,
     JSON.stringify(quiet),
   );
 
@@ -1219,14 +1317,24 @@ try {
     JSON.stringify(desk),
   );
   check(
-    'S10: seven entries, each a finger-sized target wearing a word at the type floor',
-    desk.entries.length === 7 && desk.minEntry >= 44 && desk.minFont >= 15,
+    'S10: eight entries, each a finger-sized target wearing a word at the type floor',
+    desk.entries.length === 8 && desk.minEntry >= 44 && desk.minFont >= 15,
     JSON.stringify({ entries: desk.entries, minEntry: desk.minEntry, minFont: desk.minFont }),
   );
   check(
     'S10: the column carries the day as the sheet does — seven bars, and the row clears it',
     desk.bars === 7 && desk.hud !== null && desk.hud.x + desk.hud.w <= desk.rail.x,
     JSON.stringify({ bars: desk.bars, hud: desk.hud, rail: desk.rail }),
+  );
+
+  // The desk is the one screen where the head-up row *is* words (S11's five named figures), so this
+  // is the pass where the prose rule has to be aimed at the row: on a phone the row's own names are
+  // hidden, and a check that only ever runs on a phone would never see them.
+  const deskWords = await stageWords(page);
+  check(
+    'S10: the wide scene still says nothing the design did not name',
+    deskWords.offenders.length === 0 && deskWords.hints <= 1,
+    JSON.stringify(deskWords),
   );
 
   // The deep link has to move the *sheet's* scroll, not merely open it. Measured inside the sheet
