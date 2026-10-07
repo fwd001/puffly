@@ -72,23 +72,26 @@ const stops = computed(() => journey.value.slice(-24));
 const lastStop = computed(() => stops.value[stops.value.length - 1]);
 const root = ref<HTMLElement | null>(null);
 
+// One writer, and it scrolls the sheet rather than the world. Two watchers used to race (land on
+// the section / reset to the top) and the reset won, and `scrollIntoView` walked up into the stage —
+// which is a scroll container because the closed sheets hang below its edge — pushing the scene out
+// of view for good. See `CollectionSheet.vue` for the same fix and the measured numbers.
 watch(
   () => [props.open, props.section] as const,
   ([open, section]) => {
-    if (!open || section !== 'reduction') return;
-    void nextTick(() =>
-      root.value
-        ?.querySelector('[data-hook="reduction"]')
-        ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
-    );
-  },
-);
-
-watch(
-  () => props.open,
-  (isOpen) => {
-    if (!isOpen) return;
-    void nextTick(() => root.value?.scrollTo({ top: 0 }));
+    if (!open) return;
+    void nextTick(() => {
+      const sheet = root.value;
+      if (!sheet) return;
+      const wanted =
+        section === 'reduction' ? sheet.querySelector('[data-hook="reduction"]') : null;
+      if (!wanted) {
+        sheet.scrollTo({ top: 0 });
+        return;
+      }
+      const top = wanted.getBoundingClientRect().top - sheet.getBoundingClientRect().top;
+      sheet.scrollTo({ top: Math.max(0, sheet.scrollTop + top), behavior: 'smooth' });
+    });
   },
 );
 </script>

@@ -326,7 +326,24 @@ const SHEET_HANDLE = {
   break: '.hud [data-hook="break"]',
 };
 
+/**
+ * The interface folds itself away 2.6 s after the last input (§10), so a control that was there a
+ * moment ago can be `visibility: hidden` by the time a check reaches for it. A tap on empty sky
+ * wakes it without touching anything: the upper-left of the stage is above every prop anchor.
+ */
+async function wakeChrome(page) {
+  const rail = page.locator('.rail');
+  if (await rail.isVisible().catch(() => false)) return;
+  // A pointer click on empty sky: the app runs on Pointer Events, so this wakes the same way a
+  // finger does, in a touch context and a mouse one alike.
+  await page
+    .locator('canvas')
+    .click({ position: { x: 24, y: 24 }, force: true, noWaitAfter: true });
+  await rail.waitFor({ state: 'visible', timeout: 4000 });
+}
+
 async function openSheet(page, id, mouse = false) {
+  await wakeChrome(page);
   const handle = page.locator(SHEET_HANDLE[id]);
   if (mouse) await handle.click();
   else await handle.tap();
@@ -674,7 +691,7 @@ const hintCentre = async (page) => {
 }
 
 // ------------------------------------------------------------------- landscape
-{
+try {
   const { page, errors, context } = await openPhone({ width: 844, height: 390, dpr: 3 });
   const box = await page.locator('canvas').boundingBox();
   check(
@@ -717,6 +734,8 @@ const hintCentre = async (page) => {
   );
   check('landscape: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
+} catch (error) {
+  check('landscape: the section could not be completed', false, String(error).slice(0, 160));
 }
 
 // ---------------------------------------------------------------- desktop window
@@ -949,7 +968,7 @@ const hintCentre = async (page) => {
       tiles: tiles.length,
       kinds: [...sheet.querySelectorAll('.kind')].map((el) => (el.textContent ?? '').trim()),
       locked: tiles.filter((tile) => tile.dataset.locked === 'true').length,
-      hint: (sheet.querySelector('.hint')?.textContent ?? '').trim(),
+      hint: (sheet.querySelector('.browse-hint')?.textContent ?? '').trim(),
     };
   });
   check(
@@ -1210,31 +1229,88 @@ const hintCentre = async (page) => {
     JSON.stringify({ bars: desk.bars, hud: desk.hud, rail: desk.rail }),
   );
 
-  // The four groups' tops, before and after the entry is used: the deep link has to move the
-  // sheet's own scroll, not merely open it.
-  const groupTops = () =>
-    page.evaluate(() =>
-      ['rods', 'packs', 'skins', 'kit'].map((group) =>
-        Math.round(document.querySelector(`[data-group="${group}"]`).getBoundingClientRect().top),
-      ),
-    );
-  const before = await groupTops();
+  // The deep link has to move the *sheet's* scroll, not merely open it. Measured inside the sheet
+  // on purpose: the first version of this check compared window coordinates, so the bug where
+  // opening an entry scrolled the whole stage up by 620 px made the group look like it had arrived
+  // — it had not, the scene had been pushed out of view and never came back.
+  const deskView = () =>
+    page.evaluate(() => {
+      const sheet = document.querySelector('.sheet[data-open="true"]');
+      const stage = document.querySelector('main.stage');
+      const group = sheet?.querySelector('[data-group="skins"]');
+      return {
+        canvasY: Math.round(document.querySelector('canvas').getBoundingClientRect().y),
+        hudY: Math.round(document.querySelector('.hud').getBoundingClientRect().y),
+        stageScroll: stage ? stage.scrollTop : null,
+        sheetScroll: sheet ? Math.round(sheet.scrollTop) : null,
+        groupTopInSheet:
+          sheet && group
+            ? Math.round(group.getBoundingClientRect().top - sheet.getBoundingClientRect().top)
+            : null,
+        current:
+          document.querySelector('[data-entry="skins"]')?.getAttribute('aria-current') ?? null,
+        sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
+      };
+    });
+
+  await wakeChrome(page);
+  const atRest = await deskView();
   await page.click('[data-entry="skins"]');
   await page.waitForTimeout(1400);
-  const moved = {
-    before,
-    after: await groupTops(),
-    current: await page.getAttribute('[data-entry="skins"]', 'aria-current'),
-    sheets: await page.locator('.sheet[data-open="true"]').count(),
-  };
+  const opened = await deskView();
   check(
     'S10: an entry opens the same sheet the chrome opens and lands on the group it names',
-    moved.sheets === 1 &&
-      moved.current === 'skins' &&
-      moved.after[2] < 320 &&
-      moved.before[2] > moved.after[2] + 300,
-    JSON.stringify(moved),
+    opened.sheets === 1 &&
+      opened.current === 'true' &&
+      opened.groupTopInSheet !== null &&
+      Math.abs(opened.groupTopInSheet) <= 2 &&
+      opened.sheetScroll > 300,
+    JSON.stringify({ atRest, opened }),
   );
+  check(
+    'S10: opening an entry leaves the scene exactly where it was',
+    opened.canvasY === atRest.canvasY && opened.hudY === atRest.hudY && opened.stageScroll === 0,
+    JSON.stringify({ canvasY: opened.canvasY, hudY: opened.hudY, stageScroll: opened.stageScroll }),
+  );
+
+  // The stage is not a scroll box: `overflow: hidden` would still let any descendant that asks to
+  // be revealed scroll it, which is how the scene got pushed out above. The sheet must still
+  // scroll, or this check would be satisfied by a page that cannot scroll anything.
+  const scrollProof = await page.evaluate(async () => {
+    const stage = document.querySelector('main.stage');
+    stage.scrollTop = 500;
+    const forced = stage.scrollTop;
+    stage.scrollTop = 0;
+    // The positive control: the sheet that is open right now must still scroll, or `forced === 0`
+    // would only prove that nothing on the page can move.
+    const sheet = document.querySelector('.sheet[data-open="true"]');
+    sheet.scrollTop = 0;
+    sheet.scrollTop = 200;
+    const sheetMoved = sheet.scrollTop;
+    sheet.scrollTop = 0;
+    return {
+      forced,
+      sheetMoved,
+      overflow: getComputedStyle(stage).overflowY,
+      scrollHeight: stage.scrollHeight,
+      clientHeight: stage.clientHeight,
+    };
+  });
+  check(
+    'the scene cannot be scrolled out of view, but the open sheet still scrolls',
+    scrollProof.forced === 0 && scrollProof.sheetMoved >= 190,
+    JSON.stringify(scrollProof),
+  );
+
+  await page.click('.sheet[data-open="true"] .close');
+  await page.waitForTimeout(900);
+  const closed = await deskView();
+  check(
+    'S10: closing the sheet brings the scene back to the same pixels',
+    closed.canvasY === atRest.canvasY && closed.hudY === atRest.hudY && closed.stageScroll === 0,
+    JSON.stringify(closed),
+  );
+
 
   const narrow = await openWindow({ width: 600, height: 900 });
   const folded = await narrow.page.evaluate(() => ({

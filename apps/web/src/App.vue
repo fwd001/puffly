@@ -168,6 +168,15 @@ function openSheet(next: SheetName, nextSection: string | null = null): void {
 .stage {
   position: fixed;
   inset: 0;
+  /*
+   * `hidden` still leaves the box a *scroll container*, and a closed sheet hanging below the edge
+   * gives it 620 px of scrollable overflow — so any descendant that asks to be scrolled into view
+   * (a sheet's section jump, a focus landing inside one) could push the canvas up and leave it
+   * there. `clip` is the same paint with no scroll box at all: the scene cannot be scrolled away.
+   * Listed second so an engine without it keeps `hidden`.
+   */
+  overflow: hidden;
+  overflow: clip;
 }
 
 /* The desk: the column takes its 260px out of the scene rather than over it (S10). */

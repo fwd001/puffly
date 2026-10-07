@@ -146,29 +146,31 @@ function use(item: CollectionItem): void {
 }
 
 const root = ref<HTMLElement | null>(null);
+// One writer for the sheet's own scroll. There used to be two watchers — one to land on the
+// requested section, one to reset to the top — and the reset ran second and undid the jump, so the
+// section entry never actually landed. `scrollIntoView` is gone too: it walks every scrollable
+// ancestor, and the stage is one (the closed sheets hang below its edge), so asking to reveal a
+// group pushed the whole scene 620 px up on the desk and nothing ever brought it back.
 watch(
   () => [props.open, props.section] as const,
   ([open, section]) => {
-    if (
-      !open ||
-      section === undefined ||
-      !SECTIONS.includes(section as (typeof SECTIONS)[number])
-    ) {
-      return;
-    }
-    void nextTick(() =>
-      root.value
-        ?.querySelector(`[data-group="${section}"]`)
-        ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
-    );
-  },
-);
-
-watch(
-  () => props.open,
-  (isOpen) => {
-    if (!isOpen) return;
-    void nextTick(() => root.value?.scrollTo({ top: 0 }));
+    if (!open) return;
+    void nextTick(() => {
+      const sheet = root.value;
+      if (!sheet) return;
+      const wanted =
+        section !== null && SECTIONS.includes(section as (typeof SECTIONS)[number])
+          ? sheet.querySelector<HTMLElement>(`[data-group="${section}"]`)
+          : null;
+      if (!wanted) {
+        sheet.scrollTo({ top: 0 });
+        return;
+      }
+      // Rects, not `offsetTop`: the group may sit inside a positioned row, and both rects carry
+      // the sheet's own slide-in transform, so the difference is right mid-animation.
+      const top = wanted.getBoundingClientRect().top - sheet.getBoundingClientRect().top;
+      sheet.scrollTo({ top: Math.max(0, sheet.scrollTop + top), behavior: 'smooth' });
+    });
   },
 );
 </script>
@@ -210,7 +212,7 @@ watch(
       </div>
     </div>
 
-    <p v-if="copy.t('shelf.hint') !== null" class="hint">
+    <p v-if="copy.t('shelf.hint') !== null" class="browse-hint">
       {{ copy.t('shelf.hint', { total: String(rods.length) }) }}
     </p>
 
@@ -369,7 +371,7 @@ watch(
   gap: 8px;
 }
 
-.hint {
+.browse-hint {
   margin: 14px 0 4px;
   color: var(--smoke-gray);
   font-size: calc(15px * var(--text-scale));
