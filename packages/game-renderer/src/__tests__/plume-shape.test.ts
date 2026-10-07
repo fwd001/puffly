@@ -63,7 +63,7 @@ function airTheScene(seconds: number): ParticlePool {
     for (const burst of pending.splice(0, pending.length)) {
       intakeBurst(burst, pool, { densityScale: 1 });
     }
-    pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, clockMs / 1000);
+    pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, clockMs / 1000, null);
   }
   return pool;
 }
@@ -119,7 +119,7 @@ describe('the smoke moves as one body (§15)', () => {
         const pool = new ParticlePool(400);
         intakeBurst(event.burst, pool, { densityScale: 1 });
         for (let i = 0; i < 120; i++) {
-          pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, (i * STEP) / 1000);
+          pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, (i * STEP) / 1000, null);
         }
         const xs: number[] = [];
         pool.forEachActive((particle) => xs.push(Number(particle.x.toFixed(4))));

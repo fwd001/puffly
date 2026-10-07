@@ -47,7 +47,7 @@ function columnAfter(
     for (const burst of pending.splice(0, pending.length)) {
       intakeBurst(burst, pool, { densityScale: 1 });
     }
-    pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, (i * STEP) / 1000);
+    pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, (i * STEP) / 1000, null);
   }
 
   const discs: { x: number; y: number; r: number }[] = [];

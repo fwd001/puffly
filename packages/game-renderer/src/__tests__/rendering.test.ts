@@ -96,14 +96,14 @@ describe('particles (§15, §54)', () => {
     const before = pool.size;
     expect(before).toBe(4);
 
-    pool.update(120, { x: 0, y: 0 }, FIELD_SCALE, 0.12);
+    pool.update(120, { x: 0, y: 0 }, FIELD_SCALE, 0.12, null);
     let peak = 0;
     pool.forEachActive((particle) => {
       peak = Math.max(peak, particle.alpha);
     });
     expect(peak).toBeGreaterThan(0);
 
-    pool.update(1200, { x: 0, y: 0 }, FIELD_SCALE, 1.3);
+    pool.update(1200, { x: 0, y: 0 }, FIELD_SCALE, 1.3, null);
     expect(pool.size).toBe(0);
   });
 
@@ -123,8 +123,8 @@ describe('particles (§15, §54)', () => {
     intakeBurst(recipe, blown, { densityScale: 1 });
 
     for (let i = 0; i < 20; i++) {
-      calm.update(50, { x: 0, y: 0 }, FIELD_SCALE, i * 0.05);
-      blown.update(50, { x: 0.2, y: 0 }, FIELD_SCALE, i * 0.05);
+      calm.update(50, { x: 0, y: 0 }, FIELD_SCALE, i * 0.05, null);
+      blown.update(50, { x: 0.2, y: 0 }, FIELD_SCALE, i * 0.05, null);
     }
 
     // One second of 0.2 units/s wind is a fifth of the stage. As an acceleration it would be
@@ -141,7 +141,7 @@ describe('particles (§15, §54)', () => {
       intakeBurst(burst({ seed: 500 + i, count: 12, lifeMs: { min: 3000, max: 8000 } }), pool, {
         densityScale: 1,
       });
-      pool.update(250, { x: 0.02, y: 0 }, FIELD_SCALE, i * 0.25);
+      pool.update(250, { x: 0.02, y: 0 }, FIELD_SCALE, i * 0.25, null);
     }
 
     let worst = 0;
@@ -161,7 +161,7 @@ describe('particles (§15, §54)', () => {
     const pool = new ParticlePool(64);
     intakeBurst(burst({ count: 20 }), pool, { densityScale: 1 });
     for (const dt of [0, 1, 16.7, 1000, 30_000])
-      pool.update(dt, { x: 0.1, y: 0 }, FIELD_SCALE, dt / 1000);
+      pool.update(dt, { x: 0.1, y: 0 }, FIELD_SCALE, dt / 1000, null);
     pool.forEachActive((particle) => {
       expect(Number.isFinite(particle.x)).toBe(true);
       expect(Number.isFinite(particle.y)).toBe(true);

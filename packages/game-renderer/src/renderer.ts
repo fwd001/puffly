@@ -489,7 +489,15 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       const frame = Math.max(0, Math.min(dtMs, MAX_FRAME_MS));
       clockMs += frame;
 
-      pool.update(frame, state.smoke.drift, FIELD_SCALE, clockMs / 1000);
+      // The plane things lie on, straight from the state's own layout: the table lifts with the
+      // window (§55), so a constant here would be a surface the scene does not draw.
+      pool.update(
+        frame,
+        state.smoke.drift,
+        FIELD_SCALE,
+        clockMs / 1000,
+        state.stage.layout.table.y,
+      );
 
       const dropped = state.cigarette.ash.dropped;
       if (lastDropped >= 0 && dropped > lastDropped) {

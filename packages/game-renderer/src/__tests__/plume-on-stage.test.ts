@@ -64,7 +64,7 @@ function breathOf(cigaretteId: string): (seconds: number) => Cloud | null {
   return (seconds: number) => {
     const steps = Math.round(((seconds - elapsed) * 1000) / STEP);
     for (let i = 0; i < steps; i++) {
-      pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, elapsed);
+      pool.update(STEP, { x: 0, y: 0 }, FIELD_SCALE, elapsed, null);
       elapsed += STEP / 1000;
     }
     let live = 0;

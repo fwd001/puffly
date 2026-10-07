@@ -87,6 +87,21 @@ export interface SpawnInit {
   delay?: number;
 }
 
+/**
+ * S12's 「火星飞溅用夸张粒子，落地有弹跳（比真实更脆）」.
+ *
+ * A real spark is taken by the table in one hop. 比真实更脆 asks for the opposite exaggeration, so
+ * this throws back more than half of what it brought and keeps most of the sideways speed — the
+ * player sees the table *take* the spark instead of swallowing it. The numbers were picked after
+ * measuring what happens without them: every spark from the lighting crossed the table's horizon
+ * with vy≈0.42 and 0.8–1.3 s of life left, and died at y 1.00–1.30 of a stage that ends at 1.0.
+ * They fell through the one surface the scene draws.
+ */
+const SPARK_BOUNCE = 0.55;
+const SPARK_SCATTER = 0.72;
+/** A landing spends a fifth of what the spark has left, so a spark that lands dies on the table. */
+const SPARK_LANDING_COST = 0.8;
+
 const EMPTY: Particle = {
   x: 0,
   y: 0,
@@ -184,12 +199,17 @@ export class ParticlePool {
    * (`SmokeField.drift`, normalised units per second), so it is added to the particle's own
    * velocity rather than treated as an acceleration — the difference is a column that leans
    * with the gust instead of creeping sideways long after it.
+   *
+   * `sparkFloor` is the table plane in the same stage units, or `null` for a scene that offers no
+   * surface. It answers sparks and nothing else: ash is simulated by Game Core, and a plume of
+   * smoke that could not fall past a line would be a wall.
    */
   update(
     dtMs: number,
     drift: { x: number; y: number },
     fieldScale: number,
     timeSeconds: number,
+    sparkFloor: number | null,
   ): void {
     if (this.activeCount === 0) return;
 
@@ -250,6 +270,15 @@ export class ParticlePool {
       particle.py = particle.y;
       particle.x += (particle.vx + drift.x) * dt;
       particle.y += (particle.vy + drift.y) * dt;
+
+      if (particle.spark && sparkFloor !== null && particle.vy > 0 && particle.y >= sparkFloor) {
+        // Clamped to the plane rather than reflected off wherever it happened to be: a frame is
+        // 16 ms and a spark moves, so the hop has to start from the table and not from under it.
+        particle.y = sparkFloor;
+        particle.vy = -particle.vy * SPARK_BOUNCE;
+        particle.vx *= SPARK_SCATTER;
+        particle.life *= SPARK_LANDING_COST;
+      }
 
       // Diffusion-ish: the puff widens across its own lifetime. Deliberately *not*
       // `radius *= 1 + k*dt`, which compounds and turns a wisp into a wall of fog.
