@@ -41,12 +41,47 @@ describe('deriveReduction (S20)', () => {
     expect(view.week.map((day) => day.sticks)).toEqual([0, 0, 0, 2, 1, 0, 2]);
     expect(view.thisWeekSticks).toBe(5);
     expect(Object.keys(view).sort()).toEqual([
+      'dailyAverage',
       'deltaSticks',
       'lastWeekSticks',
       'thisWeekSticks',
       'todaySticks',
       'week',
     ]);
+  });
+
+  it('gives the seven days their average, on the window it just built (S20 日均)', () => {
+    const view = deriveReduction(sampleSessions(), TODAY);
+    // 5 breaks over the seven days of 01-02..01-08.
+    expect(view.dailyAverage).toBe(0.7);
+    // And the relation, so the figure cannot drift from the bars beside it: the denominator is the
+    // window that was built, not a 7 typed in twice.
+    expect(view.dailyAverage).toBe(Number((view.thisWeekSticks / view.week.length).toFixed(1)));
+  });
+
+  it('averages the window, not the history', () => {
+    const base = sampleSessions();
+    const far = makeSession({ id: 'far', startedAt: at(19, 9, 0), events: [] });
+    const near = makeSession({ id: 'near', startedAt: at(6, 9, 0), events: [] });
+    // 01-19 is nine days ahead of the window's edge, 01-06 is inside it. The first must not move
+    // anything; the second must move the average with the bar.
+    expect(deriveReduction([...base, far], TODAY)).toEqual(view(base));
+    const moved = deriveReduction([...base, near], TODAY);
+    expect(moved.thisWeekSticks).toBe(6);
+    expect(moved.dailyAverage, 'a bar moved and the average did not').toBe(0.9);
+    expect(deriveReduction(base, TODAY).dailyAverage).not.toBe(moved.dailyAverage);
+  });
+
+  it('writes a whole average whole, because 14.0 is not what a page says', () => {
+    const twoMore = [
+      ...sampleSessions(),
+      makeSession({ id: 'x1', startedAt: at(4, 8, 0), events: [] }),
+      makeSession({ id: 'x2', startedAt: at(3, 8, 0), events: [] }),
+    ];
+    const view = deriveReduction(twoMore, TODAY);
+    expect(view.thisWeekSticks).toBe(7);
+    expect(view.dailyAverage).toBe(1);
+    expect(String(view.dailyAverage)).not.toContain('.0');
   });
 
   it('compares against the same span a week earlier, and says so with a sign', () => {
@@ -109,3 +144,7 @@ describe('deriveReduction (S20)', () => {
     expect(before.todaySticks).toBe(2);
   });
 });
+
+function view(sessions: ReturnType<typeof sampleSessions>): ReturnType<typeof deriveReduction> {
+  return deriveReduction(sessions, TODAY);
+}

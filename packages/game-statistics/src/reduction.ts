@@ -24,6 +24,12 @@ export interface ReductionView {
   todaySticks: number;
   /** Seven days, oldest first, ending at today. */
   week: ReductionDay[];
+  /**
+   * S20's 「近 7 天 日均 N 支」: the same seven sticks divided by the same seven days, rounded to the
+   * tenth it can be shown at. It is the player's own log restated, not a population figure, so it
+   * carries no ≈ — the archive's estimates do, and `archive.test.ts` holds that line.
+   */
+  dailyAverage: number;
   thisWeekSticks: number;
   lastWeekSticks: number;
   /** This week minus the same span a week earlier. Negative means fewer. */
@@ -63,6 +69,9 @@ export function deriveReduction(
   return {
     todaySticks: tally.get(today) ?? 0,
     week,
+    // `week.length`, not a literal 7: the denominator has to be the window that was just built, or
+    // the two halves of this sentence stop talking about the same days.
+    dailyAverage: Number((thisWeekSticks / week.length).toFixed(1)),
     thisWeekSticks,
     lastWeekSticks,
     deltaSticks: thisWeekSticks - lastWeekSticks,

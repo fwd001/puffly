@@ -185,6 +185,7 @@ export const EN = {
    */
   'reduction.sticks': 'sticks',
   'reduction.week': 'the last seven days',
+  'reduction.average': 'an average of {count}',
   'reduction.deltaMore': '{count} more than the same span last week',
   'reduction.deltaFewer': '{count} fewer than the same span last week',
   'reduction.deltaSame': 'the same as the same span last week',
@@ -376,6 +377,7 @@ const ZH: Table = {
 
   'reduction.sticks': '支',
   'reduction.week': '近 7 天',
+  'reduction.average': '日均 {count}',
   'reduction.deltaMore': '较上周同期 多吸 {count} 支',
   'reduction.deltaFewer': '较上周同期 少吸 {count} 支',
   'reduction.deltaSame': '与上周同期一样',

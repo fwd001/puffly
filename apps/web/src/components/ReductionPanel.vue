@@ -44,12 +44,27 @@ const trendLabel = computed(() =>
     )
     .join(', '),
 );
-/** The bars' caption: what they are, and the unit they count. Falls away with the words. */
+/**
+ * The bars' caption: what they are, what they average to, and the unit they count — S20's
+ * 「近 7 天 日均 14 支」 on one line. The average is the statistic's own (§26: derived once), so there
+ * is no second division here that could round differently from the first.
+ *
+ * The words fall away on the icons tier and the digit does not: 日均 and 支 are words, `1.7` is not,
+ * and the average is the one figure on this block a player can act on. So the caption is never
+ * empty once a number exists to show, which is also why it stays a `.digits` span.
+ */
+const averageText = computed(() => {
+  const count = String(reduction.value.dailyAverage);
+  return copy.value.t('reduction.average', { count }) ?? count;
+});
 const trendCaption = computed(() => {
-  const span = copy.value.t('reduction.week');
-  const unit = copy.value.t('reduction.sticks');
-  if (span === null && unit === null) return null;
-  return [span, unit].filter((part) => part !== null).join(' · ');
+  const parts = [
+    copy.value.t('reduction.week'),
+    averageText.value,
+    copy.value.t('reduction.sticks'),
+  ];
+  const said = parts.filter((part) => part !== null);
+  return said.length === 0 ? null : said.join(' · ');
 });
 const ringArc = computed(() => {
   const cap = limit.value ?? Math.max(1, reduction.value.todaySticks);

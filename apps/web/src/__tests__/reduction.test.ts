@@ -4,6 +4,8 @@
  * no fourth piece of advice (§ redlines.noAntiSmokingPressure, §10).
  */
 
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 import { COPY, translate } from '../i18n';
 import { EN, type CopyKey } from '../i18n/copy';
@@ -116,6 +118,38 @@ describe('the reduction page says nothing but the player log (S20, §10)', () =>
         expect(line, key).toMatch(/week|周/);
       }
     }
+  });
+
+  it('the seven days carry the average the deck puts on the page (S20 日均)', () => {
+    for (const key of ['reduction.average'] as CopyKey[]) {
+      const lines = linesFor(key);
+      expect(lines.length, key).toBeGreaterThan(1);
+      for (const line of lines) {
+        // The figure is interpolated, never typed: a page that wrote 14 would be a page that lied
+        // about someone else's log.
+        expect(line, key).toContain('{count}');
+      }
+    }
+    // It fills, in both tiers that say words.
+    expect(translate('zh-CN', 'reduction.average', { count: '1.7' })).toContain('1.7');
+    expect(translate('en', 'reduction.average', { count: '1.7' })).toContain('1.7');
+    // And the third tier has no sentence for it — which is why the component keeps the digit.
+    expect(translate('icons', 'reduction.average', { count: '1.7' })).toBeNull();
+  });
+
+  it('the page reads the statistic instead of dividing a second time', () => {
+    // The claim is the one §26 exists for: one derivation, many readers. A second division in the
+    // component would round somewhere else from the bars beside it.
+    const panel = readFileSync(
+      new URL('../components/ReductionPanel.vue', import.meta.url),
+      'utf8',
+    );
+    expect(panel).toContain('reduction.value.dailyAverage');
+    expect(panel, 'the shell re-derived the average the statistics already gave').not.toMatch(
+      /\/\s*7\b/,
+    );
+    // And it survives the tier with no words by falling back to the digit, not to nothing.
+    expect(panel).toContain("copy.value.t('reduction.average', { count }) ?? count");
   });
 
   it('the alternatives stay the three the design names, so a fourth lecture cannot appear', () => {
