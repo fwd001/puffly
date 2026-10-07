@@ -177,7 +177,7 @@ describe('the venue’s draught is what the smoke is made of (S21)', () => {
     const values = DEFAULT_CONTENT.environments.map((venue) => venue.ventilation);
     // §77: a new place is one entry in this table. A table where every row says the same thing is
     // the failure mode — it would read as nine skins, which is precisely what the deck rules out.
-    expect(new Set(values).size).toBeGreaterThanOrEqual(6);
+    expect(new Set(values).size).toBeGreaterThanOrEqual(12);
     expect(Math.max(...values) - Math.min(...values)).toBeGreaterThanOrEqual(0.7);
     // The one row this whole file's numbers are measured against: every plume radius and alpha in
     // the repository was calibrated inside the room a new player is dropped into, so that room has

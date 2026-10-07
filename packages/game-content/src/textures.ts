@@ -313,4 +313,120 @@ export const SOUND_PROFILES: SoundProfileContent[] = [
     ],
     unlock: { kind: 'sessions', count: 14 },
   },
+  {
+    // The twelve places below each bring their own bed, assembled from the voices that already
+    // exist: a broken extractor is `hiss`, a wall of keyboards is `click`, a hearth is `crackle`, a
+    // platform is `chime`. A bed a player can only reach on day 30 is not a bed for a place they
+    // can already stand in, so every one of these is open from the first break.
+    id: 'bed-tile',
+    name: 'Tiled cubicle',
+    layers: [
+      { voice: 'room', gain: 0.44, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
+      { voice: 'hiss', gain: 0.26, pitchSpread: 1, timingSpreadMs: 1400, pan: -0.3, loop: true },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-landing',
+    name: 'Office landing',
+    layers: [
+      { voice: 'room', gain: 0.4, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
+      { voice: 'chime', gain: 0.08, pitchSpread: 2, timingSpreadMs: 5200, pan: 0.35, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-cafe',
+    name: 'Internet cafe',
+    layers: [
+      { voice: 'room', gain: 0.38, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
+      { voice: 'click', gain: 0.3, pitchSpread: 4, timingSpreadMs: 240, pan: 0.2, loop: false },
+      { voice: 'hiss', gain: 0.12, pitchSpread: 0, timingSpreadMs: 0, pan: -0.2, loop: true },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-block',
+    name: 'Under the block',
+    layers: [
+      { voice: 'city', gain: 0.32, pitchSpread: 0, timingSpreadMs: 0, pan: -0.1, loop: true },
+      { voice: 'wind', gain: 0.28, pitchSpread: 3, timingSpreadMs: 700, pan: 0.15, loop: true },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-shelter',
+    name: 'Tin shelter',
+    layers: [
+      { voice: 'city', gain: 0.24, pitchSpread: 0, timingSpreadMs: 0, pan: 0.1, loop: true },
+      { voice: 'rain', gain: 0.3, pitchSpread: 5, timingSpreadMs: 300, pan: -0.15, loop: true },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-courtyard',
+    name: 'Courtyard',
+    layers: [
+      { voice: 'room', gain: 0.28, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
+      { voice: 'wind', gain: 0.2, pitchSpread: 2, timingSpreadMs: 1100, pan: 0.25, loop: true },
+      { voice: 'chime', gain: 0.05, pitchSpread: 3, timingSpreadMs: 6400, pan: -0.4, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-pub',
+    name: 'Pub corner',
+    layers: [
+      { voice: 'room', gain: 0.34, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
+      { voice: 'crackle', gain: 0.22, pitchSpread: 3, timingSpreadMs: 420, pan: 0.4, loop: true },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-bar',
+    name: 'Beer hall',
+    layers: [
+      { voice: 'room', gain: 0.36, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
+      { voice: 'click', gain: 0.16, pitchSpread: 5, timingSpreadMs: 900, pan: -0.25, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-shisha',
+    name: 'Shisha cafe',
+    layers: [
+      { voice: 'room', gain: 0.32, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
+      { voice: 'hiss', gain: 0.18, pitchSpread: 1, timingSpreadMs: 900, pan: 0.2, loop: true },
+      { voice: 'crackle', gain: 0.12, pitchSpread: 4, timingSpreadMs: 1500, pan: -0.3, loop: true },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-terrace',
+    name: 'Cafe terrace',
+    layers: [
+      { voice: 'city', gain: 0.28, pitchSpread: 0, timingSpreadMs: 0, pan: -0.2, loop: true },
+      { voice: 'chime', gain: 0.06, pitchSpread: 2, timingSpreadMs: 4800, pan: 0.3, loop: false },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-station',
+    name: 'Station booth',
+    layers: [
+      { voice: 'city', gain: 0.32, pitchSpread: 0, timingSpreadMs: 0, pan: 0, loop: true },
+      { voice: 'chime', gain: 0.14, pitchSpread: 1, timingSpreadMs: 3600, pan: 0.45, loop: false },
+      { voice: 'wind', gain: 0.22, pitchSpread: 4, timingSpreadMs: 500, pan: -0.35, loop: true },
+    ],
+    unlock: { kind: 'default' },
+  },
+  {
+    id: 'bed-forecourt',
+    name: 'Forecourt',
+    layers: [
+      { voice: 'wind', gain: 0.42, pitchSpread: 5, timingSpreadMs: 260, pan: 0, loop: true },
+      { voice: 'city', gain: 0.2, pitchSpread: 0, timingSpreadMs: 0, pan: 0.3, loop: true },
+    ],
+    unlock: { kind: 'default' },
+  },
 ];

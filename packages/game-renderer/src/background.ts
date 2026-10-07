@@ -184,6 +184,7 @@ export function drawBackground(
   drawDetails(ctx, state, viewport, silhouette, horizon);
   if (background.kind === 'stairwell') drawStairwell(ctx, state, viewport, silhouette);
   if (background.kind === 'corner') drawCorner(ctx, state, viewport, silhouette, horizon);
+  drawFeatures(ctx, state, viewport, silhouette, horizon);
 
   if (background.kind === 'window' || background.kind === 'street') {
     drawBokeh(ctx, state, viewport);
@@ -314,6 +315,155 @@ function drawDetails(
       ctx.fillRect(x, y, w * Math.min(0.05, detail.w), Math.max(1, h * 0.004));
     }
   }
+}
+
+/**
+ * The place's own furniture, drawn from `BackgroundSpec.features`.
+ *
+ * A contact sheet of all twenty-one shipped places, painted from one scripted break, put every
+ * indoor place within three luminance points of every other (L 32.0..35.3): a net café, a toilet
+ * cubicle, an office landing and a desk read as one dark room in four colour grades. The deck's line
+ * on this is 「场所不是背景板」, so a place now carries the shapes that stand in it. Each id is one
+ * shape, drawn in the same register as the seeded clutter — flat rects at a low alpha, sized to read
+ * at phone width and dark enough never to compete with the cherry for the brightest pixel (§57).
+ */
+function drawFeatures(
+  ctx: CanvasRenderingContext2D,
+  state: GameStateView,
+  viewport: Viewport,
+  silhouette: Rgb,
+  horizon: Rgb,
+): void {
+  const wanted = state.environment.background.features;
+  if (!wanted || wanted.length === 0) return;
+  const { cssWidth: w, cssHeight: h } = viewport;
+  const ground = 0.72;
+  const seeded = geometryFor(state).details;
+  // Darker than the wall behind them, because these are seen rather than read; `lit` and `warm` are
+  // the two that give light back, and both stay under the ember's own brightness.
+  const ink = rgbToCss(mixRgb(silhouette, [0, 0, 0], 0.45), 0.86);
+  const soft = rgbToCss(mixRgb(silhouette, [0, 0, 0], 0.3), 0.6);
+  const edge = rgbToCss(mixRgb(silhouette, horizon, 0.55), 0.45);
+  const glow = rgbToCss(mixRgb(silhouette, [226, 232, 244], 0.62), 0.5);
+  const warm = rgbToCss(mixRgb(silhouette, [255, 186, 104], 0.68), 0.55);
+  const box = (x: number, y: number, bw: number, bh: number, tone: string): void => {
+    ctx.fillStyle = tone;
+    ctx.fillRect(x * w, y * h, Math.max(1, bw * w), Math.max(1, bh * h));
+  };
+  /** Where this feature sits, so two places with the same id do not draw it in the same spot. */
+  const at = (i: number, fallback: number): number => (seeded[i]?.x ?? fallback) % 0.7;
+
+  wanted.forEach((feature, index) => {
+    const x = at(index, 0.12 + index * 0.18);
+    switch (feature) {
+      case 'screens': {
+        // A wall of monitors: the only light some rooms have, so this is the one feature that gives
+        // brightness back rather than taking it away.
+        box(x - 0.02, 0.38, 0.5, 0.16, soft);
+        for (let i = 0; i < 4; i++) box(x + i * 0.12, 0.4, 0.1, 0.07, glow);
+        for (let i = 0; i < 4; i++) box(x + i * 0.12, 0.47, 0.1, 0.008, edge);
+        break;
+      }
+      case 'partitions': {
+        // Cubicle doors, with the gap under them the deck's 「只能虚掩」 actually leaves.
+        for (const door of [0.1, 0.42]) {
+          box(door, 0.4, 0.17, ground - 0.42, ink);
+          box(door, 0.4, 0.17, 0.006, edge);
+        }
+        break;
+      }
+      case 'extractor': {
+        // A square of dead air high on the wall, slatted.
+        box(0.72, 0.16, 0.11, 0.09, ink);
+        for (let i = 0; i < 4; i++) box(0.72, 0.17 + i * 0.02, 0.11, 0.005, edge);
+        break;
+      }
+      case 'roof': {
+        // A roof line and its beam, from a tin shelter to a courtyard's eaves. The underside is the
+        // lighter band: a flat black bar across the top reads as a censor bar, and an edge with a
+        // highlight on it reads as something built.
+        box(0, 0.05, 1, 0.05, ink);
+        box(0, 0.1, 1, 0.008, edge);
+        box(0, 0.108, 1, 0.004, soft);
+        box(0.18, 0.112, 0.012, 0.3, ink);
+        box(0.78, 0.112, 0.012, 0.3, ink);
+        break;
+      }
+      case 'clothesline': {
+        // Three short spans that sag, and three things on them.
+        for (let i = 0; i < 3; i++) box(0.2 + i * 0.2, 0.22 + i * 0.012, 0.2, 0.004, edge);
+        for (let i = 0; i < 3; i++) box(0.26 + i * 0.16, 0.24 + i * 0.01, 0.05, 0.07, ink);
+        break;
+      }
+      case 'counter': {
+        box(0.08, 0.56, 0.62, 0.03, ink);
+        for (let i = 0; i < 4; i++) box(0.12 + i * 0.16, 0.59, 0.05, 0.12, soft);
+        break;
+      }
+      case 'hearth': {
+        // The fire is the room's key light, so it is the one place a feature sits *under* the
+        // silhouette rather than below it.
+        box(0.62, 0.5, 0.24, 0.2, ink);
+        box(0.66, 0.56, 0.16, 0.13, warm);
+        break;
+      }
+      case 'low-tables': {
+        for (let i = 0; i < 3; i++) {
+          box(0.1 + i * 0.26, 0.62, 0.16, 0.02, ink);
+          box(0.12 + i * 0.26, 0.64, 0.12, 0.06, soft);
+        }
+        break;
+      }
+      case 'parasol': {
+        // A canopy that steps down at the ends, so it is an octagon seen edge-on rather than a
+        // horizontal bar, which is the difference between a parasol and a signpost.
+        box(0.2, 0.28, 0.38, 0.016, ink);
+        box(0.15, 0.296, 0.48, 0.014, ink);
+        box(0.38, 0.31, 0.012, 0.29, ink);
+        for (const table of [0.18, 0.56]) {
+          box(table, 0.58, 0.14, 0.015, edge);
+          box(table + 0.055, 0.595, 0.02, 0.11, soft);
+        }
+        break;
+      }
+      case 'elevator': {
+        box(0.56, 0.34, 0.2, ground - 0.36, ink);
+        box(0.655, 0.34, 0.01, ground - 0.36, edge);
+        box(0.24, 0.42, 0.16, 0.1, soft);
+        break;
+      }
+      case 'pumps': {
+        for (const pump of [0.22, 0.52]) {
+          box(pump, 0.44, 0.1, 0.26, ink);
+          box(pump + 0.02, 0.47, 0.06, 0.05, glow);
+        }
+        box(0.32, 0.6, 0.2, 0.012, soft);
+        break;
+      }
+      case 'bins': {
+        box(0.06, 0.56, 0.12, 0.14, ink);
+        box(0.2, 0.58, 0.1, 0.12, ink);
+        box(0.44, 0.6, 0.4, 0.03, soft);
+        for (let i = 0; i < 3; i++) box(0.46 + i * 0.12, 0.53, 0.08, 0.07, ink);
+        break;
+      }
+      case 'glass-box': {
+        // Two seams and a rail: the glass itself is the light it keeps back.
+        box(0.16, 0.24, 0.008, ground - 0.26, edge);
+        box(0.7, 0.24, 0.008, ground - 0.26, edge);
+        box(0.16, 0.24, 0.548, 0.012, edge);
+        box(0.16, 0.252, 0.548, ground - 0.272, soft);
+        break;
+      }
+      case 'shutters': {
+        for (let i = 0; i < 3; i++) {
+          box(0.1 + i * 0.3, 0.36, 0.22, 0.18, ink);
+          for (let s = 0; s < 4; s++) box(0.1 + i * 0.3, 0.38 + s * 0.04, 0.22, 0.004, edge);
+        }
+        break;
+      }
+    }
+  });
 }
 
 /** The flight overhead: treads cut across the upper half, seen from the landing below them. */

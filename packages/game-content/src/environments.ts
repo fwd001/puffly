@@ -160,6 +160,7 @@ export const ENVIRONMENTS: Environment[] = [
     background: {
       kind: 'city',
       weatherVisible: true,
+      features: ['clothesline'],
       sky: [rgb(42, 52, 68), rgb(96, 96, 98)],
       horizon: rgb(122, 112, 102),
       silhouette: rgb(26, 28, 34),
@@ -198,7 +199,7 @@ export const ENVIRONMENTS: Environment[] = [
       night: { lighting: { ambient: 0.3, warmth: 0.3 }, ambientAudio: { gain: 0.28 } },
       'late-night': { lighting: { ambient: 0.22, warmth: 0.24 }, wind: { base: 0.26 } },
     },
-    unlock: { kind: 'level', level: 4 },
+    unlock: { kind: 'level', level: 18 },
   },
   {
     id: 'rainy-window',
@@ -240,7 +241,7 @@ export const ENVIRONMENTS: Environment[] = [
       night: { lighting: { ambient: 0.3 }, ambientAudio: { gain: 0.58 } },
       'late-night': { lighting: { ambient: 0.24 }, ambientAudio: { gain: 0.62 } },
     },
-    unlock: { kind: 'level', level: 5 },
+    unlock: { kind: 'level', level: 10 },
   },
   {
     id: 'night-city',
@@ -248,6 +249,7 @@ export const ENVIRONMENTS: Environment[] = [
     background: {
       kind: 'city',
       weatherVisible: true,
+      features: ['roof'],
       sky: [rgb(14, 16, 26), rgb(34, 28, 40)],
       horizon: rgb(58, 46, 44),
       silhouette: rgb(10, 10, 16),
@@ -278,7 +280,7 @@ export const ENVIRONMENTS: Environment[] = [
     ventilation: 0.7,
     emberModifier: { brightness: 1.1, flicker: 1.1, flareBoost: 0.3 },
     eventPool: [...SMOKEY, 'environment_noise', 'light_change'],
-    unlock: { kind: 'level', level: 7 },
+    unlock: { kind: 'level', level: 19 },
   },
   {
     id: 'neon-street',
@@ -316,7 +318,7 @@ export const ENVIRONMENTS: Environment[] = [
     ventilation: 0.75,
     emberModifier: { brightness: 1.04, flicker: 1.25, flareBoost: 0.26 },
     eventPool: [...WET, 'light_change', 'shadow_change'],
-    unlock: { kind: 'level', level: 8 },
+    unlock: { kind: 'level', level: 20 },
   },
   {
     id: 'mountain',
@@ -358,7 +360,7 @@ export const ENVIRONMENTS: Environment[] = [
       morning: { lighting: { ambient: 0.6, warmth: 0.42 } },
       'late-night': { lighting: { ambient: 0.2, warmth: 0.3 }, wind: { base: 0.3 } },
     },
-    unlock: { kind: 'level', level: 9 },
+    unlock: { kind: 'level', level: 21 },
   },
   {
     id: 'late-night-desk',
@@ -392,6 +394,563 @@ export const ENVIRONMENTS: Environment[] = [
     ventilation: 0.15,
     emberModifier: { brightness: 1.12, flicker: 0.9, flareBoost: 0.18 },
     eventPool: [...SMOKEY, 'environment_noise'],
+    unlock: { kind: 'level', level: 11 },
+  },
+  {
+    // Level 4: the deck's 卫生间·隔间 — 「排风坏掉的隔间。烟出不去，整间接满。关门有回弹声，所以只能
+    // 虚掩」. The 0.05 the scale starts on: at this end the coefficient is the identity, so the room
+    // holds whatever the rod puts out. The hiss in the bed is that dead extractor, not an air-conditioner.
+    id: 'restroom-cubicle',
+    name: 'Restroom Cubicle',
+    background: {
+      kind: 'room',
+      weatherVisible: false,
+      features: ['partitions', 'extractor'],
+      sky: [rgb(28, 31, 31), rgb(46, 50, 50)],
+      horizon: rgb(74, 80, 78),
+      silhouette: rgb(18, 20, 21),
+      fog: 0.3,
+      grain: 0.4,
+    },
+    lighting: {
+      ambient: 0.33,
+      warmth: 0.2,
+      keyDirectionDeg: 96,
+      contrast: 0.8,
+      smokeVisibility: 0.98,
+    },
+    ambientAudio: {
+      profileId: 'bed-tile',
+      gain: 0.34,
+      pan: 0,
+      surfaceProfileId: 'surface-concrete',
+    },
+    wind: { base: 0.02, gust: 0.05, directionDeg: 210, variance: 0.2 },
+    weather: { bias: { clear: 5, cloudy: 4, wind: 1 }, rainIntensity: 0, stormWindScale: 1 },
+    smokeModifier: {
+      density: 1.26,
+      turbulence: 0.58,
+      riseSpeed: 0.72,
+      dispersion: 0.82,
+      tintShift: rgb(206, 214, 212),
+    },
+    ventilation: 0.05,
+    emberModifier: { brightness: 0.98, flicker: 0.92, flareBoost: 0.04 },
+    eventPool: CALM,
+    timeVariants: {
+      night: { lighting: { ambient: 0.26, warmth: 0.14 }, ambientAudio: { gain: 0.26 } },
+      'late-night': { lighting: { ambient: 0.22, warmth: 0.1 }, wind: { base: 0.01 } },
+    },
+    unlock: { kind: 'level', level: 4 },
+  },
+  {
+    // Level 5: 办公室前·电梯间, the deck's 0.40 — 「整层烟味，进电梯会闻到」. A corridor has one window
+    // at the far end and a draught running to it, which is why the smoke leaves the floor rather than
+    // sitting on it like the cubicle next door.
+    id: 'office-landing',
+    name: 'Office Landing',
+    background: {
+      kind: 'room',
+      weatherVisible: false,
+      features: ['elevator'],
+      sky: [rgb(30, 31, 34), rgb(50, 51, 54)],
+      horizon: rgb(84, 84, 88),
+      silhouette: rgb(20, 21, 23),
+      fog: 0.18,
+      grain: 0.38,
+    },
+    lighting: {
+      ambient: 0.38,
+      warmth: 0.34,
+      keyDirectionDeg: -120,
+      contrast: 0.7,
+      smokeVisibility: 0.9,
+    },
+    ambientAudio: { profileId: 'bed-landing', gain: 0.24, pan: 0.1 },
+    wind: { base: 0.1, gust: 0.2, directionDeg: 45, variance: 0.5 },
+    weather: { bias: { clear: 5, cloudy: 3, wind: 2 }, rainIntensity: 0, stormWindScale: 1.2 },
+    smokeModifier: {
+      density: 1.14,
+      turbulence: 0.9,
+      riseSpeed: 0.92,
+      dispersion: 1.0,
+      tintShift: rgb(208, 210, 214),
+    },
+    ventilation: 0.4,
+    emberModifier: { brightness: 1, flicker: 1.05, flareBoost: 0.06 },
+    eventPool: SMOKEY,
+    timeVariants: {
+      morning: { lighting: { ambient: 0.5, warmth: 0.42 } },
+      night: { lighting: { ambient: 0.3, warmth: 0.26 }, ambientAudio: { gain: 0.18 } },
+    },
+    unlock: { kind: 'level', level: 5 },
+  },
+  {
+    // Level 6: 网吧 — the player named this one (「比如说网吧」) and the deck's twelve do not contain it.
+    // A wall of screens is the only light source, which is why the exposure is low, the warmth is at the
+    // blue end and the smoke reads so strongly: cold light scatters off a suspended aerosol better than
+    // a warm one does. The bed is `click`, and it is keyboards, not a keyboard.
+    id: 'internet-cafe',
+    name: 'Internet Cafe',
+    background: {
+      kind: 'room',
+      weatherVisible: false,
+      features: ['screens'],
+      sky: [rgb(16, 20, 30), rgb(30, 36, 52)],
+      horizon: rgb(62, 78, 104),
+      silhouette: rgb(11, 13, 18),
+      fog: 0.36,
+      grain: 0.44,
+    },
+    lighting: {
+      ambient: 0.3,
+      warmth: 0.08,
+      keyDirectionDeg: -70,
+      contrast: 0.76,
+      smokeVisibility: 0.96,
+    },
+    ambientAudio: { profileId: 'bed-cafe', gain: 0.3, pan: 0.15 },
+    wind: { base: 0.03, gust: 0.06, directionDeg: 12, variance: 0.25 },
+    weather: { bias: { clear: 6, cloudy: 3, wind: 1 }, rainIntensity: 0, stormWindScale: 1 },
+    smokeModifier: {
+      density: 1.32,
+      turbulence: 0.66,
+      riseSpeed: 0.7,
+      dispersion: 0.88,
+      tintShift: rgb(198, 210, 232),
+    },
+    ventilation: 0.1,
+    emberModifier: { brightness: 0.95, flicker: 1.05, flareBoost: 0.06 },
+    eventPool: SMOKEY,
+    timeVariants: {
+      'late-night': { lighting: { ambient: 0.26, warmth: 0.06 }, ambientAudio: { gain: 0.34 } },
+    },
     unlock: { kind: 'level', level: 6 },
+  },
+  {
+    // Level 7: 楼底下·小区花坛边, the deck's 0.60 — 「单元门外三米。垃圾桶、快递柜、一排电动车。站着抽完
+    // 就走」. The gap between two buildings is the windiest thing in the Chinese set, and this is the one
+    // place whose smoke is mostly *gone* before the rod is.
+    id: 'under-block',
+    name: 'Under the Block',
+    background: {
+      kind: 'corner',
+      weatherVisible: true,
+      features: ['bins', 'shutters'],
+      sky: [rgb(24, 26, 31), rgb(44, 46, 52)],
+      horizon: rgb(90, 88, 88),
+      silhouette: rgb(15, 16, 19),
+      fog: 0.12,
+      grain: 0.56,
+    },
+    lighting: {
+      ambient: 0.36,
+      warmth: 0.42,
+      keyDirectionDeg: 12,
+      contrast: 0.72,
+      smokeVisibility: 0.92,
+    },
+    ambientAudio: {
+      profileId: 'bed-block',
+      gain: 0.3,
+      pan: -0.1,
+      surfaceProfileId: 'surface-concrete',
+    },
+    wind: { base: 0.3, gust: 0.5, directionDeg: 118, variance: 0.9 },
+    weather: {
+      bias: { clear: 3, cloudy: 3, wind: 4, rain: 2, storm: 1 },
+      rainIntensity: 0.35,
+      stormWindScale: 1.7,
+    },
+    smokeModifier: {
+      density: 0.94,
+      turbulence: 1.45,
+      riseSpeed: 1.02,
+      dispersion: 1.36,
+      tintShift: rgb(200, 204, 214),
+    },
+    ventilation: 0.6,
+    emberModifier: { brightness: 1, flicker: 1.45, flareBoost: 0.18 },
+    eventPool: WET,
+    timeVariants: {
+      sunset: { lighting: { ambient: 0.44, warmth: 0.66 } },
+      night: { lighting: { ambient: 0.28, warmth: 0.34 }, ambientAudio: { gain: 0.26 } },
+      'late-night': { lighting: { ambient: 0.22, warmth: 0.28 }, wind: { base: 0.24 } },
+    },
+    unlock: { kind: 'level', level: 7 },
+  },
+  {
+    // Level 8: 吸烟亭·楼下铁皮棚 — 「顶棚 + 挡板 + 长凳。唯一被允许的地方，也是唯一能安心站完一支的地方」.
+    // A roof and three panels make it *less* ventilated than the open pavement it stands on, so it sits at
+    // the deck's card value of 0.45; the 0.75 printed beside it in the coefficient table breaks that table's
+    // own descending order (it sits between 0.40 and 0.35), which is recorded in SPEC rather than copied.
+    id: 'tin-shelter',
+    name: 'Tin Smoking Shelter',
+    background: {
+      kind: 'corner',
+      weatherVisible: true,
+      features: ['roof', 'counter'],
+      sky: [rgb(26, 27, 30), rgb(42, 44, 47)],
+      horizon: rgb(86, 88, 92),
+      silhouette: rgb(17, 18, 20),
+      fog: 0.16,
+      grain: 0.42,
+    },
+    lighting: {
+      ambient: 0.35,
+      warmth: 0.5,
+      keyDirectionDeg: 152,
+      contrast: 0.78,
+      smokeVisibility: 0.94,
+    },
+    ambientAudio: {
+      profileId: 'bed-shelter',
+      gain: 0.32,
+      pan: 0.2,
+      surfaceProfileId: 'surface-concrete',
+    },
+    wind: { base: 0.14, gust: 0.4, directionDeg: 264, variance: 0.85 },
+    weather: {
+      bias: { clear: 3, cloudy: 4, wind: 2, rain: 3, storm: 1 },
+      rainIntensity: 0.5,
+      stormWindScale: 1.3,
+    },
+    smokeModifier: {
+      density: 1.18,
+      turbulence: 1.05,
+      riseSpeed: 0.94,
+      dispersion: 1.0,
+      tintShift: rgb(204, 206, 208),
+    },
+    ventilation: 0.45,
+    emberModifier: { brightness: 1.02, flicker: 1.3, flareBoost: 0.1 },
+    eventPool: WET,
+    timeVariants: {
+      night: { lighting: { ambient: 0.3, warmth: 0.58 }, ambientAudio: { gain: 0.3 } },
+      'late-night': { lighting: { ambient: 0.25, warmth: 0.52 } },
+    },
+    unlock: { kind: 'level', level: 8 },
+  },
+  {
+    // Level 9: 院子·自家天井, the deck's slowest place — 「竹椅、搪瓷缸、晾衣绳。夏天蝉鸣冬天风。这是最慢的
+    // 一处，烟能升到房梁那么高才散」. 「升到房梁那么高」 is a rise-speed sentence, not a colour sentence,
+    // so this is the one place in the Chinese set whose column climbs: riseSpeed above every room.
+    id: 'courtyard',
+    name: 'Family Courtyard',
+    background: {
+      kind: 'corner',
+      weatherVisible: true,
+      features: ['roof', 'clothesline'],
+      sky: [rgb(34, 33, 30), rgb(58, 54, 46)],
+      horizon: rgb(92, 84, 68),
+      silhouette: rgb(22, 21, 19),
+      fog: 0.1,
+      grain: 0.52,
+    },
+    lighting: {
+      ambient: 0.46,
+      warmth: 0.56,
+      keyDirectionDeg: -16,
+      contrast: 0.64,
+      smokeVisibility: 0.88,
+    },
+    ambientAudio: { profileId: 'bed-courtyard', gain: 0.26, pan: 0 },
+    wind: { base: 0.08, gust: 0.16, directionDeg: 48, variance: 0.4 },
+    weather: {
+      bias: { clear: 5, cloudy: 3, wind: 2, rain: 1 },
+      rainIntensity: 0.15,
+      stormWindScale: 1.2,
+    },
+    smokeModifier: {
+      density: 1.08,
+      turbulence: 0.6,
+      riseSpeed: 1.2,
+      dispersion: 0.95,
+      tintShift: rgb(218, 208, 186),
+    },
+    ventilation: 0.35,
+    emberModifier: { brightness: 1, flicker: 1.12, flareBoost: 0.12 },
+    eventPool: SMOKEY,
+    timeVariants: {
+      morning: { lighting: { ambient: 0.6, warmth: 0.48 } },
+      afternoon: { lighting: { ambient: 0.66, warmth: 0.4 } },
+      night: { lighting: { ambient: 0.32, warmth: 0.62 }, ambientAudio: { gain: 0.22 } },
+    },
+    unlock: { kind: 'level', level: 9 },
+  },
+  {
+    // Level 12: 英国·Pub 一角 — 「壁炉、深色木护墙板、常客自己看门。烟往灯罩上飘」. The only place in the
+    // content set whose key light is a fire, which is why the warmth sits near the amber end and the
+    // crackle in its bed is not a cigarette.
+    id: 'pub-corner',
+    name: 'Pub Corner',
+    background: {
+      kind: 'room',
+      weatherVisible: false,
+      features: ['hearth', 'counter'],
+      sky: [rgb(30, 25, 20), rgb(50, 40, 30)],
+      horizon: rgb(96, 72, 48),
+      silhouette: rgb(18, 14, 11),
+      fog: 0.14,
+      grain: 0.5,
+    },
+    lighting: {
+      ambient: 0.32,
+      warmth: 0.85,
+      keyDirectionDeg: 168,
+      contrast: 0.72,
+      smokeVisibility: 0.92,
+    },
+    ambientAudio: { profileId: 'bed-pub', gain: 0.32, pan: 0.35 },
+    wind: { base: 0.05, gust: 0.1, directionDeg: 300, variance: 0.3 },
+    weather: { bias: { clear: 4, cloudy: 4, wind: 2 }, rainIntensity: 0, stormWindScale: 1.1 },
+    smokeModifier: {
+      density: 1.2,
+      turbulence: 0.72,
+      riseSpeed: 0.85,
+      dispersion: 0.9,
+      tintShift: rgb(224, 206, 178),
+    },
+    ventilation: 0.25,
+    emberModifier: { brightness: 1.04, flicker: 1.1, flareBoost: 0.14 },
+    eventPool: SMOKEY,
+    timeVariants: {
+      'late-night': { lighting: { ambient: 0.26, warmth: 0.9 }, ambientAudio: { gain: 0.26 } },
+    },
+    unlock: { kind: 'level', level: 12 },
+  },
+  {
+    // Level 13: 德国啤酒馆 — 「禁烟令下少数还能合法抽的室内场所之一，烟混在啤酒味里散不掉」. Half-open
+    // on a courtyard door, so the draught is steadier than the pub's and the smoke clears a little.
+    // The `click` in the bed is glasses, which is the only thing in a hall that moves.
+    id: 'beer-hall',
+    name: 'Beer Hall',
+    background: {
+      kind: 'room',
+      weatherVisible: false,
+      features: ['counter', 'roof'],
+      sky: [rgb(34, 28, 22), rgb(56, 46, 36)],
+      horizon: rgb(104, 84, 60),
+      silhouette: rgb(20, 17, 14),
+      fog: 0.18,
+      grain: 0.46,
+    },
+    lighting: {
+      ambient: 0.4,
+      warmth: 0.7,
+      keyDirectionDeg: -50,
+      contrast: 0.66,
+      smokeVisibility: 0.9,
+    },
+    ambientAudio: { profileId: 'bed-bar', gain: 0.3, pan: -0.2 },
+    wind: { base: 0.06, gust: 0.12, directionDeg: 40, variance: 0.35 },
+    weather: { bias: { clear: 5, cloudy: 3, wind: 2 }, rainIntensity: 0, stormWindScale: 1.1 },
+    smokeModifier: {
+      density: 1.22,
+      turbulence: 0.8,
+      riseSpeed: 0.88,
+      dispersion: 0.95,
+      tintShift: rgb(222, 208, 188),
+    },
+    ventilation: 0.3,
+    emberModifier: { brightness: 1.02, flicker: 1.05, flareBoost: 0.1 },
+    eventPool: SMOKEY,
+    timeVariants: {
+      night: { lighting: { ambient: 0.34, warmth: 0.76 }, ambientAudio: { gain: 0.34 } },
+    },
+    unlock: { kind: 'level', level: 13 },
+  },
+  {
+    // Level 14: 中东·Shisha 咖啡馆 — 「炭炉、铜壶、坐垫、水烟壶。整间屋子都是雾。这里是水烟品类的主场景，
+    // 室内烟雾浓度最高」. The room already holds smoke, so a fresh plume has less to stand out against:
+    // density is the highest number in the content set and `smokeVisibility` is deliberately among the
+    // lowest. The charcoal bed is `hiss` plus `crackle`, and it is the only place whose ember modifier
+    // is not trying to look like a lighter.
+    id: 'shisha-cafe',
+    name: 'Shisha Cafe',
+    background: {
+      kind: 'room',
+      weatherVisible: false,
+      features: ['low-tables'],
+      sky: [rgb(38, 28, 22), rgb(62, 44, 32)],
+      horizon: rgb(112, 80, 52),
+      silhouette: rgb(22, 16, 12),
+      fog: 0.4,
+      grain: 0.42,
+    },
+    lighting: {
+      ambient: 0.34,
+      warmth: 0.62,
+      keyDirectionDeg: 88,
+      contrast: 0.6,
+      smokeVisibility: 0.86,
+    },
+    ambientAudio: { profileId: 'bed-shisha', gain: 0.34, pan: 0.1 },
+    wind: { base: 0.03, gust: 0.07, directionDeg: 150, variance: 0.2 },
+    weather: { bias: { clear: 6, cloudy: 3, wind: 1 }, rainIntensity: 0, stormWindScale: 1 },
+    smokeModifier: {
+      density: 1.4,
+      turbulence: 0.55,
+      riseSpeed: 0.78,
+      dispersion: 0.85,
+      tintShift: rgb(226, 204, 176),
+    },
+    ventilation: 0.15,
+    emberModifier: { brightness: 1.05, flicker: 0.95, flareBoost: 0.08 },
+    eventPool: SMOKEY,
+    timeVariants: {
+      night: { lighting: { ambient: 0.3, warmth: 0.68 }, ambientAudio: { gain: 0.3 } },
+    },
+    unlock: { kind: 'level', level: 14 },
+  },
+  {
+    // Level 15: 法国·咖啡馆露台 — 「藤椅、小圆桌、太阳伞。烟混在咖啡与黄油的味道里」. Outdoor but sheltered
+    // by the frontage, so it sits between the forecourt and the balcony, and the daytime exposure is the
+    // highest of any place that is not a balcony.
+    id: 'cafe-terrace',
+    name: 'Cafe Terrace',
+    background: {
+      kind: 'corner',
+      weatherVisible: true,
+      features: ['parasol'],
+      sky: [rgb(42, 40, 38), rgb(66, 62, 58)],
+      horizon: rgb(112, 104, 94),
+      silhouette: rgb(26, 24, 22),
+      fog: 0.08,
+      grain: 0.44,
+    },
+    lighting: {
+      ambient: 0.52,
+      warmth: 0.55,
+      keyDirectionDeg: -28,
+      contrast: 0.62,
+      smokeVisibility: 0.82,
+    },
+    ambientAudio: { profileId: 'bed-terrace', gain: 0.26, pan: -0.25 },
+    wind: { base: 0.22, gust: 0.34, directionDeg: 76, variance: 0.6 },
+    weather: {
+      bias: { clear: 5, cloudy: 3, wind: 2, rain: 1 },
+      rainIntensity: 0.1,
+      stormWindScale: 1.4,
+    },
+    smokeModifier: {
+      density: 1,
+      turbulence: 1.05,
+      riseSpeed: 1.05,
+      dispersion: 1.2,
+      tintShift: rgb(216, 208, 196),
+    },
+    ventilation: 0.7,
+    emberModifier: { brightness: 1, flicker: 1.25, flareBoost: 0.14 },
+    eventPool: SMOKEY,
+    timeVariants: {
+      morning: { lighting: { ambient: 0.62, warmth: 0.44 } },
+      sunset: { lighting: { ambient: 0.48, warmth: 0.74 } },
+      night: { lighting: { ambient: 0.32, warmth: 0.5 }, ambientAudio: { gain: 0.22 } },
+    },
+    unlock: { kind: 'level', level: 15 },
+  },
+  {
+    // Level 16: 日本·站前吸烟亭 — 「透明玻璃小屋，机器卖烟，自动门。进去的人不说话，因为空间只够站两个。
+    // 烟贴着玻璃往上爬」. The glass box is still air *inside* with a draft every time the door cycles,
+    // which is what the gust figure is for, and the platform chime is the reason this bed has a `chime`.
+    // Every train that passes is a gust, so `stormWindScale` is the second highest in the set.
+    id: 'station-booth',
+    name: 'Station Smoking Booth',
+    background: {
+      kind: 'street',
+      weatherVisible: true,
+      features: ['glass-box'],
+      sky: [rgb(22, 25, 32), rgb(42, 48, 60)],
+      horizon: rgb(96, 104, 118),
+      silhouette: rgb(14, 16, 21),
+      fog: 0.16,
+      grain: 0.4,
+    },
+    lighting: {
+      ambient: 0.42,
+      warmth: 0.3,
+      keyDirectionDeg: 120,
+      contrast: 0.74,
+      smokeVisibility: 0.95,
+    },
+    ambientAudio: {
+      profileId: 'bed-station',
+      gain: 0.36,
+      pan: 0.2,
+      surfaceProfileId: 'surface-concrete',
+    },
+    wind: { base: 0.26, gust: 0.44, directionDeg: 196, variance: 0.75 },
+    weather: {
+      bias: { clear: 4, cloudy: 3, wind: 4, rain: 2, storm: 1 },
+      rainIntensity: 0.3,
+      stormWindScale: 1.8,
+    },
+    smokeModifier: {
+      density: 1.06,
+      turbulence: 0.85,
+      riseSpeed: 1.1,
+      dispersion: 1.1,
+      tintShift: rgb(204, 212, 226),
+    },
+    ventilation: 0.55,
+    emberModifier: { brightness: 1, flicker: 1.35, flareBoost: 0.16 },
+    eventPool: WET,
+    timeVariants: {
+      morning: { lighting: { ambient: 0.52, warmth: 0.36 } },
+      night: { lighting: { ambient: 0.36, warmth: 0.24 }, ambientAudio: { gain: 0.32 } },
+    },
+    unlock: { kind: 'level', level: 16 },
+  },
+  {
+    // Level 17: 美国·加油站便利店 — 「停在便利店门口，引擎没熄。空调外机在头顶吹，烟几乎立刻被带走——
+    // 通风最好的一处」. The deck's own 0.90, which is the top of the scale, so this is the place that
+    // shows what the coefficient is for: a column that would fill a stairwell is gone in two seconds here.
+    id: 'forecourt-shop',
+    name: 'Forecourt Shop',
+    background: {
+      kind: 'street',
+      weatherVisible: true,
+      features: ['pumps', 'shutters'],
+      sky: [rgb(30, 30, 32), rgb(54, 52, 50)],
+      horizon: rgb(110, 104, 96),
+      silhouette: rgb(18, 18, 19),
+      fog: 0.06,
+      grain: 0.5,
+    },
+    lighting: {
+      ambient: 0.44,
+      warmth: 0.48,
+      keyDirectionDeg: 8,
+      contrast: 0.7,
+      smokeVisibility: 0.86,
+    },
+    ambientAudio: {
+      profileId: 'bed-forecourt',
+      gain: 0.34,
+      pan: 0,
+      surfaceProfileId: 'surface-concrete',
+    },
+    wind: { base: 0.44, gust: 0.6, directionDeg: 258, variance: 0.95 },
+    weather: {
+      bias: { clear: 5, cloudy: 2, wind: 4, storm: 1 },
+      rainIntensity: 0.1,
+      stormWindScale: 2,
+    },
+    smokeModifier: {
+      density: 0.88,
+      turbulence: 1.5,
+      riseSpeed: 1.05,
+      dispersion: 1.5,
+      tintShift: rgb(208, 206, 202),
+    },
+    ventilation: 0.9,
+    emberModifier: { brightness: 0.96, flicker: 1.5, flareBoost: 0.2 },
+    eventPool: WET,
+    timeVariants: {
+      sunset: { lighting: { ambient: 0.4, warmth: 0.7 } },
+      night: { lighting: { ambient: 0.3, warmth: 0.36 }, ambientAudio: { gain: 0.3 } },
+    },
+    unlock: { kind: 'level', level: 17 },
   },
 ];

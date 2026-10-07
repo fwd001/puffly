@@ -255,6 +255,18 @@ export interface BackgroundSpec {
    * first thing a new place would do is fail to appear in a switch it never got edited.
    */
   weatherVisible: boolean;
+  /**
+   * What stands in this place that does not stand in the next one. A contact sheet of all
+   * twenty-one shipped places, painted from the same scripted break, put every indoor place within
+   * 3 luminance points of every other (L 32.0..35.3) — the palette and the light pool alone make a
+   * net café, a toilet cubicle and a landing read as one dark room with four colour grades. The
+   * deck's own line on this is 「场所不是背景板」, so a place carries its shapes as data and the
+   * renderer draws them; a place with no features is deliberately a bare room.
+   *
+   * Flat rects and lines only, in the same register as the seeded clutter: these are silhouettes at
+   * the edge of what the frame can say, not objects to be read at 1x.
+   */
+  features?: SceneFeatureId[];
   sky: [Rgb, Rgb];
   horizon: Rgb;
   silhouette: Rgb;
@@ -262,10 +274,48 @@ export interface BackgroundSpec {
   grain: number;
 }
 
+/**
+ * The vocabulary `BackgroundSpec.features` draws from. One id, one shape, drawn the same way
+ * everywhere it appears; adding a place normally reuses these before it needs a new one.
+ */
+export type SceneFeatureId =
+  /** A row of screens, the only light some rooms have. */
+  | 'screens'
+  /** Cubicle doors: two panels with a gap and a sill under them. */
+  | 'partitions'
+  /** An extractor high on the wall — a dark square with slats. */
+  | 'extractor'
+  /** A roof line and its beam, from a tin shelter to a courtyard's eaves. */
+  | 'roof'
+  /** A clothesline, sagging, with three things hanging off it. */
+  | 'clothesline'
+  /** A counter or long table with what sits in front of it. */
+  | 'counter'
+  /** A hearth: a low bright rectangle, the reason a room is warm. */
+  | 'hearth'
+  /** Low tables and cushions, the floor furniture of a water-pipe room. */
+  | 'low-tables'
+  /** An awning or parasol over a couple of small round tables. */
+  | 'parasol'
+  /** Lift doors: one seam, doubled, with a board beside it. */
+  | 'elevator'
+  /** Fuel pumps: two boxes with a hose between them. */
+  | 'pumps'
+  /** Bins, a parcel locker, a planter — the furniture of a forecourt in a residential block. */
+  | 'bins'
+  /** A glass box: two vertical seams and a rail across the top. */
+  | 'glass-box'
+  /** Roller shutters, half down, over what used to be a shopfront. */
+  | 'shutters';
+
 export interface LightingSpec {
   /** 0..1 overall exposure of the scene. */
   ambient: number;
-  /** 0 (warm/tungsten) .. 1 (cool/daylight). */
+  /**
+   * 0 (cool/blue) .. 1 (warm/amber), read off the painted sky by `warmth-scale.test.ts`. The prose
+   * here used to say the reverse; the mix in `background.ts` runs `[210,224,240] -> [255,232,200]`
+   * by this number, so a cold concrete stairwell is a low value, not a high one.
+   */
   warmth: number;
   keyDirectionDeg: number;
   contrast: number;

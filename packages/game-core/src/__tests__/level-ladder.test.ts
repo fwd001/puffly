@@ -45,15 +45,18 @@ describe('the level ladder (§6.1)', () => {
   it('says how far there is left to go, and stops saying it at the top', () => {
     expect(sessionsToNextLevel(0)).toBe(2);
     expect(sessionsToNextLevel(1)).toBe(1);
-    expect(sessionsToNextLevel(2)).toBe(3);
+    expect(sessionsToNextLevel(2)).toBe(2);
     expect(sessionsToNextLevel(LEVEL_THRESHOLDS[LEVEL_THRESHOLDS.length - 1] ?? 0)).toBe(0);
   });
 
   it('opens a place for breaks kept, not for a month going by', () => {
     const third = { kind: 'level' as const, level: 3 };
-    expect(ruleSatisfied(third, ledger({ sessions: 4 }))).toBe(false);
-    expect(ruleSatisfied(third, ledger({ sessions: 5 }))).toBe(true);
-    // The whole point of moving off `day`: a year of not smoking here unlocks nothing.
+    // Read from the ladder rather than typed in: what this case claims is the *semantics* — the
+    // threshold opens it, one break short does not, and a year of not smoking opens nothing. The
+    // numbers themselves are the authored array, and the case above is what holds those.
+    const needs = LEVEL_THRESHOLDS[2] ?? 0;
+    expect(ruleSatisfied(third, ledger({ sessions: needs - 1 }))).toBe(false);
+    expect(ruleSatisfied(third, ledger({ sessions: needs }))).toBe(true);
     expect(ruleSatisfied(third, ledger({ sessions: 0, dayNumber: 400 }))).toBe(false);
   });
 });
@@ -72,6 +75,13 @@ describe('the rooms sit in order on it (§6.1)', () => {
       expect(level).toBeLessThanOrEqual(LEVEL_THRESHOLDS.length);
     }
     console.log(`LADDER ${places.map((p, i) => `${p.id}=${String(levels[i])}`).join(' ')}`);
+  });
+
+  it('has a ladder with exactly as many rungs as there are places', () => {
+    // The two halves of §6.1 have to move together: the deck's twelve venues arrived as rows in one
+    // table, and a set of places with fewer rungs than doors means the last few are unreachable by
+    // definition — the ladder just stops. Asserted as a count, not as a comment about one.
+    expect(LEVEL_THRESHOLDS.length).toBe(places.length);
   });
 
   it('has no two places sharing a rung, so the order a player meets them in is authored', () => {

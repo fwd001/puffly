@@ -76,14 +76,15 @@ describe('the rooms are a set with a ladder (§23, §37)', () => {
     expect(breaks).not.toBe(day);
   });
 
-  it('counts the set as entered / total, and the total is the nine the ladder holds', () => {
-    // The brief's mock-up drew seven rooms. The player asked for a stairwell and a smoking corner
-    // by name, so the set is nine now and this number is the player's, not the mock-up's.
+  it('counts the set as entered / total, and the total is the twenty-one the ladder holds', () => {
+    // The brief's mock-up drew seven rooms, the player asked for a stairwell and a smoking corner by
+    // name, and the deck's 「吸烟场所 · 12 个场景」 plus their 网吧 brought it to twenty-one. This number is
+    // the set the content actually ships, so adding a place means naming it here.
     const all = rooms();
     expect(rungCount(all, [])).toBe(`0 / ${String(all.length)}`);
-    expect(all).toHaveLength(9);
+    expect(all).toHaveLength(21);
     const three = all.slice(0, 3).map((room) => room.id);
-    expect(rungCount(all, three)).toBe('3 / 9');
+    expect(rungCount(all, three)).toBe('3 / 21');
   });
 });
 
