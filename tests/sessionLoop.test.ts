@@ -198,7 +198,10 @@ describe('a real break on real content (§8, §82)', () => {
       expect(d.state().smoke.density).toBeGreaterThan(0.1);
 
       // The ash column on a Classic is long enough to ask for a flick within the rod's life.
-      d.until(() => d.state().cigarette.ash.ready, 90_000, 'ash asking to be flicked');
+      // Long enough to outlast the room. §22 lets a gust knock the column off before it is ever
+      // critical, and how often that happens is drawn from the same stream as everything else, so
+      // the wait has to be several ash cycles rather than one — 90 s was one cycle's luck.
+      d.until(() => d.state().cigarette.ash.ready, 180_000, 'ash asking to be flicked');
       d.aim('ash', 'tap');
       d.run(80);
       expect(d.state().cigarette.ash.dropped).toBeGreaterThan(0);

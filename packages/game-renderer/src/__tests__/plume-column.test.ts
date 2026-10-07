@@ -110,7 +110,8 @@ function scene(release: boolean, marks: number[]): Record<string, Profile> {
     },
   });
   const h = harness({ content: DEFAULT_CONTENT, cigaretteId: 'classic' });
-  lit(h);
+  // Let the hand come back from the flame before the breath is drawn; see plume-shape.test.ts.
+  lit(h, 700);
   const pending: Burst[] = [];
   h.engine.on((event) => {
     if (event.kind === 'burst') pending.push(event.burst);

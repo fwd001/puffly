@@ -35,7 +35,13 @@ import {
   type EngineListener,
   type EngineRuntime,
 } from './runtime';
-import { integratePose, refreshPose, restingTarget, updateWobble } from './systems/pose';
+import {
+  flameProximity,
+  integratePose,
+  refreshPose,
+  restingTarget,
+  updateWobble,
+} from './systems/pose';
 import { isBurnedOut, tickBurn } from './systems/burn';
 import { ignite, tickEmber } from './systems/ember';
 import { flickAsh, tickAsh } from './systems/ash';
@@ -590,6 +596,9 @@ export function createEngine(options: EngineOptions): GameEngine {
 
     if (rt.state.cigarette.state !== 'LIGHTING') return;
     if (lighter.flame < 0.45) return;
+    // The fire has to be *on* the end of the rod. Without this the cherry catches on a timer while
+    // the rod is still held out in front of the player, and the whole gesture reads as nothing.
+    if (rt.state.cigarette.pose.atFlame < 0.55) return;
 
     rt.timers.ignitionMs += STEP_MS * lighter.flame;
     if (rt.timers.ignitionMs < rt.timers.ignitionTargetMs) return;
@@ -692,8 +701,12 @@ export function createEngine(options: EngineOptions): GameEngine {
       cigarette.state,
       rt.drag.pressed ? rt.drag.pointer : null,
       rt.layout,
+      cigarette.pose.rodLength,
     );
     integratePose(cigarette.pose, target, cigarette.rodRemaining, cigarette.ash.length, STEP_MS);
+    // Read after the step, because it is a relation between where the end landed this frame and
+    // where the fire is — measured here so the ignition gate and any future cue cannot disagree.
+    cigarette.pose.atFlame = flameProximity(cigarette.pose.tip, rt.layout, rt.stageAspect);
 
     cigarette.lengthRemaining = clamp01(
       (cigarette.pose.rodLength + cigarette.ash.length) / CIGARETTE_LENGTH,

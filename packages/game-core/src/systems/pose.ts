@@ -8,8 +8,14 @@
 
 import { approach, clamp01 } from '@puffly/shared';
 import { ANGLES } from '../constants';
-import type { StageLayout } from '../stage';
-import { CIGARETTE_LENGTH, CIGARETTE_THICKNESS, offset, type Point } from '../types/geometry';
+import { stageDistance, type StageLayout } from '../stage';
+import {
+  angleBetween,
+  CIGARETTE_LENGTH,
+  CIGARETTE_THICKNESS,
+  offset,
+  type Point,
+} from '../types/geometry';
 import type { CigarettePose, CigaretteStateId } from '../types/state';
 
 export interface PoseTarget {
@@ -19,17 +25,67 @@ export interface PoseTarget {
   dragged: boolean;
   /** Per-second smoothing rate; lower feels heavier. */
   stiffness: number;
+  /**
+   * Separate rate for the turn. Left unset the angle follows `STIFFNESS_ANGLE`, which is right for
+   * every pose a hand settles into; reaching across to a flame is the one place where a slow turn
+   * reads as the rod doing a somersault rather than a wrist flicking.
+   */
+  angleStiffness?: number;
 }
 
 const STIFFNESS_HELD = 14;
 const STIFFNESS_DRAG = 24;
 const STIFFNESS_TRAY = 9;
 const STIFFNESS_ANGLE = 8;
+/** Slower than a hand at rest: the dip to the flame is the thing the player is watching. */
+const STIFFNESS_REACH = 7;
+/** The rod has to come about ~155° to point at a flame on the far side of the table. */
+const STIFFNESS_TURN = 17;
+
+/** The representation of `angleDeg` nearest `fromDeg`, so an eased turn takes the short arc. */
+function shortWayTo(angleDeg: number, fromDeg: number): number {
+  let angle = angleDeg;
+  while (angle - fromDeg > 180) angle -= 360;
+  while (fromDeg - angle > 180) angle += 360;
+  return angle;
+}
+
+/**
+ * Where the fire is, relative to the point the layout calls the lighter. That point is the tap
+ * centre of the *case*; the flame burns above it, and the rod has to reach the fire rather than the
+ * metal. Normalised stage units (§55).
+ */
+export const LIGHTER_FLAME = { x: 0.004, y: -0.026 };
+
+/**
+ * How close the rod's burning end has to get before the cherry can catch (§15 LIGHTING), in the
+ * screen-round metric `stageDistance` uses. The flame is about 26 px wide on a phone, so this is
+ * roughly "the end is inside the fire" rather than "the end is somewhere on the lighter".
+ */
+export const LIGHTING_REACH = 0.045;
+
+/**
+ * Distance in the plane the pose is authored in: normalised units, no aspect correction. `offset`
+ * and `angleBetween` both live here, so a rod length and a travel distance are only comparable to
+ * each other in this metric — measuring one in the other is what made the tip stop 0.064 short of
+ * the flame and never arrive.
+ */
+const planeDistance = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.y - b.y);
+
+export const flamePoint = (layout: StageLayout): Point => ({
+  x: layout.lighter.x + LIGHTER_FLAME.x,
+  y: layout.lighter.y + LIGHTER_FLAME.y,
+});
+
+/** 0..1: how far inside the flame a point is, in the same screen-round metric a tap uses. */
+export const flameProximity = (at: Point, layout: StageLayout, aspect: number): number =>
+  clamp01(1 - stageDistance(at, flamePoint(layout), aspect) / LIGHTING_REACH);
 
 export function restingTarget(
   state: CigaretteStateId,
   dragPointer: Point | null,
   layout: StageLayout,
+  rodLength: number,
 ): PoseTarget {
   if (dragPointer) {
     return {
@@ -38,6 +94,28 @@ export function restingTarget(
       inTray: false,
       dragged: true,
       stiffness: STIFFNESS_DRAG,
+    };
+  }
+  if (state === 'LIGHTING') {
+    // The rod goes to the fire, and the fire is over on the far side of the table. So the burning
+    // end sweeps across and the hand follows it: the pivot is placed exactly `rodLength` back along
+    // the direction the rod now points, which puts the tip on the flame for any rod length.
+    const flame = flamePoint(layout);
+    const angleDeg = angleBetween(layout.restPivot, flame);
+    // Turn the short way. The held rod and this one are close to antiparallel, so the two ways round
+    // differ by only a few degrees of final pose and entirely in what happens on the way: the long
+    // arc takes the burning end down through the table, which the flame is not under. Measured on a
+    // phone, the dip put the end 90 px below the table edge; this arc keeps it in the air.
+    const reach = planeDistance(layout.restPivot, flame);
+    return {
+      // A stub is short enough that the hand could stay put and still touch the fire; only slide
+      // the hand across when the rod cannot reach on its own.
+      pivot: reach > rodLength ? offset(flame, -rodLength, angleDeg) : layout.restPivot,
+      angleDeg: shortWayTo(angleDeg, layout.heldDeg),
+      inTray: false,
+      dragged: false,
+      stiffness: STIFFNESS_REACH,
+      angleStiffness: STIFFNESS_TURN,
     };
   }
   if (state === 'IDLE') {
@@ -93,7 +171,12 @@ export function integratePose(
   const beforeY = pose.pivot.y;
   pose.pivot.x = approach(pose.pivot.x, target.pivot.x, target.stiffness, dtMs);
   pose.pivot.y = approach(pose.pivot.y, target.pivot.y, target.stiffness, dtMs);
-  pose.angleDeg = approach(pose.angleDeg, target.angleDeg + pose.wobbleDeg, STIFFNESS_ANGLE, dtMs);
+  pose.angleDeg = approach(
+    pose.angleDeg,
+    target.angleDeg + pose.wobbleDeg,
+    target.angleStiffness ?? STIFFNESS_ANGLE,
+    dtMs,
+  );
   pose.inTray = target.inTray;
   pose.dragged = target.dragged;
   refreshPose(pose, rodRemaining, ashLength);

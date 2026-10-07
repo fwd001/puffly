@@ -109,6 +109,12 @@ export interface CigarettePose {
   visible: boolean;
   inTray: boolean;
   dragged: boolean;
+  /**
+   * 0..1 how far the burning end sits inside the lighter's flame. Lighting is a motion rather than
+   * a state transition, so the fire has to be able to say "not yet": this is the one number both
+   * the ignition gate and any cue that points at the moment agree on.
+   */
+  atFlame: number;
 }
 
 /**

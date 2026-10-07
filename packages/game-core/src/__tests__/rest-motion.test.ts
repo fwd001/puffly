@@ -36,6 +36,7 @@ const blankPose = (): CigarettePose => ({
   visible: true,
   inTray: false,
   dragged: false,
+  atFlame: 0,
 });
 
 const peakToPeak = (values: number[]): number => Math.max(...values) - Math.min(...values);
@@ -66,6 +67,10 @@ describe('the resting lean is a hand, not a shiver (§59)', () => {
   it('never leans far enough to read as the picture moving', () => {
     const h = harness({ content: DEFAULT_CONTENT, cigaretteId: 'classic' });
     lit(h);
+    // `lit()` returns the moment the cherry takes, and the rod is still out at the flame. This case
+    // is about rest, so let it come back first; sampling the walk home measures 128 degrees of a
+    // motion that is supposed to be visible.
+    h.run(1500);
     const angles: number[] = [];
     for (let frame = 0; frame < 60 * 180; frame++) {
       h.run(STEP_MS);

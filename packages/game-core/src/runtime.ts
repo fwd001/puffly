@@ -196,6 +196,7 @@ export function createPose(
     visible: true,
     inTray: state === 'DISCARDED',
     dragged: false,
+    atFlame: 0,
   };
   refreshPose(pose, 1, 0);
   return pose;

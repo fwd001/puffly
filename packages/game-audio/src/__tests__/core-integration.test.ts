@@ -152,6 +152,12 @@ describe('audio driven by the real Game Core', () => {
 
     tap('cigarette');
     tap('lighter');
+    // Get the cherry alight before reaching for the rod again. A press on the body carries the rod
+    // to the finger, and the fire only takes hold while the end is in the flame (§15), so holding
+    // it out six times in a row would be a session that never lit — which is the right answer to
+    // that input, and not what this case is measuring.
+    pump(900);
+    expect(core.getState().cigarette.ember.lit).toBe(true);
     for (let round = 0; round < 6; round += 1) {
       core.send({ type: 'hold', x: 0.5, y: 0.5, timestamp: round * 100, target: 'cigarette' });
       pump(200);
