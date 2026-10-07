@@ -179,26 +179,31 @@ function booleanWithDefault(
 }
 
 /**
- * The hand's own level. `haptics` was a boolean until the deck's save schema (S23) wrote a number,
- * so a file that still says true comes back as 1 and false as 0 — the player keeps exactly the
- * feedback they had, rather than getting a different one because the app was upgraded. Anything
- * numeric is read as a level in 0..1; anything else falls back to off and says which field lied.
+ * One of the deck's 0..1 knobs (`haptics`, `realism`), read the same way whatever key it lives
+ * under: an absent field means that key's own default, a boolean is the legacy shape (S23 wrote
+ * true/false before it wrote a number) and comes back as 1 or 0 so the player keeps the feedback
+ * they had, a number out of range is clamped *and* named, and anything else falls back to that
+ * default rather than discarding the whole settings record over one lying field.
+ *
+ * Both knobs go through here on purpose. Two near-identical readers is how one of them ends up
+ * accepting a string the other rejects.
  */
-function readHapticLevel(
+function readLevel(
   source: Record<string, unknown>,
   key: string,
+  fallback: number,
   path: string,
   errors: ValidationErrors,
 ): number {
   const value = source[key];
-  if (value === undefined) return 0;
+  if (value === undefined) return fallback;
   if (typeof value === 'boolean') return value ? 1 : 0;
   if (typeof value === 'number' && Number.isFinite(value)) {
     if (value < 0 || value > 1) fail(errors, `${path}.${key}`, 'expected a level between 0 and 1');
     return Math.min(1, Math.max(0, value));
   }
   fail(errors, `${path}.${key}`, 'expected 0..1, true or false');
-  return 0;
+  return fallback;
 }
 
 /**
@@ -703,7 +708,10 @@ export function readSettings(
     path,
     errors,
   );
-  const haptics = readHapticLevel(record, 'haptics', path, errors);
+  const haptics = readLevel(record, 'haptics', 0, path, errors);
+  // S6's dial. A save written before the row has no opinion, and the deck's own 80/20 is also what
+  // the game looked like before it, so the default keeps the scene rather than replacing it.
+  const realism = readLevel(record, 'realism', 0.8, path, errors);
   // A save written before §28's hint word existed has no opinion about it: the default stands.
   const hints = booleanWithDefault(record, 'hints', true, path, errors);
   // Same reason as `hints`: a save written before the lighter was allowed to play with itself has no
@@ -745,6 +753,7 @@ export function readSettings(
     hints,
     utcOffsetMinutes,
     haptics,
+    realism,
     idleFlourishes,
     reverb,
     customBackground,

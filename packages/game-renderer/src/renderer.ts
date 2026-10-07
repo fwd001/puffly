@@ -50,6 +50,27 @@ export const MAX_SMOKE_RADIUS_PX = 220;
  * Pivoting there keeps §37's rule true by construction rather than by tolerance.
  */
 export const IGNITION_IMPACT = { ttlMs: 420, zoom: 0.035, edge: 0.22 } as const;
+
+/** The deck's split, as a number: S6 writes 写实 80% / 卡通 20%. */
+export const DECK_SPLIT = 0.8;
+
+/**
+ * S6's 写实度, as the renderer reads it: how much of the cartoon side is left in the frame.
+ *
+ * Written around the deck's own split so `0.8` multiplies everything by exactly 1 — the shipped
+ * look is a detent on the dial, not a special case above or below it. Above it the feedback drains
+ * toward pure physics: at 1 there is no push-in, no edge, no rock, and a spark lands and stays
+ * landed. Below it the cartoon side grows up to double, which is where 「比真实更脆」 earns its keep.
+ *
+ * Nothing in the simulation may consult this. `realism.test.ts` runs one session at each end and
+ * compares the entire state, because that is the difference between a look and a cheat.
+ */
+export const cartoonScale = (realism: number): number => {
+  const level = Number.isFinite(realism) ? Math.min(1, Math.max(0, realism)) : DECK_SPLIT;
+  return level >= DECK_SPLIT
+    ? (1 - level) / (1 - DECK_SPLIT)
+    : 1 + (DECK_SPLIT - level) / DECK_SPLIT;
+};
 /** Particles at or past this depth draw in front of the props, the rest behind them. */
 const NEAR_DEPTH = 0.55;
 /** Ash pieces that fill the tray mound; past this the tray just looks full. */
@@ -70,6 +91,13 @@ export interface RendererSettings {
    * scene says what the mix would have said instead of going quiet on one channel.
    */
   visualCues: boolean;
+  /**
+   * S6's 写实度 row (0 = 卡通, 1 = 写实, 0.8 = the deck's own split). Required rather than optional
+   * so a renderer built without saying it is a compile error: every site that draws the scene has
+   * to state which way it leans, which is what keeps a future preview or thumbnail from silently
+   * ignoring the player's dial. Presentation only — see `cartoonScale`.
+   */
+  realism: number;
   /** The player's own room colours, or `null` for the place as it was authored. */
   customBackground?: ScenePalette | null;
   /**
@@ -90,6 +118,13 @@ export interface CanvasRendererOptions {
   settings?: RendererSettings;
   /** Baked film-grain tile; omit it (as tests do) and the scene renders without grain. */
   grainTile?: SpriteImage | null;
+  /**
+   * The air this renderer owns. Injectable for the same reason `sprites` is (§72), and for one claim
+   * that needs it: a spark's identity — which streak belongs to which spark, across the frames after
+   * it reached the table — is not recoverable from the recorded draw calls, and 写实度 is exactly a
+   * claim about that. The pool a caller hands in is the one this renderer integrates and draws.
+   */
+  particles?: ParticlePool;
 }
 
 export interface PufflyRenderer extends RendererAdapter {
@@ -264,6 +299,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     quality: 'auto',
     contrast: 'normal',
     visualCues: false,
+    realism: DECK_SPLIT,
     skin: null,
     ...options.settings,
   };
@@ -272,7 +308,8 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     options.sprites ??
     createSpriteProvider(defaultSpriteFactory(), settings.quality === 'light' ? 64 : 96);
 
-  let pool = new ParticlePool(budgetFor(settings.reducedMotion, settings.quality));
+  let pool =
+    options.particles ?? new ParticlePool(budgetFor(settings.reducedMotion, settings.quality));
   let clockMs = 0;
   const tintCache = new Map<string, Rgb>();
   const effects = new EffectList();
@@ -488,6 +525,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       lastView = state;
       const frame = Math.max(0, Math.min(dtMs, MAX_FRAME_MS));
       clockMs += frame;
+      // One multiplier for the whole frame, read from the dial the player set. Everything below
+      // that exaggerates rather than describes goes through it; nothing that measures does.
+      const cartoon = cartoonScale(settings.realism);
 
       // The plane things lie on, straight from the state's own layout: the table lifts with the
       // window (§55), so a constant here would be a surface the scene does not draw.
@@ -497,11 +537,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         FIELD_SCALE,
         clockMs / 1000,
         state.stage.layout.table.y,
+        cartoon,
       );
 
       const dropped = state.cigarette.ash.dropped;
       if (lastDropped >= 0 && dropped > lastDropped) {
-        trayWobble = Math.min(1, trayWobble + (dropped - lastDropped) * 0.5);
+        trayWobble = Math.min(1, trayWobble + (dropped - lastDropped) * 0.5 * cartoon);
       }
       lastDropped = dropped;
       trayLoad = clamp01(dropped / TRAY_LOAD_FRAGMENTS);
@@ -524,7 +565,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       // frame's anchor moves nothing measurable — the claim this file tests is *which* point the
       // camera turns around, not how fresh its coordinates are.
       const camera = punch > 0.001 ? viewport.px(state.anchors.ember) : { x: 0, y: 0 };
-      const zoom = 1 + IGNITION_IMPACT.zoom * punch;
+      const zoom = 1 + IGNITION_IMPACT.zoom * punch * cartoon;
       ctx.save();
       if (punch > 0.001) {
         ctx.translate(camera.x, camera.y);
@@ -572,7 +613,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
           Math.max(w, h) * 0.72,
         );
         edge.addColorStop(0, 'rgba(0,0,0,0)');
-        edge.addColorStop(1, `rgba(0,0,0,${(IGNITION_IMPACT.edge * punch).toFixed(3)})`);
+        edge.addColorStop(1, `rgba(0,0,0,${(IGNITION_IMPACT.edge * punch * cartoon).toFixed(3)})`);
         ctx.fillStyle = edge;
         ctx.fillRect(0, 0, w, h);
       }

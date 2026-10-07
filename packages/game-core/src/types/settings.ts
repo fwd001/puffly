@@ -74,6 +74,18 @@ export interface Settings {
    */
   haptics: number;
   /**
+   * S6's 写实度 row — the deck's own 「写实 80% / 卡通」 split, carried as the number that row
+   * shows. 0.8 is the deck's default and it is also exactly what the game already looked like, so
+   * a save written before the row existed keeps the scene it had.
+   *
+   * Presentation, and nothing more. It scales how hard the frame pushes in on the ignition, how far
+   * the edges close, how much the tray rocks when ash lands and how springily a spark hops: the
+   * cartoon side of 「物理写实、反馈卡通」. It may not move one number in the simulation — no
+   * duration, no puff count, no temperature, no ash weight — which `realism.test.ts` proves by
+   * running the same session at both ends and comparing the whole state.
+   */
+  realism: number;
+  /**
    * S6's 「混响 关」: whether the room behind the cues is heard at all. Off by default because the
    * deck puts the tail at ≤0.4 s and a virtual smoke break is more often on headphones in a real
    * room than in a hall — and because a player who never opens this setting must not be given a
@@ -122,6 +134,7 @@ export function createDefaultSettings(utcOffsetMinutes = 0): Settings {
     hints: true,
     utcOffsetMinutes,
     haptics: 0,
+    realism: 0.8,
     reverb: false,
     idleFlourishes: true,
     customBackground: null,

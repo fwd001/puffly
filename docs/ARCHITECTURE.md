@@ -277,6 +277,17 @@ and `StorageAdapter` (`game-storage`).
   refusing the record. The web shell is the reader: `haptics.ts` holds the shape table and the
   patterns, and `navigator.vibrate` is called from exactly one place. A native shell may map the same
   number to a real amplitude. Nothing in `game-core` reads it.
+- **Realism (§S6 「写实度 80 / 20」)**: `Settings.realism` is the second 0..1 knob and shares
+  `readSettings`' one level reader with `haptics`, so the two cannot disagree about what a lying field
+  means. It is read by exactly one thing — `cartoonScale` in `game-renderer` — which multiplies four
+  feedback surfaces: the ignition push-in, its edge vignette, the tray's rock when ash lands, and how
+  much of a spark's fall the table gives back. `0.8` multiplies by exactly 1, so the deck's default is
+  the shipped look rather than a change to it, and the ramp is written so each of the row's six detents
+  is a different frame (a capped `(1 - realism) / 0.2` left four of them identical). Nothing in
+  `game-core` reads it either, and that is a tested claim rather than an intention:
+  `packages/game-renderer/src/__tests__/realism.test.ts` runs one session at `0` and at `1` and compares
+  the whole state plus every event, which is the Frozen Core rule a skin already lives under, applied to
+  a look.
 
 ## Verification layers
 

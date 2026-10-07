@@ -56,6 +56,7 @@ function frame(): {
       quality: 'high',
       contrast: 'normal',
       visualCues: false,
+      realism: 0.8,
       skin: null,
     },
   });

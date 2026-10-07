@@ -53,6 +53,7 @@ function run(reducedMotion: boolean): Frame[] {
       quality: 'high',
       contrast: 'normal',
       visualCues: true,
+      realism: 0.8,
       skin: null,
     },
   });

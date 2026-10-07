@@ -316,6 +316,7 @@ describe('renderer as an adapter (§48)', () => {
         quality: 'auto',
         contrast: 'normal',
         visualCues: false,
+        realism: 0.8,
         skin: null,
       },
     });
@@ -330,6 +331,7 @@ describe('renderer as an adapter (§48)', () => {
         quality: 'high',
         contrast: 'normal',
         visualCues: false,
+        realism: 0.8,
         skin: null,
       },
     });
@@ -357,6 +359,7 @@ describe('renderer as an adapter (§48)', () => {
           quality: 'high',
           contrast,
           visualCues: false,
+          realism: 0.8,
           skin: null,
         },
       });
@@ -592,6 +595,7 @@ describe('scene feedback (§19, §20, §60)', () => {
           quality: 'high',
           contrast: 'normal',
           visualCues,
+          realism: 0.8,
           skin: null,
         },
       });

@@ -66,6 +66,7 @@ function paint(venue: Environment, ventilation: number) {
       quality: 'high',
       contrast: 'normal',
       visualCues: false,
+      realism: 0.8,
       skin: null,
     },
   });

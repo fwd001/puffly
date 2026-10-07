@@ -372,11 +372,12 @@ export function createPuffly(): Puffly {
     quality: QualityMode = effectiveQuality(),
   ): Pick<
     RendererSettings,
-    'reducedMotion' | 'quality' | 'contrast' | 'skin' | 'customBackground'
+    'reducedMotion' | 'quality' | 'contrast' | 'skin' | 'customBackground' | 'realism'
   > => ({
     reducedMotion: settings.value.reducedMotion,
     quality,
     contrast: settings.value.contrast,
+    realism: settings.value.realism,
     skin: skinPalette(),
     customBackground: settings.value.customBackground,
   });

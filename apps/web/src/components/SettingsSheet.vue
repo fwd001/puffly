@@ -240,6 +240,34 @@ watch(
       </button>
     </div>
 
+    <!-- S6's 写实度 row. The deck writes the axis as 写实 80% / 卡通 with a digit beside it, and this
+         is the same shape its neighbour 触觉 already uses: a word, a stepped track, a number. The
+         detents are the 档位 — S15's own note asks for levels read off tick marks rather than more
+         words — and step 20 puts one exactly on the deck's 80/20. It is a look and nothing else:
+         moving it cannot change how long the rod burns, how many puffs it has, or how much ash it
+         makes (the Frozen Core rule, the same one a skin lives under), and `realism.test.ts` runs
+         one session at both ends of the track and compares the whole simulation to prove it. -->
+    <div class="row" data-setting="realism">
+      <span v-if="word('settings.realism') !== null" class="label">{{
+        word('settings.realism')
+      }}</span>
+      <input
+        class="grow"
+        type="range"
+        min="0"
+        max="100"
+        step="20"
+        :value="Math.round(settings.realism * 100)"
+        :aria-label="copy.say('a11y.realism')"
+        @input="
+          game.setSettings({
+            realism: Number(($event.target as HTMLInputElement).value) / 100,
+          })
+        "
+      />
+      <span class="digits">{{ Math.round(settings.realism * 100) }}</span>
+    </div>
+
     <div class="row">
       <span v-if="word('settings.smoke') !== null" class="label">{{ word('settings.smoke') }}</span>
       <button

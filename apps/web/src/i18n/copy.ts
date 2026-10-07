@@ -48,6 +48,7 @@ export const EN = {
   // S6's 「混响」 row. `Tail` rather than `Room`, because the sheet already spends the word Room on
   // the four colours the room is painted with.
   'settings.tail': 'Tail',
+  'settings.realism': 'Realism',
   'settings.anchor': 'Anchor',
   'settings.data': 'Data',
   'settings.sound.enough': 'enough',
@@ -78,6 +79,7 @@ export const EN = {
   'settings.haptic.grit': 'ash · fine',
   'a11y.fidget': 'lighter flourishes',
   'a11y.reverbTail': 'the room behind the sounds',
+  'a11y.realism': 'how cartoonish the feedback looks',
   'settings.scene': 'Room',
   'a11y.sceneColours': 'your own room colours',
   'a11y.sceneLayer.skyTop': 'sky, high',
@@ -252,6 +254,7 @@ const ZH: Table = {
   'settings.vibration': '震动',
   'settings.fidget': '把玩',
   'settings.tail': '混响',
+  'settings.realism': '写实度',
   'settings.anchor': '起点',
   'settings.data': '数据',
   'settings.sound.enough': '正常',
@@ -281,6 +284,7 @@ const ZH: Table = {
   'settings.haptic.grit': '烟灰 细碎',
   'a11y.fidget': '打火机小动作',
   'a11y.reverbTail': '让声音带一点房间尾音',
+  'a11y.realism': '画面反馈有多卡通',
   'settings.scene': '房间',
   'a11y.sceneColours': '自己定的房间颜色',
   'a11y.sceneLayer.skyTop': '天空·上',

@@ -113,6 +113,7 @@ describe('the plume is in focus (§15)', () => {
         quality: 'high',
         contrast: 'normal',
         visualCues: false,
+        realism: 0.8,
         skin: null,
       },
     });

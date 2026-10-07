@@ -98,6 +98,12 @@ export interface SpawnInit {
  * They fell through the one surface the scene draws.
  */
 const SPARK_BOUNCE = 0.55;
+/**
+ * The most a spark may be given back. Restitution at or above 1 returns more than it brought, so
+ * every hop would rise higher than the last and the table would look like a trampoline; the deck's
+ * cartoon side asks for 「比真实更脆」, not for energy from nowhere.
+ */
+const SPARK_BOUNCE_MAX = 0.9;
 const SPARK_SCATTER = 0.72;
 /** A landing spends a fifth of what the spark has left, so a spark that lands dies on the table. */
 const SPARK_LANDING_COST = 0.8;
@@ -203,6 +209,10 @@ export class ParticlePool {
    * `sparkFloor` is the table plane in the same stage units, or `null` for a scene that offers no
    * surface. It answers sparks and nothing else: ash is simulated by Game Core, and a plume of
    * smoke that could not fall past a line would be a wall.
+   *
+   * `sparkBounceScale` is S6's 写实度 as the frame reads it: 1 is `SPARK_BOUNCE` itself, 0 lets the
+   * table keep the spark, and the cartoon end is capped inside this file at `SPARK_BOUNCE_MAX` so a
+   * hop always settles instead of growing.
    */
   update(
     dtMs: number,
@@ -210,6 +220,7 @@ export class ParticlePool {
     fieldScale: number,
     timeSeconds: number,
     sparkFloor: number | null,
+    sparkBounceScale = 1,
   ): void {
     if (this.activeCount === 0) return;
 
@@ -274,10 +285,16 @@ export class ParticlePool {
       if (particle.spark && sparkFloor !== null && particle.vy > 0 && particle.y >= sparkFloor) {
         // Clamped to the plane rather than reflected off wherever it happened to be: a frame is
         // 16 ms and a spark moves, so the hop has to start from the table and not from under it.
+        //
+        // A landing is *crossing* the plane, not sitting on it: with no restitution left to give the
+        // spark (the 写实 end of the dial) it stays clamped to the table and re-enters this branch
+        // every frame, so an unconditioned cost would kill it in five frames instead of letting it
+        // glow out on the surface. `py` is last frame's y, which the clamp already left at the plane.
+        const arriving = particle.py < sparkFloor;
         particle.y = sparkFloor;
-        particle.vy = -particle.vy * SPARK_BOUNCE;
+        particle.vy = -particle.vy * Math.min(SPARK_BOUNCE_MAX, SPARK_BOUNCE * sparkBounceScale);
         particle.vx *= SPARK_SCATTER;
-        particle.life *= SPARK_LANDING_COST;
+        if (arriving) particle.life *= SPARK_LANDING_COST;
       }
 
       // Diffusion-ish: the puff widens across its own lifetime. Deliberately *not*

@@ -96,6 +96,7 @@ function spriteTints(view: GameStateView, palette: SkinPalette | null, burst: Bu
       quality: 'high',
       contrast: 'normal',
       visualCues: false,
+      realism: 0.8,
       skin: palette,
     },
   });

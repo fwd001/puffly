@@ -106,6 +106,7 @@ function scene(release: boolean, marks: number[]): Record<string, Profile> {
       quality: 'high',
       contrast: 'normal',
       visualCues: false,
+      realism: 0.8,
       skin: null,
     },
   });
