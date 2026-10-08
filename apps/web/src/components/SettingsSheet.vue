@@ -288,9 +288,10 @@ watch(
       <input
         class="grow"
         type="range"
-        min="30"
-        max="600"
-        step="30"
+        data-setting="break"
+        min="1"
+        max="30"
+        step="1"
         :value="settings.sessionTargetMs / 60000"
         :aria-label="copy.say('a11y.breakLength')"
         @input="

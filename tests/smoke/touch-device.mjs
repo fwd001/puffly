@@ -483,6 +483,14 @@ const hintCentre = async (page) => {
       return m * 60 + (Number.isFinite(sec) ? sec : 0);
     });
   const beforeSleep = await clockSeconds();
+  // What the clock opens *on* is the deck's unit of a break: one rod of the default kind, ten
+  // minutes. Read off the machine mirror, so this is a claim about the shipped settings and not
+  // about a word in one language. Some of the rod is already burnt by the time the cherry lit.
+  check(
+    'a break opens on the clock the shipped settings promise',
+    beforeSleep >= 570 && beforeSleep <= 600,
+    `${String(beforeSleep)}s`,
+  );
   // A real background tab stops being painted. Overriding `document.hidden` alone does not stop
   // it here — the page is still visible to the compositor — so the frames are parked in a queue
   // and released afterwards, which is what a phone returning to the foreground looks like.
@@ -758,6 +766,29 @@ const hintCentre = async (page) => {
       .map((r) => `${Math.round(r.width)}x${Math.round(r.height)}`),
   );
   check('every control on the sheet takes a finger', small.length === 0, small.join(', '));
+  // The 休息 row, in the browser rather than in the source: the track has to be able to land on the
+  // length the game ships with, and the digits beside it have to be the same number in the same unit.
+  // This used to be impossible on a real page — the track was counted in one unit and the label in
+  // another, so the shipped default sat below the smallest value the thumb could reach.
+  const breakRow = await page.evaluate(() => {
+    const el = document.querySelector('.sheet[data-open="true"] [data-setting="break"]');
+    return {
+      found: el !== null,
+      min: Number(el?.min),
+      max: Number(el?.max),
+      step: Number(el?.step),
+      value: Number(el?.value),
+      digits: el?.parentElement?.querySelector('.digits')?.textContent?.trim() ?? '',
+    };
+  });
+  check(
+    'the break row shows the length it is actually set to',
+    breakRow.found &&
+      breakRow.value >= breakRow.min &&
+      breakRow.value <= breakRow.max &&
+      breakRow.digits === String(Math.round(breakRow.value)),
+    JSON.stringify(breakRow),
+  );
   // §11: the interface follows the hand. A swipe down over nothing puts it away — the sheets,
   // the mark and the word — while the rod goes on burning behind them.
   await page.evaluate(() => {

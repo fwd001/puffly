@@ -29,7 +29,7 @@ import type {
   WindSpec,
 } from '../types/content';
 import type { LightingField, WorldSnapshot } from '../types/state';
-import { dropAsh } from './ash';
+import { dropAsh, weatherMayTakeAsh } from './ash';
 import { forceFlare } from './ember';
 import { windGustBurst } from './emissions';
 import type { EngineRuntime, WorldBoost } from '../runtime';
@@ -211,6 +211,8 @@ function matches(rule: WorldEventRule, rt: EngineRuntime): boolean {
   if (rule.weathers && !rule.weathers.includes(rt.state.world.weather)) return false;
   if (rule.times && !rule.times.includes(rt.state.world.timeOfDay)) return false;
   if (rule.id === WorldEventId.ASH_FALL && rt.state.cigarette.ash.length <= 0) return false;
+  // A gust may take the column, but not the rod's last chance at one: see `weatherMayTakeAsh`.
+  if (rule.id === WorldEventId.ASH_FALL && !weatherMayTakeAsh(rt)) return false;
   return true;
 }
 

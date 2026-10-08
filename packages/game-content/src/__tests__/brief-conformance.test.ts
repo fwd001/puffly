@@ -168,3 +168,49 @@ describe('the five world categories keep the deck’s own numbers (§ S9, § S16
     }
   });
 });
+
+/**
+ * S8's grid writes each 时长 next to the gate that opens that slot, and the eleven gates are the
+ * same eleven numbers this build uses — so a rod is paired with a duration through its **gate**, not
+ * through a name. That distinction is the whole point: the deck calls its six 卷烟 薄荷 / 深焙 /
+ * 冰凉 / 典藏 / 丁香 while this build calls them by shape, and which flavour is which rod is still
+ * an open question. The minutes get decided without answering it.
+ */
+const BRIEF_MINUTES: Record<string, number> = {
+  default: 10.0,
+  '8': 9.0,
+  '20': 7.5,
+  '40': 7.5,
+  '65': 14.0,
+  '95': 12.0,
+  '135': 18.0,
+  '190': 10.0,
+  '250': 50.0,
+  '320': 40.0,
+  '420': 50.0,
+};
+
+const gateKey = (unlock: { kind: string; count?: number }): string =>
+  unlock.kind === 'default' ? 'default' : String(unlock.count ?? -1);
+
+describe('every rod burns for the minutes the deck’s grid gives its slot (S8)', () => {
+  it('occupies a slot the grid names, and leaves no slot over', () => {
+    expect(CIGARETTES.map((rod) => gateKey(rod.unlock)).sort()).toEqual(
+      Object.keys(BRIEF_MINUTES).sort(),
+    );
+  });
+
+  it('puts the middle of its window on the deck’s own minute', () => {
+    for (const rod of CIGARETTES) {
+      const deck = BRIEF_MINUTES[gateKey(rod.unlock)];
+      expect(deck, `${rod.id} sits in a slot the grid does not name`).toBeDefined();
+      // 「游戏里按区间中值给参数」(S9) — the deck’s figure is the midpoint, and the spread around it
+      // is this build's own. The tenth is what the grid itself prints (7.5, 18.0, 50.0).
+      const middle = (rod.burnDuration.min + rod.burnDuration.max) / 2 / 60_000;
+      console.log(
+        `MINUTES ${rod.id} gate=${gateKey(rod.unlock)} mid=${middle.toFixed(1)} deck=${String(deck)}`,
+      );
+      expect(Number(middle.toFixed(1)), rod.id).toBe(deck);
+    }
+  });
+});

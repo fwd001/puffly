@@ -266,8 +266,8 @@ export function driftBurst(rt: EngineRuntime, count = 18): Burst {
     origin: rt.state.cigarette.pose.tip,
     count,
     directionDeg: tipAngle(rt),
-    // A smouldering cherry throws a thread, not a cloud. This column is what the player watches
-    // for three minutes, and it had drifted to 40 degrees of spread with lobes up to 0.042
+    // A smouldering cherry throws a thread, not a cloud. This column is what the player watches for
+    // the whole of a rod's burn, and it had drifted to 40 degrees of spread with lobes up to 0.042
     // growing 2.6x — which is the fog the picture does not have.
     spreadDeg: 4,
     speed: [0.003, 0.008],

@@ -29,7 +29,7 @@ export interface Settings {
   /** §64: UI chrome scale; the game canvas is always DPR-scaled independently. */
   textScale: number;
   quality: QualityMode;
-  /** Minutes, §31's `◷ 03:00`. */
+  /** The break the player is aiming at, in minutes; §31's `◷` readout counts this down. */
   sessionTargetMs: number;
   /**
    * The player's own colours for the four layers the room is painted with, or `null` for whatever
@@ -114,8 +114,15 @@ export interface Selection {
   ashtray: string;
 }
 
-/** 03:00 (§31). */
-export const DEFAULT_SESSION_TARGET_MS = 180_000;
+/**
+ * One rod of the default kind: the deck's 10.0-minute natural burn, which is what S22's whole day
+ * budget is divided by (25 min ÷ 10 min/支 ≈ 2.5 支). §31 wrote `◷ 03:00` as the *shape* of the
+ * readout, not as a length — and a three-minute target on a ten-minute rod announces "目标已达"
+ * while two thirds of the rod is still burning, which reads as a lock rather than as a clock.
+ * `break-row.test.ts` pins this to the default rod's own burn middle rather than to a number, so
+ * the two cannot drift apart by someone editing one file.
+ */
+export const DEFAULT_SESSION_TARGET_MS = 600_000;
 
 /**
  * `utcOffsetMinutes` is handed in by the shell rather than read here: knowing the player's

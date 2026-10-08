@@ -7,11 +7,11 @@
  */
 
 import { clamp01, degToRad } from '@puffly/shared';
-import { ASH, LAYOUT, THRESHOLDS, TIMING } from '../constants';
+import { ASH, BURN, LAYOUT, THRESHOLDS, TIMING } from '../constants';
 import { emit, record } from '../emit';
 import { isLit } from '../stateMachine';
 import { SessionEventType } from '../types/events';
-import { offset } from '../types/geometry';
+import { CIGARETTE_LENGTH, offset } from '../types/geometry';
 import type { AshFragment } from '../types/state';
 import { ashDustBurst } from './emissions';
 import type { EngineRuntime } from '../runtime';
@@ -102,6 +102,24 @@ export function dropAsh(
       fragments: count,
     });
   }
+}
+
+/**
+ * Whether the weather may take the column that is standing.
+ *
+ * A gust knocking the ash off is §22's flavour, and it stays available for as long as the rod has
+ * another flickable column in it: what a rod can still turn into ash is its whole length times the
+ * ash it yields per unit, times the fraction of it that has not burned, and the column a player is
+ * nudged to flick is `maxLength × ashCriticalRatio`. Below that the standing column is the last one
+ * the rod will ever make, so it stays standing. Without this the knock-offs are on the wall clock
+ * while the ash is on the rod's, and a rod that burns for twelve minutes rather than three simply
+ * meets too much weather per millimetre of ash — 磕灰 stops being reachable at all.
+ */
+export function weatherMayTakeAsh(rt: EngineRuntime): boolean {
+  const { ash, rodRemaining } = rt.state.cigarette;
+  const needed = ash.maxLength * THRESHOLDS.ashCriticalRatio;
+  const stillToCome = CIGARETTE_LENGTH * BURN.ashYield * rodRemaining;
+  return stillToCome >= needed;
 }
 
 /** The player flicked it. Returns false when there was nothing to flick. */

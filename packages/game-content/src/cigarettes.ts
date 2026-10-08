@@ -19,7 +19,7 @@ export const CIGARETTES: CigaretteContent[] = [
     name: 'Classic',
     // The one everyone recognises: a narrow, lazy column off the cherry.
     character: 'column',
-    burnDuration: { min: 168_000, max: 214_000 },
+    burnDuration: { min: 540_000, max: 660_000 },
     puffProfile: {
       intensityMin: 0.34,
       intensityMax: 0.86,
@@ -56,7 +56,7 @@ export const CIGARETTES: CigaretteContent[] = [
     name: 'Silver',
     // Wide, faint and slow: it fills the air and mostly refuses to be noticed.
     character: 'haze',
-    burnDuration: { min: 150_000, max: 196_000 },
+    burnDuration: { min: 486_000, max: 594_000 },
     puffProfile: {
       intensityMin: 0.28,
       intensityMax: 0.72,
@@ -93,7 +93,7 @@ export const CIGARETTES: CigaretteContent[] = [
     name: 'Night',
     // Restless: the column rolls and eddies instead of climbing.
     character: 'curls',
-    burnDuration: { min: 122_000, max: 164_000 },
+    burnDuration: { min: 648_000, max: 792_000 },
     puffProfile: {
       intensityMin: 0.4,
       intensityMax: 0.94,
@@ -129,7 +129,7 @@ export const CIGARETTES: CigaretteContent[] = [
     id: 'long',
     name: 'Long',
     character: 'column',
-    burnDuration: { min: 240_000, max: 312_000 },
+    burnDuration: { min: 540_000, max: 660_000 },
     puffProfile: {
       intensityMin: 0.24,
       intensityMax: 0.64,
@@ -166,7 +166,7 @@ export const CIGARETTES: CigaretteContent[] = [
     name: 'Ember',
     // Balloons outward on the exhale and is gone, with sparks to cover for it.
     character: 'bloom',
-    burnDuration: { min: 108_000, max: 146_000 },
+    burnDuration: { min: 405_000, max: 495_000 },
     puffProfile: {
       intensityMin: 0.46,
       intensityMax: 1,
@@ -203,7 +203,7 @@ export const CIGARETTES: CigaretteContent[] = [
     name: 'Mist',
     // Cold and heavy: it pours off the cherry and lies on the table.
     character: 'curtain',
-    burnDuration: { min: 196_000, max: 246_000 },
+    burnDuration: { min: 756_000, max: 924_000 },
     puffProfile: {
       intensityMin: 0.2,
       intensityMax: 0.58,
@@ -388,7 +388,7 @@ export const CIGARETTES: CigaretteContent[] = [
     name: 'Hookah',
     // Filtered through water: cool, sweet, enormous in volume, and barely any ash at all.
     character: 'bloom',
-    burnDuration: { min: 2_880_000, max: 3_240_000 },
+    burnDuration: { min: 2_900_000, max: 3_100_000 },
     puffProfile: {
       intensityMin: 0.16,
       intensityMax: 0.42,

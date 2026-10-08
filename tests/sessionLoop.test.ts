@@ -2,11 +2,15 @@
  * One whole break, on the shipped content — the test my fixture-based core tests cannot be.
  *
  * Everything in `packages/game-core/src/__tests__` runs against a 4-second synthetic rod,
- * which is the right trade-off for unit speed but proves nothing about `DEFAULT_CONTENT`: a
- * 190-second Classic, a real environment pool, real ash thresholds, real unlock ladder. This
- * file lights the thing a player will actually see, plays three minutes of it through the
- * renderer, closes the session, and then asks `@puffly/game-statistics` whether the numbers
- * that reach the screen match what happened (§70).
+ * which is the right trade-off for unit speed but proves nothing about `DEFAULT_CONTENT`: a Classic
+ * that burns for a full ten minutes, a real environment pool, real ash thresholds, a real unlock
+ * ladder. This file lights the thing a player will actually see, plays a whole break of it through
+ * the renderer, closes the session, and then asks `@puffly/game-statistics` whether the numbers that
+ * reach the screen match what happened (§70).
+ *
+ * Which is also why the waits below are written in the rod's own burn rather than in a fixed number
+ * of milliseconds: a rod that burns three times as long asks for three times as much sim time to
+ * grow the same column of ash, and a magic 180 s is a claim about the content that nothing checks.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -203,8 +207,10 @@ describe('a real break on real content (§8, §82)', () => {
       // The ash column on a Classic is long enough to ask for a flick within the rod's life.
       // Long enough to outlast the room. §22 lets a gust knock the column off before it is ever
       // critical, and how often that happens is drawn from the same stream as everything else, so
-      // the wait has to be several ash cycles rather than one — 90 s was one cycle's luck.
-      d.until(() => d.state().cigarette.ash.ready, 180_000, 'ash asking to be flicked');
+      // the wait has to be several ash cycles rather than one — and a cycle is a share of *this*
+      // rod's burn, not a number of seconds.
+      const oneRod = d.state().cigarette.burnMsTotal;
+      d.until(() => d.state().cigarette.ash.ready, oneRod, 'ash asking to be flicked');
       d.aim('ash', 'tap');
       d.run(80);
       expect(d.state().cigarette.ash.dropped).toBeGreaterThan(0);
