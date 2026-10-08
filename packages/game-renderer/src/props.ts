@@ -517,13 +517,25 @@ export function drawCigarette(
 
   const filterLength = rodLength * 0.22;
 
+  /**
+   * S7's silent chain — 「余烬变亮 → 炭化线推进 → 纸面凹陷」 — ended in a rod whose paper never moved,
+   * and S15 names the same thing from the player's side: 按住不放 · 吸入时纸面会塌陷. Drawing the pull as
+   * nothing at all left the third beat of that chain to the ash and the colour alone.
+   *
+   * It is read off the draw the core is already doing (`active`, `intensity`), never off a clock, so
+   * the same session replays into the same collapse (§71). At zero the path is the straight band this
+   * file drew before: every control point falls back onto the line it was already on.
+   */
+  const puffing = state.cigarette.puff;
+  const dip = puffing.active ? thickness * DIP_SHARE * puffing.intensity : 0;
+
   if (rodLength > 0.5) {
     const rod = ctx.createLinearGradient(0, -thickness / 2, 0, thickness / 2);
     rod.addColorStop(0, rgbToCss(mixRgb(style.paper, [255, 255, 255], 0.25)));
     rod.addColorStop(0.55, rgbToCss(style.paper));
     rod.addColorStop(1, rgbToCss(mixRgb(style.paper, [0, 0, 0], 0.35)));
     ctx.fillStyle = rod;
-    roundRect(ctx, 0, -thickness / 2, rodLength, thickness, thickness * 0.45);
+    rodBodyPath(ctx, rodLength, thickness, dip);
     ctx.fill();
 
     // Brand band and the seam of the paper: two strokes, no text (§4, §29).
@@ -532,17 +544,28 @@ export function drawCigarette(
       // and it is one stroke, not a re-drawn sprite.
       ctx.strokeStyle = rgbToCss(mixRgb(style.paper, [255, 255, 255], 0.7), 0.75);
       ctx.lineWidth = Math.max(1, thickness * 0.14);
-      roundRect(ctx, 0, -thickness / 2, rodLength, thickness, thickness * 0.45);
+      rodBodyPath(ctx, rodLength, thickness, dip);
       ctx.stroke();
     }
 
+    // The band is a rectangle painted across the paper, so it is cut to the height the paper actually
+    // has where it sits — read off the emitted curve, not from a second copy of the dent's formula.
+    const bandLeft = rodLength * 0.62;
+    const bandWidth = Math.max(1, rodLength * 0.07);
+    const bandGive = paperGive(rodLength, thickness, dip, bandLeft + bandWidth / 2);
     ctx.fillStyle = rgbToCss(style.band, 0.9);
-    ctx.fillRect(rodLength * 0.62, -thickness / 2, Math.max(1, rodLength * 0.07), thickness);
+    ctx.fillRect(bandLeft, -thickness / 2 + bandGive, bandWidth, thickness - 2 * bandGive);
     ctx.strokeStyle = rgbToCss(mixRgb(style.paper, [0, 0, 0], 0.2), 0.5);
     ctx.lineWidth = Math.max(0.5, thickness * 0.08);
     ctx.beginPath();
     ctx.moveTo(filterLength, -thickness * 0.2);
-    ctx.lineTo(rodLength, -thickness * 0.2);
+    // The seam is the paper's own edge, so it goes down with the paper rather than staying flat over it.
+    ctx.quadraticCurveTo(
+      rodLength * WAIST,
+      -thickness * 0.2 + dip * 2,
+      rodLength,
+      -thickness * 0.2 + paperGive(rodLength, thickness, dip, rodLength),
+    );
     ctx.stroke();
 
     const filter = ctx.createLinearGradient(0, 0, filterLength, 0);
@@ -857,5 +880,71 @@ function roundRect(
   ctx.quadraticCurveTo(x, y + height, x, y + height - r);
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+/** How deep the paper gives under a full draw, as a share of the rod's own thickness. */
+const DIP_SHARE = 0.22;
+
+/** Where the tube pinches: just behind the cherry, which is where the air is actually leaving. */
+const WAIST = 0.78;
+
+/**
+ * How far the paper has given inward at one x, sampled from the very curve `rodBodyPath` emits.
+ *
+ * There is a reason this reads the curve instead of using a formula: the first version of the dent
+ * shrank the brand band by a bell of its own, and the bell disagreed with the Bézier by 0.15 px at the
+ * band's centre — a stripe standing a hair outside a collapsed tube, which is exactly how a fake dent
+ * reads as a bug. One sampler, one shape.
+ */
+function paperGive(length: number, thickness: number, dip: number, x: number): number {
+  if (dip <= 0) return 0;
+  const half = thickness / 2;
+  const r = Math.min(thickness * 0.45, length / 2, half);
+  const x0 = r;
+  const x1 = length - r;
+  const cy = -half + dip * 2;
+  let closest = -half;
+  let bestDx = Infinity;
+  for (let step = 0; step <= 32; step += 1) {
+    const t = step / 32;
+    const mt = 1 - t;
+    const px = mt * mt * x0 + 2 * mt * t * (length * WAIST) + t * t * x1;
+    const py = mt * mt * -half + 2 * mt * t * cy + t * t * -half;
+    const dx = Math.abs(px - x);
+    if (dx < bestDx) {
+      bestDx = dx;
+      closest = py;
+    }
+  }
+  return half + closest;
+}
+
+/**
+ * The rod's paper as a tube that can be sucked inward (S7, S15: 吸入时纸面会塌陷).
+ *
+ * Both faces bow toward the axis, because an emptying paper tube pinches rather than dents one side.
+ * At `dip` = 0 every control point falls back onto the straight line `roundRect` drew, so an idle rod
+ * is the identical shape it has always been and no other check in this file moves.
+ */
+function rodBodyPath(
+  ctx: CanvasRenderingContext2D,
+  length: number,
+  thickness: number,
+  dip: number,
+): void {
+  const half = thickness / 2;
+  const r = Math.min(thickness * 0.45, length / 2, half);
+  const waist = length * WAIST;
+  ctx.beginPath();
+  ctx.moveTo(r, -half);
+  ctx.quadraticCurveTo(waist, -half + dip * 2, length - r, -half);
+  ctx.quadraticCurveTo(length, -half, length, -half + r);
+  ctx.lineTo(length, half - r);
+  ctx.quadraticCurveTo(length, half, length - r, half);
+  ctx.quadraticCurveTo(waist, half - dip * 2, r, half);
+  ctx.quadraticCurveTo(0, half, 0, half - r);
+  ctx.lineTo(0, -half + r);
+  ctx.quadraticCurveTo(0, -half, r, -half);
   ctx.closePath();
 }
