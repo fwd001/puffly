@@ -223,6 +223,68 @@ const airSample = (page) =>
   });
 
 /**
+ * Where the rod's paper is, read off the drawn canvas rather than off the state.
+ *
+ * The state can be checked for free (it is mirrored onto `.stage[data-aim]`), so this exists for the
+ * one thing the state cannot prove: that nothing between the state and the pixels turned the scene
+ * around.
+ *
+ * It was written twice, and the first version was blind in exactly the way it was meant to catch.
+ * `getImageData` reads the canvas's *backing store*, and a CSS `transform: scaleX(-1)` flips what the
+ * page composites without touching that buffer — so the injected counter-example (a right-to-left
+ * rule that mirrors the canvas) passed the check while the player's screen was upside-side round.
+ * What a player sees is therefore read two ways: the paper's position in the buffer, and every
+ * transform the element carries on the way up to `<html>`.
+ */
+/** Any horizontal flip applied to the canvas by the page's own styles, at any ancestor level. */
+const sceneFlip = (page) =>
+  page.evaluate(() => {
+    const offenders = [];
+    for (let el = document.querySelector('canvas'); el; el = el.parentElement) {
+      const matrix = getComputedStyle(el).transform;
+      if (!matrix || matrix === 'none') continue;
+      const nums = (matrix.match(/-?\d+(?:\.\d+)?(?:e-?\d+)?/g) ?? []).map(Number);
+      // A 2-D matrix reports [a, b, c, d] (and [e, f] for a 3-D one); `a < 0` with no shear is a
+      // mirror, and it is the only way the scene gets turned around without the state knowing.
+      if (nums.length >= 2 && nums[0] < 0 && Math.abs(nums[1]) < 0.01) {
+        offenders.push(`${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''} ${matrix}`);
+      }
+    }
+    return offenders;
+  });
+
+const paperMass = (page) =>
+  page.evaluate(() => {
+    const canvas = document.querySelector('canvas');
+    const ctx = canvas.getContext('2d');
+    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let n = 0;
+    let sumX = 0;
+    let sumY = 0;
+    let sumXY = 0;
+    for (let y = 0; y < image.height; y += 2) {
+      for (let x = 0; x < image.width; x += 2) {
+        const i = (y * image.width + x) * 4;
+        const r = image.data[i];
+        const g = image.data[i + 1];
+        const b = image.data[i + 2];
+        // Paper: the one large object in the frame that is white in all three channels. The cherry
+        // is orange (blue low) and the pill's glow is too, so neither joins the sample.
+        if (r > 200 && g > 200 && b > 190) {
+          n += 1;
+          sumX += x;
+          sumY += y;
+          sumXY += x * y;
+        }
+      }
+    }
+    if (n < 50) return { n, meanX: 0, meanY: 0, tilt: 0 };
+    const meanX = sumX / n;
+    const meanY = sumY / n;
+    return { n, meanX, meanY, tilt: sumXY / n - meanX * meanY };
+  });
+
+/**
  * How the breath in the air is *shaped*, not just how bright it got.
  *
  * A cloud can cover the band and still be one flat sheet of haze — which is what the exhale
@@ -1359,6 +1421,8 @@ try {
     JSON.stringify(zh),
   );
   const zhHint = await hintCentre(page);
+  const zhScene = await paperMass(page);
+  const zhAim = await propsOf(page);
 
   await openSheet(page, 'settings');
   const sheet = () => page.locator('.sheet[data-open="true"]');
@@ -1414,6 +1478,36 @@ try {
       arWord.affordance === 'pick' &&
       arWord.hint === 'tap',
     `x=${Math.round(arHint.x)} vs ${Math.round(zhHint.x)}, word=${arWord.hint}`,
+  );
+
+  // S24's own 反例验证: 「烟本身可以镜像，但『燃烧推进方向』建议保持物理正确，不做镜像，避免用户误判」.
+  // Two halves, because a mirror can come from either side of the seam: the state's geometry (which
+  // the page publishes) and the pixels (which the web layer is free to restyle).
+  const arScene = await paperMass(page);
+  const arAim = await propsOf(page);
+  const zhLean = zhAim.ember.x - zhAim.body.x;
+  const arLean = arAim.ember.x - arAim.body.x;
+  console.log(
+    `RTL zh n=${String(zhScene.n)} x=${zhScene.meanX.toFixed(1)} tilt=${zhScene.tilt.toFixed(0)} | ` +
+      `ar n=${String(arScene.n)} x=${arScene.meanX.toFixed(1)} tilt=${arScene.tilt.toFixed(0)} | ` +
+      `lean zh=${zhLean.toFixed(4)} ar=${arLean.toFixed(4)}`,
+  );
+  check(
+    'right-to-left: the burning end stays on the same side, in the state and on the canvas',
+    // The state's own numbers, byte for byte.
+    Math.abs(zhLean - arLean) < 1e-4 &&
+      zhLean > 0 &&
+      // The drawn rod: the same place, and the same lean rather than its mirror image. A rod lying
+      // at 6° has a tilt this side of a thousand pixels squared, and a flip turns it negative.
+      Math.abs(arScene.meanX - zhScene.meanX) <= 2 &&
+      Math.abs(arScene.meanY - zhScene.meanY) <= 2 &&
+      Math.sign(arScene.tilt) === Math.sign(zhScene.tilt) &&
+      Math.abs(zhScene.tilt) > 1000 &&
+      // The half the buffer cannot see: a stylesheet is allowed to turn the composited picture
+      // around, and this is the check that says it may not.
+      (await sceneFlip(page)).length === 0 &&
+      (await sceneFlip(page)).length === 0,
+    `lean ${zhLean.toFixed(4)}→${arLean.toFixed(4)}, x ${zhScene.meanX.toFixed(1)}→${arScene.meanX.toFixed(1)}, tilt ${zhScene.tilt.toFixed(0)}→${arScene.tilt.toFixed(0)}, flipped=${JSON.stringify(await sceneFlip(page))}`,
   );
 
   // Tier three is a whole interface, not a colour: the same controls, the same positions, no

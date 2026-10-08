@@ -4017,7 +4017,7 @@ Long-term vision
 | S11 桌面版 | 侧栏六入口、剩余 68% 与 03:12 对齐、说明去中文量词 | 侧栏八个入口，读数以数字为准 | 真机 "S10: eight entries, each a finger-sized target wearing a word at the type floor" | 落（八 ⊇ 稿子六） |
 | S12 桌面挂件 | 透明背景、常驻桌面、点击展开 | 常驻透明窗是原生壳的事，PWA 做不到；稿子这条里能做的另一半（空闲降帧省电）落了 | SPEC "两件小而确指的动效条目"；`idle-paint.test.ts` | 偏：能力边界；原生壳 = 未开工 |
 | S13 挂件展开态 | 320×420 面板，与移动端同一套逻辑、输入换成鼠标 | 等价物是宽屏侧栏 + 同一套 sheet；鼠标路径有判据 | 真机 "desktop: the lighter catches a mouse click"、"desktop: holding the mouse draws" | 偏（形态不同，逻辑同一套） |
-| S14 零文字 / 多语言 / 本地存储 | 核心循环零文字、**六个手势图标**、三个自定义档位（单口时长 / 吐烟力度 / 每日支数目标）、存档 schema | 零文字与三层降级成立；**三档齐了**：吐烟力度 = 屏上的力度控制，每日支数上限 = `dailyLimitSticks`，单口时长 = `puffDurationSec`（今天补的那一档，出厂故意无默认）；目标时长 = `sessionTargetMs`；六个手势**六个都有自己的记号**（取烟 = ▭，与它今天真正按的那个东西同形） | 真机 "the third tier leaves no words and no unnamed control behind"；`settings.ts`；`puff-row.test.ts` 六条；`puff-length.test.ts` 三条 | 落（记号 6/6，见本节"记号字母表补齐到六处"与"取烟戴上烟盒的记号"；三档见"「单口时长」"那一片）；欠：那张 0–12 秒定拍表 |
+| S14 零文字 / 多语言 / 本地存储 | 核心循环零文字、**六个手势图标**、三个自定义档位（单口时长 / 吐烟力度 / 每日支数目标）、存档 schema | 零文字与三层降级成立；**三档齐了**：吐烟力度 = 屏上的力度控制，每日支数上限 = `dailyLimitSticks`，单口时长 = `puffDurationSec`（今天补的那一档，出厂故意无默认）；目标时长 = `sessionTargetMs`；六个手势**六个都有自己的记号**（取烟 = ▭，与它今天真正按的那个东西同形） | 真机 "the third tier leaves no words and no unnamed control behind"；`settings.ts`；`puff-row.test.ts` 六条；`puff-length.test.ts` 三条 | 落（记号 6/6，见本节"记号字母表补齐到六处"与"取烟戴上烟盒的记号"；三档见"「单口时长」"那一片；稿子末行那条 RTL 镜像也有反例验证了（见「燃烧方向不跟着阿拉伯语翻」））；欠：那张 0–12 秒定拍表 |
 | S15 一致性审计表 | 0 处整段未图标化、0 处数值口径不一致、估算值统一带约等于 | 三条都有判据指着 | 真机 "the screen carries no prose…"、"pinning the card earns tier three, and its estimate carries the ≈"；真机脚本里的 WORD_HOMES 白字出处扫描（`tests/smoke/touch-device.mjs:313`） | 落 |
 | S16 全球品类与两型 | 吸入型按住吐烟；品鉴型含住 2 秒缓缓吐、不出现肺阻力反馈；过滤型经水；每类给时长 / 口数 / 芯温 | 两型与过滤型的交互各自成立（品鉴型含住正好 2000 ms）；品类清单本身只有五格对上（见 S8 那行），而那五格的三个数今天都在稿子给的区间里 | `savour.test.ts`；`cigarettes.ts` 里三只 `savourMs: 2000`；`brief-conformance.test.ts`；真机 kinds = 吸入型 7 / 品鉴型 3 / 过滤型 1 | 落（交互与那五格的数）／缺（另六格的品类身份） |
 | S17 皮肤 | 四层色板 + 环境预设；硬约束不得动时长 / 口数 / 温度 / 灰重 | 皮肤只有四层，物理碰不到 | `skins.test.ts` "a skin is four colours and nothing else"、`skin.test.ts` "a skin cannot reach the ash, the band, the filter or the tray" | 落 |
@@ -4762,3 +4762,25 @@ inset-inline-end: 14px`），**缺的只有"滑出"**：它是直接出现的。
 删 reduce 段 / 换成私有曲线。**它量不到的是"18px 220ms 看起来像不像滑出"** —— 那是眼睛的活，仍归你。
 
 **数**：`archive.test.ts` 11 → 12 条；`npm test` = 123 档 940 条。
+
+### 燃烧方向不跟着阿拉伯语翻：S14 末行要的"反例验证"（2026-10-08）
+
+S14 最后一行：「阿拉伯语需整屏 RTL 镜像。烟的余烬在右侧，RTL 下应在左侧 —— 烟本身可以镜像，但『燃烧推进方向』
+建议保持物理正确，不做镜像，避免用户误判。」稿子 S15 的审计表又把"RTL 镜像反例验证"列为剩余待办 —— 也就是
+说不止要"对"，还要有一条**会因为它变错而红**的判据。
+
+**改之前有什么**：① 一条结构判据（纯层四个包不许读 language / locale / rtl）；② 真机一条"提示点不随语言挪"；
+③ 文档里这条红线写着。**缺的正是反例本身** —— 那两条都抓不到"网页层自己把画面翻了"这件事。
+
+**现在这条量三处**（就在阿拉伯语那一档里读，不做新点击）：状态侧 —— `data-aim` 里 ember.x − body.x 在中文与
+阿拉伯语里逐位相等（实测 0.1859 → 0.1859）且为正；像素侧 —— 画布缓冲里那一片"纸白"的质心与倾斜（x 335.5 →
+336.3，tilt +5496 → +5779，同号而不是镜像）；合成侧 —— 从 canvas 往上到 `<html>`，任何一层带水平翻转
+（矩阵 a < 0 且无剪切）都算违规。
+
+**这条判据的第一版是瞎的，而且瞎在被它抓的那件事上**：只读 `getImageData` 的那一版，遇到注入的反例
+（`[dir="rtl"] canvas { transform: scaleX(-1) }`）**照样绿** —— CSS 的 transform 翻的是页面合成出来的图，
+画布的 backing store 一个像素都没动。补上"读元素自己带的矩阵"之后，同一个反例红并且点名：
+`flipped=["canvas matrix(-1, 0, 0, 1, 0, 0)"]`。⇒ 又一次「代理看到的 ≠ 工具管不管」：写判据之前要先问
+"我读的这一层，故障会不会经过它"。
+
+**数**：真机 85 → **86 条**（带着反例时那一条红、其余 85 条仍绿；撤掉反例 86/86）。
