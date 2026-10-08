@@ -307,6 +307,35 @@ it('keeps the 替代动作 ledger, and refuses an entry it cannot read (S23)', (
   }
 });
 
+it('keeps the mass the tray weighed, and refuses a figure that cannot have happened (拍板 ②)', () => {
+  const errors: string[] = [];
+  const kept = readProgress(
+    { ...JSON.parse(JSON.stringify(makeProgress())), ashGrams: 2.4 },
+    'progress',
+    errors,
+  );
+  expect(errors).toEqual([]);
+  // A fraction is the whole point: the tray counts grammes of a 0.3 g stick, so the §37 rule that
+  // keeps `ashDropped` a whole number would reject every honest value here.
+  expect(kept?.ashGrams).toBe(2.4);
+
+  // A save written before the tray had a mass simply has no figure — which is not the same claim as
+  // "weighed nothing", and the reader must not manufacture one.
+  const bare = readProgress(JSON.parse(JSON.stringify(makeProgress())), 'progress', errors);
+  expect(bare && 'ashGrams' in bare).toBe(false);
+
+  for (const bad of [-0.5, Number.NaN, Number.POSITIVE_INFINITY, '2.4']) {
+    const rejected: string[] = [];
+    const read = readProgress(
+      { ...JSON.parse(JSON.stringify(makeProgress())), ashGrams: bad },
+      'progress',
+      rejected,
+    );
+    expect(rejected.join(' | '), String(bad)).toContain('ashGrams');
+    expect(read?.ashGrams).toBeUndefined();
+  }
+});
+
 describe('what a reader keeps (§64, §49)', () => {
   const selection = {
     cigarette: 'long-thin',

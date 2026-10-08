@@ -648,6 +648,10 @@ export function readProgress(
   const collectedPacks = optionalStringArray(record, 'collectedPacks', path, errors);
   const activeDays = optionalStringArray(record, 'activeDays', path, errors);
   const substitutes = readSubstitutes(record, 'substitutes', path, errors);
+  // 拍板 ②: optional, and a float rather than a count — the tray's mass is 0.3 g a stick, so the §37
+  // "whole number" rule that guards `ashDropped` would reject every honest value here. What it does
+  // have to be is finite and not negative: a save that says -2 g of ash would make the 统计 read nonsense.
+  const ashGrams = optionalNumber(record, 'ashGrams', path, errors, 0);
 
   if (version !== null && version !== 1) {
     fail(
@@ -729,6 +733,7 @@ export function readProgress(
     acknowledgedUnlocks,
     ...(collectedPacks === undefined ? {} : { collectedPacks }),
     ...(substitutes === undefined ? {} : { substitutes }),
+    ...(ashGrams === undefined ? {} : { ashGrams }),
     lastActiveDayKey,
     activeDays,
   };

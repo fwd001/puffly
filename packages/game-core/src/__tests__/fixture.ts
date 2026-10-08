@@ -27,7 +27,7 @@ export const FIXTURE: ContentBundle = {
       ashProfile: { minLength: 0.02, maxLength: 0.05 },
       physical: {
         lengthMm: 84,
-        ashGrams: 2.1,
+        ashGrams: 0.3,
         centerTempC: [700, 800],
         puffs: { target: 3, min: 2, max: 4 },
       },
@@ -64,7 +64,7 @@ export const FIXTURE: ContentBundle = {
       // readouts test depends on the numbers being per-rod rather than per-engine.
       physical: {
         lengthMm: 100,
-        ashGrams: 2.6,
+        ashGrams: 0.42,
         centerTempC: [690, 790],
         puffs: { target: 5, min: 3, max: 7 },
       },

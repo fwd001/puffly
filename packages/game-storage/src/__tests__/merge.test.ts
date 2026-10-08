@@ -134,6 +134,7 @@ describe('mergeSaveFiles: the rest of the save (§37, §51, §52)', () => {
         dayNumber: 4,
         sessions: 4,
         puffs: 9,
+        ashGrams: 0.6,
         longestStreakDays: 3,
         unlocked: { ...makeProgress().unlocked, cigarettes: ['test-rod'], smoke: [] },
         acknowledgedUnlocks: ['cigarettes:test-rod'],
@@ -146,6 +147,7 @@ describe('mergeSaveFiles: the rest of the save (§37, §51, §52)', () => {
         dayNumber: 9,
         sessions: 12,
         puffs: 30,
+        ashGrams: 1.4,
         longestStreakDays: 6,
         unlocked: {
           ...makeProgress().unlocked,
@@ -161,6 +163,9 @@ describe('mergeSaveFiles: the rest of the save (§37, §51, §52)', () => {
     expect(save.progress.dayNumber).toBe(9);
     expect(save.progress.sessions).toBe(12);
     expect(save.progress.puffs).toBe(30);
+    // The tray's mass is a counter too: two machines each carry their own total, and neither may
+    // erase the other's (拍板 ②).
+    expect(save.progress.ashGrams).toBe(1.4);
     expect(save.progress.longestStreakDays).toBe(6);
     expect(save.progress.unlocked.cigarettes).toEqual(['test-long', 'test-rod']);
     expect(save.progress.unlocked.lighters).toEqual(['test-lighter']);

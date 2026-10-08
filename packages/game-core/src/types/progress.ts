@@ -82,6 +82,13 @@ export interface Progress {
    * field. Nothing is streaked or rewarded here — 减量 must not turn into a lesson (§10).
    */
   substitutes?: SubstituteTally[];
+  /**
+   * 2026-10-08 拍板 ②: the grammes of ash that have fallen, lifetime. Optional like the cabinet and
+   * the 替代动作 ledger — a save written before the tray had a mass has none, and "no ash weighed"
+   * is a fact about that save rather than a missing field. It is the axis 统计 reads and the one the
+   * achievement ladder will hang on, so it is kept apart from `ashDropped`, which counts flicks.
+   */
+  ashGrams?: number;
   lastActiveDayKey: string;
   /** Day keys, for the §34 journey line. */
   activeDays: string[];

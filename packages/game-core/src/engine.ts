@@ -283,6 +283,9 @@ export function createEngine(options: EngineOptions): GameEngine {
       typeId: ashtray.id,
       soundProfileId: ashtray.soundProfileId,
       extinguishProfileId: ashtray.extinguishProfileId,
+      // A fresh tray is an empty one: 换烟灰缸 is how the accumulated mass goes away, which is why the
+      // number can be read as what is *in* the tray rather than as a lifetime total.
+      grams: 0,
     },
     pack: { fidget: 0 },
     ui: createUiHints(0, settings.sessionTargetMs),
@@ -1043,6 +1046,10 @@ export function createEngine(options: EngineOptions): GameEngine {
         typeId: rt.ashtray.id,
         soundProfileId: rt.ashtray.soundProfileId,
         extinguishProfileId: rt.ashtray.extinguishProfileId,
+        // A different tray is an empty tray: the one that was here went away with its ash. This is
+        // also the only way the number on the tray ever goes down, which is why it is a tray reading
+        // and not a lifetime one — 统计 reads `progress.ashGrams`, which nothing resets.
+        grams: 0,
       };
       rt.state.style = assembleStyle(rt.cigarette, rt.lighter, rt.ashtray, rt.smokeStyle);
     },

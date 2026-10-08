@@ -65,6 +65,12 @@ export interface AshFragment {
   breaksAtMs: number;
   /** How many grains a piece becomes when its time comes. `0` for a grain. */
   shards: number;
+  /**
+   * 2026-10-08 拍板 ②: the grammes this piece carries, and `0` once it has been accounted for. It is
+   * state rather than something the renderer works out, because the tray's number and the drawn mound
+   * have to be the same ash — and a piece that lands outside the tray is ash nobody has swept up.
+   */
+  grams: number;
   rotation: number;
   spin: number;
   /** Normalised units per second. */
@@ -87,6 +93,12 @@ export interface AshState {
   falling: AshFragment[];
   /** Count of ash pieces dropped, for §33 style derivation. */
   dropped: number;
+  /**
+   * Grammes this stick has already let go of. With `readouts.ashGrams` (what the burn has made) it
+   * closes the book on 拍板 ②: what is standing on the rod is exactly the difference, so a flick
+   * cannot report a mass the stick never had, and the tray cannot gain more than the rod lost.
+   */
+  droppedGrams: number;
 }
 
 /** §14. */
@@ -226,11 +238,17 @@ export interface WorldSnapshot {
  * Which tray is on the table, in the only sense the audio adapter needs. The picture already gets
  * the material from `style.ashtray`; without the ids here the four of them are one object to the
  * half of the game that has to make their sound.
+ *
+ * `grams` is the fifth sense: what the tray is actually holding. The deck puts a gram figure on the
+ * ashtray itself (S5 的 2.1 g), so the number belongs to the tray rather than to the stick — and the
+ * drawn mound reads the same field, so the pile and the number cannot disagree (§15).
  */
 export interface AshtraySnapshot {
   typeId: string;
   soundProfileId: string;
   extinguishProfileId: string;
+  /** Grammes that have landed in this tray. Emptied only by the tray being changed. */
+  grams: number;
 }
 
 /**
@@ -362,6 +380,11 @@ export interface ProgressSnapshot {
   sessionsToNextLevel: number;
   puffs: number;
   ashDropped: number;
+  /**
+   * 拍板 ②'s lifetime number: every gramme of ash that has fallen, in the tray or on the floor. The
+   * tray holds a part of it, the ledger holds all of it, and 统计与将来的成就读的是这一条。
+   */
+  ashGrams: number;
   /** The boxes the collection holds, mirrored for the cabinet (S19). */
   collectedPacks: string[];
 }

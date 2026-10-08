@@ -83,6 +83,9 @@ function mergeProgress(current: Progress, incoming: Progress): Progress {
     sessions: maxNumber(current.sessions, incoming.sessions),
     puffs: maxNumber(current.puffs, incoming.puffs),
     ashDropped: maxNumber(current.ashDropped, incoming.ashDropped),
+    // The same shape as the flick count: two saves each carry their own total, and neither may
+    // erase the other's. Absent is 0 here, which is what a save from before the number existed held.
+    ashGrams: maxNumber(current.ashGrams ?? 0, incoming.ashGrams ?? 0),
     longestStreakDays: maxNumber(current.longestStreakDays, incoming.longestStreakDays),
     unlocked: {
       [CollectionCategory.CIGARETTES]: unionSorted(

@@ -27,15 +27,22 @@ export const TIMING = {
   waningSmokeMs: 6000,
   /** Controls fade out after this much stillness (§10). */
   controlsIdleMs: 2600,
-  /** Ash falls on its own if nobody flicks within this window of being critical. */
-  ashPatienceMs: 9000,
 } as const;
 
 export const THRESHOLDS = {
   /** Below this remaining rod the cigarette is a stub (§11 NEAR_END). */
   nearEndRodFraction: 0.16,
   /** Ash ratio at which the column starts asking to be flicked (§18). */
-  ashCriticalRatio: 0.82,
+  /**
+   * How long a column must be, as a fraction of what this rod's ash can hold, before the interface
+   * says 磕灰 and a gust may take it. 2026-10-08: this was 0.82, which on the deck's own durations
+   * left the player a window of a few millimetres of burn per column, and a weather event that was
+   * never allowed to land inside it — `ash-and-weather.test.ts` measured **zero** gusts across all
+   * eleven rods. At 0.6 the invite starts while there is still ash to be asked for, and the room can
+   * knock off what is already too long to be sure of standing. The window each rod actually gets is
+   * printed by that file (`ASH <id> readyAt=… gusts=…`).
+   */
+  ashCriticalRatio: 0.6,
   /** Ash below this reads as nothing, so we do not draw a stub of grey. */
   ashVisibleFraction: 0.04,
   /** Ember is considered lit above this brightness. */
@@ -47,8 +54,17 @@ export const BURN = {
   puffRateMultiplier: 1.9,
   /** Extra consumption from accumulated load, at full load. */
   loadRateMultiplier: 0.45,
-  /** Fraction of consumed rod that becomes an ash column; the rest is dust. */
-  ashYield: 0.6,
+  /**
+   * 2026-10-08 拍板 ②: the column is as long as the rod that burnt — it keeps the shape of what it
+   * was, which is why ash can be read as a *length* at all. The mass is the separate authored figure
+   * (`physical.ashGrams` per stick), spread over that length.
+   *
+   * This was 0.6 ("the rest is dust"), and on the deck's own durations that fudge cost the player
+   * the gesture: a ten-minute rod reached the 磕灰 threshold only after ~60 s of standing ash, while
+   * an `ash_fall` moment took the column at 63 s with the ratio still at 0.66 — measured, in
+   * `restroom-cubicle`, three drops and not one ready frame in five minutes. 磕灰 was unreachable.
+   */
+  ashYield: 1,
   /** Idle smoulder burn-rate variation, so two identical cigarettes differ (§12). */
   smoulderJitter: 0.08,
 } as const;

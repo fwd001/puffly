@@ -82,8 +82,13 @@ export const cartoonScale = (realism: number): number => {
 };
 /** Particles at or past this depth draw in front of the props, the rest behind them. */
 const NEAR_DEPTH = 0.55;
-/** Ash pieces that fill the tray mound; past this the tray just looks full. */
-const TRAY_LOAD_FRAGMENTS = 14;
+/**
+ * Grammes of ash that read as a full tray. Measured rather than picked: one flick of the shipped
+ * default rod carries 0.026 g (`ash-mass.test.ts` prints it), so this is about fourteen columns —
+ * the same number of flicks the mound used to fill at, now counted in the mass that actually landed
+ * in it (2026-10-08 拍板 ②) rather than in drops of any size on one rod.
+ */
+const TRAY_FULL_GRAMS = 0.36;
 /** Overlap instead of opacity: see `drawSmoke`. */
 export const PUFF_SPREAD = 1.34;
 const PUFF_ALPHA = 0.62;
@@ -559,7 +564,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         trayWobble = Math.min(1, trayWobble + (dropped - lastDropped) * 0.5 * cartoon);
       }
       lastDropped = dropped;
-      trayLoad = clamp01(dropped / TRAY_LOAD_FRAGMENTS);
+      trayLoad = clamp01(state.ashtray.grams / TRAY_FULL_GRAMS);
       trayWobble = Math.max(0, trayWobble - frame / 620);
       // The invitation eases in and out rather than snapping, so a drag that simply stops
       // does not leave the tray lit like a switch left on.

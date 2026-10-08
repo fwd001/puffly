@@ -106,7 +106,10 @@ export const EN = {
   'a11y.hud.hold': 'held for',
   'a11y.hud.puffs': 'draws so far',
   'a11y.hud.ash': 'ash column',
-  'a11y.hud.ashMass': 'ash so far',
+  'a11y.hud.ashMass': 'ash this stick has made',
+  // 拍板 ②: two gram figures, two subjects. `ashMass` is this stick's own output; `trayMass` is what
+  // the ashtray is holding, which is the number the design puts on the ashtray (S5 的 2.1 g).
+  'a11y.hud.trayMass': 'ash in the tray',
   'a11y.hud.category': 'which rod this is',
   'a11y.archive': 'the archive for this rod',
   'a11y.pill': 'the big action: {word}',
@@ -343,7 +346,8 @@ const ZH: Table = {
   'a11y.hud.hold': '已经按住',
   'a11y.hud.puffs': '已经吸了几口',
   'a11y.hud.ash': '灰柱长度',
-  'a11y.hud.ashMass': '已经生成的灰',
+  'a11y.hud.ashMass': '这一支生成的灰',
+  'a11y.hud.trayMass': '缸里的灰',
   'a11y.hud.category': '这是哪一根',
   'a11y.archive': '这根烟的档案',
   'a11y.pill': '主操作：{word}',

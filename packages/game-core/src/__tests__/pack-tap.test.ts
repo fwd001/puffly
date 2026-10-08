@@ -66,6 +66,9 @@ describe('the pack is where a rod comes from (S14 取烟)', () => {
   });
 });
 
+/** The states a lit rod that has not been put out or thrown away reads as. */
+const ON_FIRE = ['BURNING', 'PUFFING', 'RESTING', 'ASH_READY', 'NEAR_END'];
+
 describe('a tap with a rod already out answers without spending anything', () => {
   it('the pack moves and the break does not', () => {
     const h = harness();
@@ -75,7 +78,11 @@ describe('a tap with a rod already out answers without spending anything', () =>
     // ash have every right to differ by a frame's worth — a claim that included them would be a claim
     // about the clock, not about the pack.
     const snapshot = {
-      state: before.cigarette.state,
+      // Which burning state the rod is standing in is the burn's own business (the ash crosses into
+      // ASH_READY within a second of the fixture's lit rod); that the tap did not *leave* the family
+      // is the claim. The first version named `state`, which made this a claim about the clock after
+      // all — and it went red the day the ash started growing at the burnt length.
+      onFire: ON_FIRE.includes(before.cigarette.state),
       puffs: before.cigarette.puff.count,
       puffsPlanned: before.cigarette.readouts.puffsTarget,
       ashDropped: before.progress.ashDropped,
@@ -90,7 +97,7 @@ describe('a tap with a rod already out answers without spending anything', () =>
     const after = h.state();
     expect(after.pack.fidget, 'the tap was swallowed').toBeGreaterThan(0.5);
     expect({
-      state: after.cigarette.state,
+      onFire: ON_FIRE.includes(after.cigarette.state),
       puffs: after.cigarette.puff.count,
       puffsPlanned: after.cigarette.readouts.puffsTarget,
       ashDropped: after.progress.ashDropped,

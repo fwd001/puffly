@@ -151,6 +151,11 @@ describe('the breath is the thing you are meant to see (S7: 吐烟的烟羽整�
     // 吐烟 is the player's cloud. The thread, the cherry's ribbon and the material bursts keep the
     // brightness Game Core gave them — otherwise the row would be a global exposure slider and the
     // rod's own picture would change with it.
+    //
+    // The budget is stated because the four kinds are four full plume simulations: alone this case
+    // runs in 925 ms, and in a whole-suite run — where every worker is busy at once — the 5 s default
+    // has been measured past. A green build that turns red because the machine is loaded is a red
+    // nobody can read.
     for (const kind of ['drift', 'puff', 'ash', 'extinguish'] as const) {
       const real = plume(1, kind);
       const shipped = plume(DECK_SPLIT, kind);
@@ -158,7 +163,7 @@ describe('the breath is the thing you are meant to see (S7: 吐烟的烟羽整�
       expect(Number(shipped.mean.toFixed(8)), `${kind} mean`).toBe(Number(real.mean.toFixed(8)));
       expect(shipped.discs, `${kind} discs`).toBe(real.discs);
     }
-  });
+  }, 20_000);
 
   it('buys visibility with alpha only — the same air, not more of it', () => {
     expect(shippedBreath.air, 'the lift also spawned particles').toBe(realBreath.air);

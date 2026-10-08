@@ -61,7 +61,6 @@ export interface Timers {
   extinguishAuto: boolean;
   puffMs: number;
   puffPlannedMs: number;
-  ashCriticalMs: number;
   waningMs: number;
   newRodMs: number;
   discardMs: number;
@@ -166,7 +165,6 @@ export function createTimers(nowMs: number): Timers {
     extinguishAuto: false,
     puffMs: 0,
     puffPlannedMs: 0,
-    ashCriticalMs: 0,
     waningMs: 0,
     newRodMs: 0,
     discardMs: 0,
@@ -211,12 +209,23 @@ export function createPose(
  * rod's geometry just changed, so a phone, a desktop window and a replayed session all say the
  * same number about the same column of ash (§79). Rounded to what a person could notice.
  */
+/**
+ * 2026-10-08 拍板 ②: the grammes of ash a stick has made by now.
+ *
+ * One home for the formula, because two numbers have to agree with it: the readout the player reads
+ * off the rod, and the mass a flicked column carries into the tray. The tray can never hold more than
+ * the stick produced, and a stick's whole output is the one figure its content names.
+ */
+export function ashProducedGrams(type: CigaretteContent, rodRemaining: number): number {
+  return clamp01(1 - rodRemaining) * type.physical.ashGrams;
+}
+
 export function deriveReadouts(
   type: CigaretteContent,
   rodRemaining: number,
   ashLength: number,
 ): Readouts {
-  const { lengthMm, ashGrams } = type.physical;
+  const { lengthMm } = type.physical;
   const tenth = (value: number): number => Math.round(value * 10) / 10;
   return {
     puffsTarget: type.physical.puffs.target,
@@ -224,7 +233,7 @@ export function deriveReadouts(
     rodMm: tenth(clamp01(rodRemaining) * lengthMm),
     // Ash is what the burn has already turned into, whether it is still leaning on the rod or
     // lying in the tray — so it only ever grows, and a finished stick reports its full figure.
-    ashGrams: Math.round(clamp01(1 - rodRemaining) * ashGrams * 100) / 100,
+    ashGrams: Math.round(ashProducedGrams(type, rodRemaining) * 100) / 100,
     savourMs: type.puffProfile.savourMs,
   };
 }
@@ -263,6 +272,7 @@ export function createCigaretteSnapshot(
       ready: false,
       falling: [],
       dropped: 0,
+      droppedGrams: 0,
     },
     puff: {
       active: false,
@@ -322,6 +332,9 @@ export function projectProgress(progress: Progress, smokeFreeDays: number): Prog
     collectedPacks: [...(progress.collectedPacks ?? [])],
     puffs: progress.puffs,
     ashDropped: progress.ashDropped,
+    // Optional on the way in for the same reason the cabinet is: a save written before 拍板 ② has no
+    // gram figure, and zero ash is a fact about that save rather than a missing field.
+    ashGrams: progress.ashGrams ?? 0,
   };
 }
 
@@ -340,5 +353,4 @@ export function createUiHints(nowMs: number, targetMs: number): UiHints {
   };
 }
 
-export const PATIENCE_MS = TIMING.ashPatienceMs;
 export const ASH_FRAGMENT_SCALE = ASH.fragmentsPerFlick;

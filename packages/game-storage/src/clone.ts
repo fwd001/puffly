@@ -146,6 +146,9 @@ export function cloneProgress(progress: Progress): Progress {
     ...(progress.substitutes === undefined
       ? {}
       : { substitutes: progress.substitutes.map((tally) => ({ ...tally })) }),
+    // Carried only when it was there: the same convention the cabinet and the 替代动作 ledger use, so
+    // a copy never invents a row a save from before 拍板 ② did not have.
+    ...(progress.ashGrams === undefined ? {} : { ashGrams: progress.ashGrams }),
     lastActiveDayKey: progress.lastActiveDayKey,
     activeDays: [...progress.activeDays],
   };

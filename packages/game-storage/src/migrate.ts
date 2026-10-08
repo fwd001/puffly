@@ -109,6 +109,9 @@ function upgradeProgressV0(value: unknown): unknown {
     sessions: record['sessions'],
     puffs: record['puffs'],
     ashDropped: record['ashDropped'] ?? record['ashes'],
+    // Nothing to convert: a save written before the tray had a mass simply has no figure, and the
+    // reader treats that as "none weighed yet". Renaming anything here would be inventing a history.
+    ashGrams: record['ashGrams'],
     longestStreakDays: record['longestStreakDays'] ?? record['streak'],
     unlocked,
     acknowledgedUnlocks: Array.isArray(record['acknowledgedUnlocks'])

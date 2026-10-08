@@ -104,10 +104,13 @@ const reading = computed(() => {
         value: '',
         fraction: rod.ash.ratio,
         primary: `${rod.readouts.ashMm}mm`,
-        secondary: `${rod.readouts.ashGrams}g`,
+        // 拍板 ②: the gram figure that belongs on the ashtray is what the ashtray is holding (稿子 S5
+        // 的 2.1 g), not what this stick has made. One column of a real stick is hundredths of a gram,
+        // so this reads to two decimals rather than rounding a live number away to `0g`.
+        secondary: `${Math.round(state.ashtray.grams * 100) / 100}g`,
         label: copy.value.say('a11y.hud.ash'),
         numLabel: 'a11y.hud.ash' as CopyKey,
-        altLabel: 'a11y.hud.ashMass' as CopyKey,
+        altLabel: 'a11y.hud.trayMass' as CopyKey,
       };
     default:
       return {

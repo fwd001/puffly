@@ -4,6 +4,10 @@
  * They are measurements of this simulation, so they live in core next to the geometry that
  * produces them — a phone, a desktop window and a replayed session must agree on how tall the
  * ash column is, and the shell is only allowed to format what it is handed.
+ *
+ * The deck's `2.1g` sits on the *ashtray* in S5, and 拍板 ② took it literally: a stick's own figure
+ * is its contented 0.20–0.38 g, and what the tray holds is a different subject with its own field
+ * (`ashtray.grams`, guarded in `ash-mass.test.ts`). What this file pins is the stick's readings.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -71,6 +75,7 @@ describe('readouts (§9.2: the ring, the millimetres, the grams)', () => {
     const readouts = h.state().cigarette.readouts;
     expect(h.state().cigarette.rodRemaining).toBeCloseTo(0, 2);
     expect(readouts.rodMm).toBe(0);
-    expect(readouts.ashGrams).toBeCloseTo(2.1, 1);
+    // The fixture's stick is a real one's: 0.3 g of ash for a whole 84 mm rod, not the tray's 2.1.
+    expect(readouts.ashGrams).toBeCloseTo(0.3, 2);
   });
 });

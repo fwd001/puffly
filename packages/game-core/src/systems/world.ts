@@ -211,6 +211,12 @@ function matches(rule: WorldEventRule, rt: EngineRuntime): boolean {
   if (rule.weathers && !rule.weathers.includes(rt.state.world.weather)) return false;
   if (rule.times && !rule.times.includes(rt.state.world.timeOfDay)) return false;
   if (rule.id === WorldEventId.ASH_FALL && rt.state.cigarette.ash.length <= 0) return false;
+  // A gust takes a column that is already too long to be sure of standing — the same line that
+  // lights ASH_READY. Short ash survives a draught; that is what makes it stand at all. Before this,
+  // the event could fire on a column of a few millimetres every 6–18 seconds, and once the deck's own
+  // durations were in (a 10-minute rod) the player could never out-run it: 磕灰 stopped being
+  // reachable. See `weatherMayTakeAsh` for the other half — the rod's last column is never taken.
+  if (rule.id === WorldEventId.ASH_FALL && !rt.state.cigarette.ash.ready) return false;
   // A gust may take the column, but not the rod's last chance at one: see `weatherMayTakeAsh`.
   if (rule.id === WorldEventId.ASH_FALL && !weatherMayTakeAsh(rt)) return false;
   return true;
