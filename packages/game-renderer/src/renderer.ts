@@ -598,7 +598,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       });
       drawPack(ctx, state, viewport);
       drawLighter(ctx, state, viewport);
-      drawCigarette(ctx, state, viewport, settings.contrast);
+      drawCigarette(ctx, state, viewport, settings.contrast, cartoon);
       drawCherryLight(state);
       drawSmoke(state, true);
       drawAffordanceHint(ctx, state, viewport);

@@ -487,6 +487,8 @@ export function drawCigarette(
   state: GameStateView,
   viewport: Viewport,
   contrast: 'normal' | 'high' = 'normal',
+  /** S6's 写实度 as the frame reads it; 1 is the shipped default's position on that dial. */
+  cartoon = 1,
 ): void {
   const cigarette = state.cigarette;
   if (!cigarette.pose.visible && cigarette.state !== 'IDLE') return;
@@ -553,7 +555,7 @@ export function drawCigarette(
 
   drawAshColumn(ctx, state, thickness, rodLength, ashLength);
   drawHeatBleed(ctx, state, viewport, thickness, rodLength);
-  drawEmber(ctx, state, viewport, thickness, rodLength);
+  drawEmber(ctx, state, viewport, thickness, rodLength, cartoon);
   ctx.restore();
 
   drawFallingAsh(ctx, state, viewport);
@@ -696,6 +698,9 @@ const EMBER_COOL: Rgb = [120, 40, 24];
 const EMBER_MID: Rgb = [255, 120, 40];
 const EMBER_HOT: Rgb = [255, 228, 168];
 
+/** How far past the authored radius the cartoon end throws the cherry's halo. */
+const GLOW_REACH = 0.4;
+
 /** §17: brightness, heat colour, glow radius and the occasional flare. */
 function drawEmber(
   ctx: CanvasRenderingContext2D,
@@ -703,6 +708,7 @@ function drawEmber(
   viewport: Viewport,
   thickness: number,
   rodLength: number,
+  cartoon: number,
 ): void {
   const ember = state.cigarette.ember;
   const total = emberPresence(ember);
@@ -722,13 +728,20 @@ function drawEmber(
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  // The cherry lights the air around it, but the design's frame keeps that halo small: what
-  // carries the light is the smoke above it, not a bloom the size of the table.
-  const glowRadius = viewport.len(ember.glowRadius) * 0.55 * (1 + ember.flare * 0.5);
+  // S7 puts this halo on the *cartoon* side of its own split: 「余烬带一层柔和辉光扩散，不完全物理，
+  // 偏向『看得见热』」, and its last line names 辉光 among the things that go through the easing curves
+  // rather than the physics. So the radius the simulation authored is the floor the 写实 end draws and
+  // the cartoon end spreads past it — the 0.55 this used to carry shrank the picture *below* the
+  // physics at every setting, which is the one reading the deck never offered.
+  const spread = (1 + GLOW_REACH * cartoon) * (1 + ember.flare * 0.5);
+  const glowRadius = viewport.len(ember.glowRadius) * spread;
   if (glowRadius > 0.5) {
     const glow = ctx.createRadialGradient(centre.x, centre.y, 0, centre.x, centre.y, glowRadius);
+    // The mid stop walks outward with the spread, so a wider halo is a *gentler* one rather than a
+    // bigger disc of the same light: the light holds past the cherry and then leaves.
+    const mid = 0.4 + 0.06 * cartoon;
     glow.addColorStop(0, rgbToCss(cherry, clamp01(0.5 * total)));
-    glow.addColorStop(0.4, rgbToCss(cherry, clamp01(0.15 * total)));
+    glow.addColorStop(mid, rgbToCss(cherry, clamp01(0.15 * total)));
     glow.addColorStop(1, rgbToCss(cherry, 0));
     ctx.fillStyle = glow;
     ctx.beginPath();
