@@ -311,6 +311,21 @@ const stagePoint = (page, nx, ny) =>
  * nudging (§28), and the only language-independent way to check that is to read the nudge itself.
  */
 const WORD_HOMES = '.hint, .pill, .rail, .hud, .data-rail, .sheet, .archive';
+/**
+ * What is open and what the break is doing, read together: the dismissal checks below need both,
+ * because a press that closes a panel *and* drives the engine behind it is two actions for one
+ * finger.
+ */
+const panelState = (page) =>
+  page.evaluate(() => {
+    const stage = document.querySelector('.stage');
+    return {
+      sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
+      affordance: stage?.dataset.affordance ?? '',
+      phase: stage?.dataset.phase ?? '',
+    };
+  });
+
 const stageWords = (page) =>
   page.evaluate((homes) => {
     // Only text a person can actually see is prose. A sheet that is closed and the desk column a
@@ -619,6 +634,53 @@ const hintCentre = async (page) => {
     switched.length === 1 && switched[0].startsWith('settings/') && !switched[0].endsWith('/'),
     switched.join(','),
   );
+
+  // 点内容区域之外就收起: the scene is the way out of a sheet, on the phone as on the desk. The
+  // drawer covers the lower half, so the press is aimed at the canvas above it — and that aim is
+  // asserted, because a check that presses the panel reports a working dismissal as a broken one.
+  await openSheet(page, 'shelf');
+  const drawerOpen = await panelState(page);
+  const spot = await page.evaluate(() => {
+    const canvas = document.querySelector('canvas').getBoundingClientRect();
+    const sheet = document.querySelector('.sheet[data-open="true"]');
+    const panelTop = sheet ? sheet.getBoundingClientRect().top : canvas.bottom;
+    return {
+      x: canvas.x + canvas.width / 2,
+      y: Math.max(canvas.y + 12, panelTop - 24),
+      onScene:
+        document.elementFromPoint(
+          canvas.x + canvas.width / 2,
+          Math.max(canvas.y + 12, panelTop - 24),
+        )?.tagName === 'CANVAS',
+    };
+  });
+  check(
+    'the phone dismissal presses the scene, not the panel',
+    spot.onScene,
+    `point ${String(Math.round(spot.x))},${String(Math.round(spot.y))}`,
+  );
+  await page.touchscreen.tap(spot.x, spot.y);
+  await page.waitForTimeout(320);
+  const drawerScene = await panelState(page);
+  check(
+    'a press on the scene puts the open sheet away',
+    drawerOpen.sheets === 1 && drawerScene.sheets === 0,
+    `sheets ${String(drawerOpen.sheets)} then ${String(drawerScene.sheets)}`,
+  );
+  await openSheet(page, 'shelf');
+  // The panel's own header: a tile would answer by taking that rod into the hand, which the reads
+  // further down this file depend on not having happened.
+  await page.locator('.sheet[data-open="true"] .head .count').first().tap();
+  await page.waitForTimeout(320);
+  const drawerInside = await panelState(page);
+  check(
+    'a press inside the panel keeps it open',
+    drawerInside.sheets === 1,
+    `sheets ${String(drawerInside.sheets)}`,
+  );
+  // Back to where this file left the screen before these three checks: the row below reads a
+  // setting that only exists inside the sheet, so the sheet has to be the settings one.
+  await openSheet(page, 'settings');
 
   // The row is the only place the stage is allowed digits (§9.2: icons and Arabic numerals).
   // Everything else that shows a number lives inside a sheet, and prose still may not appear.
@@ -1404,12 +1466,47 @@ try {
       clientHeight: stage.clientHeight,
     };
   });
+
+  // The same rule on the desk, where the panel is a column rather than a drawer. The point is found
+  // rather than assumed: on a wide window the column covers one side of the scene, and a check that
+  // aims at the panel would report a working dismissal as a broken one.
+  await openSheet(page, 'shelf', true);
+  const panelOpen = await panelState(page);
+  const panelSpot = await page.evaluate(() => {
+    const c = document.querySelector('canvas').getBoundingClientRect();
+    const sheet = document.querySelector('.sheet[data-open="true"]')?.getBoundingClientRect();
+    const candidates = [
+      [c.x + c.width * 0.25, c.y + c.height * 0.25],
+      [c.x + c.width * 0.5, c.y + c.height * 0.1],
+      [c.x + c.width * 0.1, c.y + c.height * 0.55],
+    ];
+    const free = candidates.find(([x, y]) => {
+      if (!sheet) return true;
+      return x < sheet.x || x > sheet.x + sheet.width || y < sheet.y || y > sheet.y + sheet.height;
+    });
+    const [x, y] = free ?? candidates[0];
+    return { x, y, onScene: document.elementFromPoint(x, y)?.tagName === 'CANVAS' };
+  });
+  check(
+    'S10: the dismissal press lands on the scene, not the panel',
+    panelSpot.onScene,
+    `point ${String(Math.round(panelSpot.x))},${String(Math.round(panelSpot.y))}`,
+  );
+  await page.mouse.click(panelSpot.x, panelSpot.y);
+  await page.waitForTimeout(320);
+  const panelAfter = await panelState(page);
+  check(
+    'S10: a press on the scene puts the side panel away',
+    panelOpen.sheets === 1 && panelAfter.sheets === 0,
+    `sheets ${String(panelOpen.sheets)}->${String(panelAfter.sheets)}`,
+  );
   check(
     'the scene cannot be scrolled out of view, but the open sheet still scrolls',
     scrollProof.forced === 0 && scrollProof.sheetMoved >= 190,
     JSON.stringify(scrollProof),
   );
 
+  await openSheet(page, 'shelf', true);
   await page.click('.sheet[data-open="true"] .close');
   await page.waitForTimeout(900);
   const closed = await deskView();

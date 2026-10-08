@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { createPuffly } from './composables/usePuffly';
+import { isScenePress } from './dismiss';
 import { ANCHOR_LOCALE, STATE_KEYS } from './i18n';
 import type { Destination } from './rail';
 import type { ArchiveFacts } from './composables/usePuffly';
@@ -102,6 +103,20 @@ function openSheet(next: SheetName, nextSection: string | null = null): void {
   sheet.value = same ? 'none' : next;
   section.value = same ? null : nextSection;
 }
+
+/**
+ * 点内容区域之外就收起. Captured on the stage, so a press that lands on the scene steps the panel
+ * aside. The press is deliberately **not** swallowed: a scene press is also how the break is driven
+ * (hold to draw, swipe down to fold the chrome, tap the lighter), and eating it turned this
+ * convenience into a broken gesture behind the panel. One press may therefore do both jobs — the
+ * panel steps away and the scene answers as it always has.
+ */
+function dismissOnScene(event: PointerEvent): void {
+  if (sheet.value === 'none') return;
+  if (!isScenePress(canvas.value, event.target)) return;
+  sheet.value = 'none';
+  section.value = null;
+}
 </script>
 
 <template>
@@ -118,6 +133,7 @@ function openSheet(next: SheetName, nextSection: string | null = null): void {
     :data-phase="summary.phase"
     :data-aim="summary.aim"
     :data-affordance="summary.affordance"
+    @pointerdown.capture="dismissOnScene"
   >
     <canvas ref="canvas" tabindex="0" :aria-label="announced" />
 
