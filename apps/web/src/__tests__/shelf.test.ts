@@ -117,6 +117,51 @@ describe('the 图鉴 (§ S8, § S8b)', () => {
     expect(handWritten, 'a component is composing the card sentence again').toEqual([]);
   });
 
+  it('wears the deck’s eleven identities, on the rungs the deck itself puts them on (§ S8, 拍板 ③)', () => {
+    // Until 2026-10-08 the eleven names were ours (长支慢燃, 粗支厚烟…), and nothing in the suite
+    // could notice: the ladder was judged on counts, ordering and minutes, never on what a cell is
+    // called. S8's grid names every cell *and* writes its own 抽满 N 支, so read against those
+    // rungs the seven 吸入型 identities fall onto our seven inhale rods with no pairing left to me.
+    // The fourth word of each cell is the deck's character line, which is what `rod.note.*` carries.
+    const copy = copyOf('zh-CN');
+    const DECK_GRID: Array<{ rung: number; zhName: string; note: string }> = [
+      { rung: 0, zhName: '原生', note: '均衡' },
+      { rung: 8, zhName: '薄荷', note: '清凉' },
+      { rung: 20, zhName: '手卷', note: '浓烈' },
+      { rung: 40, zhName: '丁香', note: '辛辣' },
+      { rung: 65, zhName: '冰凉', note: '慢燃' },
+      { rung: 95, zhName: '深焙', note: '厚重' },
+      { rung: 135, zhName: '小雪茄', note: '稠密' },
+      { rung: 190, zhName: '典藏', note: '稀有' },
+      { rung: 250, zhName: '雪茄', note: '醇厚' },
+      { rung: 320, zhName: '斗烟', note: '沉香' },
+      { rung: 420, zhName: '水烟', note: '冰凉' },
+    ];
+    const rungOf = (rod: (typeof rods)[number]): number =>
+      rod.unlock.kind === 'sessions' ? rod.unlock.count : 0;
+    const byRung = new Map(rods.map((rod) => [rungOf(rod), rod]));
+    console.log(
+      `CABINET ${rods
+        .slice()
+        .sort((a, b) => rungOf(a) - rungOf(b))
+        .map((rod) => `${String(rungOf(rod))}:${rod.name}=${rod.archive?.zhName ?? '?'}`)
+        .join(' ')}`,
+    );
+    expect(byRung.size, 'two rods claim the same rung').toBe(DECK_GRID.length);
+    for (const cell of DECK_GRID) {
+      const rod = byRung.get(cell.rung);
+      expect(rod, `nothing sits on rung ${String(cell.rung)}`).toBeDefined();
+      expect(rod?.archive.zhName, `${String(cell.rung)} 那一格叫什么`).toBe(cell.zhName);
+      const key = rodNoteKey(rod?.id ?? '');
+      if (key === undefined) throw new Error(`${cell.zhName} has no note of its own`);
+      expect(copy.t(key), `${cell.zhName} 的那一句话`).toBe(cell.note);
+    }
+    // The English line is ours to choose (the deck names six of them in English), but it must not be
+    // the id recapped and it must be different cell to cell, or the cabinet reads as a list of keys.
+    const names = rods.map((rod) => rod.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it('never invents a family the ordering does not know about', () => {
     for (const rod of rods) {
       expect(['inhale', 'savor', 'filter']).toContain(rod.archive.kind);

@@ -190,17 +190,17 @@ export const EN = {
   // classic: density 0.92, ash 2.1 g: the middle of the table on every axis
   'rod.note.classic': 'balanced',
   // silver: density 0.72 on a 99 mm slim: the thinnest smoke of the six
-  'rod.note.silver': 'light',
+  'rod.note.silver': 'cool',
   // night: density 1.08 at turbulence 1.24: a short dark stick whose smoke curls
-  'rod.note.night': 'dark',
+  'rod.note.night': 'heavy',
   // long: the slowest burn of the cigarettes (4.6 min) and the tallest rise
-  'rod.note.long': 'long and even',
+  'rod.note.long': 'rare',
   // ember: turbulence 1.42 and 740-800 C: the shortest, busiest rod here
-  'rod.note.ember': 'intense',
+  'rod.note.ember': 'spicy',
   // mist: dispersion 1.35 at turbulence 0.42: a curtain, not a column
-  'rod.note.mist': 'wide and slow',
+  'rod.note.mist': 'slow burn',
   // ryo: 790-850 C over 7.5 min, hand-built: hot, slow and coarse
-  'rod.note.ryo': 'rustic',
+  'rod.note.ryo': 'full-bodied',
   // cigarillo: 18 min and 16 puffs on 90 mm; the deck own word for this class
   'rod.note.cigarillo': 'dense',
   // cigar: 50 min and 6.5 g of ash; the deck word, kept
@@ -414,12 +414,12 @@ const ZH: Table = {
   'a11y.tile': '{name} · {zhName}',
   'a11y.tileLocked': '还没抽到',
   'rod.note.classic': '均衡',
-  'rod.note.silver': '清淡',
-  'rod.note.night': '沉郁',
-  'rod.note.long': '绵长',
-  'rod.note.ember': '浓烈',
-  'rod.note.mist': '漫开',
-  'rod.note.ryo': '粗犷',
+  'rod.note.silver': '清凉',
+  'rod.note.night': '厚重',
+  'rod.note.long': '稀有',
+  'rod.note.ember': '辛辣',
+  'rod.note.mist': '慢燃',
+  'rod.note.ryo': '浓烈',
   'rod.note.cigarillo': '稠密',
   'rod.note.cigar': '醇厚',
   'rod.note.pipe': '沉香',

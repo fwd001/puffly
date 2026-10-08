@@ -107,26 +107,31 @@ const BRIEF_SLOT: Record<
     temp?: { within?: [number, number]; is?: number };
     /** 单口吸入, in milliseconds — S9's own column. */
     drawMs?: number;
+    /** 烟灰量 in grammes — S9's own column. 2026-10-08 拍板 ② made this a physical basis, not a label. */
+    ashGrams?: number;
   }
 > = {
   // 原生 Standard: 10.0 min · 12 口 · 2.0 s · 780 C.
-  default: { minutes: 10.0, puffs: { is: 12 }, temp: { is: 780 }, drawMs: 2_000 },
+  default: { minutes: 10.0, puffs: { is: 12 }, temp: { is: 780 }, drawMs: 2_000, ashGrams: 0.3 },
   // 薄荷 Menthol: 9.0 min · 11 口 · 1.8 s · 740 C.
-  '8': { minutes: 9.0, puffs: { is: 11 }, temp: { is: 740 }, drawMs: 1_800 },
+  '8': { minutes: 9.0, puffs: { is: 11 }, temp: { is: 740 }, drawMs: 1_800, ashGrams: 0.25 },
   // 手卷 Roll-Your-Own: 7.5 min · 17 口 · 2.8 s · 820 C.
-  '20': { minutes: 7.5, puffs: { is: 17 }, temp: { is: 820 }, drawMs: 2_800 },
-  // 丁香: the grid gives a length, the parameter table has no row for it.
-  '40': { minutes: 7.5 },
+  '20': { minutes: 7.5, puffs: { is: 17 }, temp: { is: 820 }, drawMs: 2_800, ashGrams: 0.36 },
+  // 丁香 Clove: the grid gives a length, S9's parameter table has no row for it — but S16's category
+  // list does (「丁香烟 Kretek / Bidi · 7 min · 8 - 12 口 · 芯温 600 - 700 C · 吸入型 · 燃烧快、烟灰多」).
+  // The length stays the grid's 7.5 (S16 says 7 — recorded as one of the deck's own disagreements,
+  // the same way 典藏's 10.0 / 11.0 was), and the 口数 and 芯温 come from that row.
+  '40': { minutes: 7.5, puffs: { within: [8, 12] }, temp: { within: [600, 700] } },
   // 冰凉 Ice Cool: 14.0 min · 16 口 · 1.6 s · 700 C.
-  '65': { minutes: 14.0, puffs: { is: 16 }, temp: { is: 700 }, drawMs: 1_600 },
+  '65': { minutes: 14.0, puffs: { is: 16 }, temp: { is: 700 }, drawMs: 1_600, ashGrams: 0.2 },
   // 深焙 Dark Roast: 12.0 min · 14 口 · 2.6 s · 800 C.
-  '95': { minutes: 12.0, puffs: { is: 14 }, temp: { is: 800 }, drawMs: 2_600 },
+  '95': { minutes: 12.0, puffs: { is: 14 }, temp: { is: 800 }, drawMs: 2_600, ashGrams: 0.38 },
   // 小雪茄: 18.0 min · 15-20 口 · 700-800 C.
   '135': { minutes: 18.0, puffs: { within: [15, 20] }, temp: { within: [700, 800] } },
   // 典藏 Reserve: 13 口 · 2.2 s · 850 C. The deck's two tables disagree on its length (S8 says
   // 10.0 min, S9 says 11.0), so the grid wins — it is the screen this build was rebuilt from — and
   // the one-minute gap is recorded rather than hidden.
-  '190': { minutes: 10.0, puffs: { is: 13 }, temp: { is: 850 }, drawMs: 2_200 },
+  '190': { minutes: 10.0, puffs: { is: 13 }, temp: { is: 850 }, drawMs: 2_200, ashGrams: 0.32 },
   // 雪茄: 50.0 min · 25-40 口 · 800-900 C.
   '250': { minutes: 50.0, puffs: { within: [25, 40] }, temp: { within: [800, 900] } },
   // 斗烟: 40.0 min · 10-15 口 · 600-750 C.
@@ -196,6 +201,28 @@ describe('every rod keeps the numbers the deck gives its slot (§ S8, § S9, § 
           `deck=${JSON.stringify(deck.puffs)}`,
       );
       inside(String(rod?.id), 'puffs', rod?.physical.puffs.target ?? -1, deck.puffs);
+    }
+  });
+
+  it('weigh what the deck says they weigh', () => {
+    // S9's 烟灰量 column is the physical basis of everything the ash does (拍板 ②): a shaken-down
+    // column's mass, the tray's number and the lifetime figure are all read off it. Six of the eleven
+    // slots carry a deck figure; the five that do not (the four world formats and 丁香) are ours, so
+    // they are judged only against a real stick's band — and the print says which is which.
+    for (const [gate, deck] of Object.entries(BRIEF_SLOT)) {
+      const rod = CIGARETTES.find((candidate) => gateKey(candidate.unlock) === gate);
+      expect(rod, `no rod occupies slot ${gate}`).toBeDefined();
+      const grams = rod?.physical.ashGrams ?? -1;
+      console.log(
+        `ASHGRAMS ${String(rod?.id)} gate=${gate} value=${String(grams)} ` +
+          (deck.ashGrams === undefined ? 'deck=-' : `deck=${String(deck.ashGrams)}`),
+      );
+      if (deck.ashGrams === undefined) {
+        expect(grams, `${String(rod?.id)} ash below a real stick's`).toBeGreaterThan(0.15);
+        expect(grams, `${String(rod?.id)} ash above a whole bowl's`).toBeLessThan(3.5);
+        continue;
+      }
+      expect(grams, `${String(rod?.id)} 克数不等于稿子那一格`).toBe(deck.ashGrams);
     }
   });
 

@@ -16,7 +16,7 @@ const STORMY_EVENTS = [...ASHY_EVENTS, 'wind', 'environment_noise'];
 export const CIGARETTES: CigaretteContent[] = [
   {
     id: 'classic',
-    name: 'Classic',
+    name: 'Standard',
     // The one everyone recognises: a narrow, lazy column off the cherry.
     character: 'column',
     burnDuration: { min: 540_000, max: 660_000 },
@@ -38,7 +38,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [700, 800],
       puffs: { target: 12, min: 8, max: 15 },
     },
-    archive: { zhName: '原生卷烟', kind: 'inhale' },
+    archive: { zhName: '原生', kind: 'inhale' },
     eventPool: ASHY_EVENTS,
     palette: {
       paper: rgb(238, 233, 222),
@@ -53,7 +53,7 @@ export const CIGARETTES: CigaretteContent[] = [
   },
   {
     id: 'silver',
-    name: 'Silver',
+    name: 'Menthol',
     // Wide, faint and slow: it fills the air and mostly refuses to be noticed.
     character: 'haze',
     burnDuration: { min: 486_000, max: 594_000 },
@@ -75,7 +75,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [690, 780],
       puffs: { target: 11, min: 8, max: 14 },
     },
-    archive: { zhName: '细支淡烟', kind: 'inhale' },
+    archive: { zhName: '薄荷', kind: 'inhale' },
     eventPool: COMMON_EVENTS,
     palette: {
       paper: rgb(246, 246, 248),
@@ -90,7 +90,7 @@ export const CIGARETTES: CigaretteContent[] = [
   },
   {
     id: 'night',
-    name: 'Night',
+    name: 'Dark Roast',
     // Restless: the column rolls and eddies instead of climbing.
     character: 'curls',
     burnDuration: { min: 648_000, max: 792_000 },
@@ -112,7 +112,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [720, 800],
       puffs: { target: 14, min: 10, max: 17 },
     },
-    archive: { zhName: '深色短支', kind: 'inhale' },
+    archive: { zhName: '深焙', kind: 'inhale' },
     eventPool: STORMY_EVENTS,
     palette: {
       paper: rgb(196, 198, 210),
@@ -127,7 +127,7 @@ export const CIGARETTES: CigaretteContent[] = [
   },
   {
     id: 'long',
-    name: 'Long',
+    name: 'Reserve',
     character: 'column',
     burnDuration: { min: 540_000, max: 660_000 },
     puffProfile: {
@@ -148,7 +148,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [790, 890],
       puffs: { target: 13, min: 10, max: 17 },
     },
-    archive: { zhName: '长支慢燃', kind: 'inhale' },
+    archive: { zhName: '典藏', kind: 'inhale' },
     eventPool: ASHY_EVENTS,
     palette: {
       paper: rgb(240, 238, 232),
@@ -163,7 +163,7 @@ export const CIGARETTES: CigaretteContent[] = [
   },
   {
     id: 'ember',
-    name: 'Ember',
+    name: 'Clove',
     // Balloons outward on the exhale and is gone, with sparks to cover for it.
     character: 'bloom',
     burnDuration: { min: 405_000, max: 495_000 },
@@ -178,14 +178,14 @@ export const CIGARETTES: CigaretteContent[] = [
     },
     smokeProfile: { density: 1.16, turbulence: 1.42, riseSpeed: 0.34, dispersion: 1.2 },
     emberProfile: { brightness: 0.94, flicker: 0.52, flareChance: 0.042 },
-    ashProfile: { minLength: 0.0122, maxLength: 0.0304 },
+    ashProfile: { minLength: 0.0146, maxLength: 0.0364 },
     physical: {
       lengthMm: 84,
-      ashGrams: 0.36,
-      centerTempC: [740, 800],
-      puffs: { target: 13, min: 9, max: 16 },
+      ashGrams: 0.42, // 丁香 has no row in the deck's table; its grid line says 烟灰多, so a real clove stick's upper figure
+      centerTempC: [600, 700],
+      puffs: { target: 10, min: 8, max: 12 },
     },
-    archive: { zhName: '烈性短支', kind: 'inhale' },
+    archive: { zhName: '丁香', kind: 'inhale' },
     eventPool: STORMY_EVENTS,
     palette: {
       paper: rgb(232, 206, 176),
@@ -200,7 +200,7 @@ export const CIGARETTES: CigaretteContent[] = [
   },
   {
     id: 'mist',
-    name: 'Mist',
+    name: 'Ice Cool',
     // Cold and heavy: it pours off the cherry and lies on the table.
     character: 'curtain',
     burnDuration: { min: 756_000, max: 924_000 },
@@ -222,7 +222,7 @@ export const CIGARETTES: CigaretteContent[] = [
       centerTempC: [660, 740],
       puffs: { target: 16, min: 13, max: 19 },
     },
-    archive: { zhName: '粗支厚烟', kind: 'inhale' },
+    archive: { zhName: '冰凉', kind: 'inhale' },
     eventPool: [...COMMON_EVENTS, 'smoke_swirl', 'rain'],
     palette: {
       paper: rgb(228, 234, 236),
@@ -237,7 +237,7 @@ export const CIGARETTES: CigaretteContent[] = [
   },
   {
     id: 'ryo',
-    name: 'RYO',
+    name: 'Roll-Your-Own',
     // Hand-rolled: looser tobacco, a shorter life, and an ash that will not stand up.
     character: 'curls',
     burnDuration: { min: 420_000, max: 480_000 },
