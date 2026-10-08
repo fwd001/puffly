@@ -406,4 +406,30 @@ describe('§73 architecture guards', () => {
     );
     expect(all).toEqual([]);
   });
+
+  /**
+   * S18's own premise: 商标与包装图形一律不画, "这是这条线能上线的前提". The *words* half of that line
+   * has had guards for a while (`archive.test.ts` refuses a brand in the loop, `packs.test.ts` keeps a
+   * price out of the grid). The *picture* half was only ever a fact about how the app is built — every
+   * prop is drawn from vectors, so the one thing that could break the line is someone dropping artwork
+   * into the public folder, and that fails silently: it would simply look right.
+   */
+  const SHIPPED_ART = ['icon.svg', 'icon-maskable.svg'];
+  const artOffenders = (names: readonly string[]): string[] =>
+    names.filter((name) => !SHIPPED_ART.includes(name));
+
+  it('the app ships nothing to look at except its own two icons', () => {
+    const shipped = readdirSync(join(root, 'apps/web/public'));
+    expect(
+      shipped.length,
+      'the listing came back empty, so the scan proves nothing',
+    ).toBeGreaterThan(0);
+    const beyond = artOffenders(shipped);
+    expect(beyond, `art beyond the icons: ${beyond.join(', ')}`).toEqual([]);
+  });
+
+  it('the art guard can fail, and does not fire on the icons it exists to allow', () => {
+    expect(artOffenders(['icon.svg', 'pack-front.png'])).toEqual(['pack-front.png']);
+    expect(artOffenders(SHIPPED_ART), 'the guard fires on the shipped set').toEqual([]);
+  });
 });

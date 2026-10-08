@@ -4012,7 +4012,7 @@ Long-term vision
 | S15 一致性审计表 | 0 处整段未图标化、0 处数值口径不一致、估算值统一带约等于 | 三条都有判据指着 | 真机 "the screen carries no prose…"、"pinning the card earns tier three, and its estimate carries the ≈"；`WORD_HOMES` 扫描 | 落 |
 | S16 全球品类与两型 | 吸入型按住吐烟；品鉴型含住 2 秒缓缓吐、不出现肺阻力反馈；过滤型经水 | 三型各自成立 | `savour.test.ts`；真机 kinds = 吸入型 7 / 品鉴型 3 / 过滤型 1 | 落 |
 | S17 皮肤 | 四层色板 + 环境预设；硬约束不得动时长 / 口数 / 温度 / 灰重 | 皮肤只有四层，物理碰不到 | `skins.test.ts` "a skin is four colours and nothing else"、`skin.test.ts` "a skin cannot reach the ash, the band, the filter or the tray" | 落 |
-| S18 烟盒收集 | 12 槽、低档保底 / 中高加权、三条底线（不画商标、不做价格对比、不做健康暗示） | 12 槽与三档都在，底线由扫描判据守着 | `packs.test.ts`；真机 "烟盒 0 / 12"；SPEC "烟盒收集：压轴盒以前是永远拿不到" | 落 |
+| S18 烟盒收集 | 12 槽、低档保底 / 中高加权、三条底线（不画商标、不做价格对比、不做健康暗示） | 12 槽与三档都在；名字与价格那两条有判据，"不画商标"这一条从今天起也有（发布的图只有应用自己的两个图标） | `packs.test.ts`（含"价格不进格子、只以约等于进档案"）、`archive.test.ts` 三条、`architecture.test.ts` 新增的 art 两条；真机 "烟盒 0 / 12" | 落 |
 | S19 抽到一半看档案 | 手机端按住烟身 0.6 秒；PC 端鼠标停在烟身上 0.6 秒、右栏滑出；松手只收卡；钉住读第三层；数字 ≥15px；白字对深底按 AA | 阈值与三层密度成立；字号那半由 font-floor 判，对比度那半今天起有人判；但挂点在 HUD 的支数标记、卡片是覆盖式而非右栏 | 真机 "a hold opens the archive at tier two…"、"pinning the card earns tier three"；`text-contrast.test.ts` 三条（量的最低一对 5.66） | 落（挂点 = 偏，见下面第 2 条） |
 | S20 图鉴全展开 | 11 格长屏 | 同一屏，滚动即长屏 | 同 S8 | 落 |
 | S21 皮肤实机屏 | 六套、只改四层、四套按支数解锁（40 / 120 / 260 / 420）、朱砂按集齐 | 与稿子逐一对齐 | `brief-conformance.test.ts` "gates each skin where the sheet says"；真机 cards:6 layers:4 locked:5 | 落 |
@@ -4144,3 +4144,23 @@ Long-term vision
 "手机上到底看不看得见"仍然是你的眼睛 —— 本轮没有任何判据代替那一眼。
 
 数：`npm test` = 114 档 836 条（本片 +1 档 +3 条）。
+
+### 商标那条线：字的半边早有判据，图的半边今天补上（2026-10-08）
+
+稿子 S18 写「商标与包装图形一律不画 —— 这是这条线能上线的前提」。这一条之前只靠"应用是怎么造的"这个
+事实撑着：所有道具都是矢量画的，`apps/web/public` 里除了自己的两个 PWA 图标什么都没有
+（现数：全仓 14 个图片文件 = 10 张 docs 截图 + `public/icon.svg` + `public/icon-maskable.svg`
++ 它们在 `dist/` 里的两份构建副本）。
+
+文字的半边一直有人判 —— `archive.test.ts` 三条（虚构烟不许借真品牌名 / 循环的壳不点名品牌 /
+循环能显示的那批词里既无品牌也无价格），`packs.test.ts` 那条"价格不进格子、只在档案里以约等于出现"。
+
+⇒ `tests/architecture.test.ts` 加两条：`apps/web/public` 只许出现那两个图标（**清单为空也算红**，
+扫描必须有分母），以及这条自己的反证（合成清单里塞一个 `pack-front.png` 必须红）。架构档因此 27 条。
+
+**为什么这条线值得一个判据**：破坏它不会报错。往 public 里拖一张"烟盒正面"，画面只会显得更好看，
+`npm test` 全绿、构建全绿 —— 这是一条会**静默**出现的合规例外，也正是稿子那句话最怕的那种塌法。
+
+**判据不到的那一半说清**：它管的是**发布出去的文件**，不管渲染器里画了什么形状。
+"这只盒子像不像某一个真牌子"仍然只有人眼能判（`pack-object.test.ts` 判的是盒子的构造与玻璃纸，
+不是与任何实物的相似度）。
