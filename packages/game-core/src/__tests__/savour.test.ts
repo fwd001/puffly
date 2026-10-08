@@ -64,8 +64,10 @@ describe('the mouth and the lungs (§14, 品鉴型)', () => {
     expect(at(500)).toBeCloseTo(0.25, 1);
     expect(at(1000)).toBeCloseTo(0.5, 1);
     expect(at(MOUTHFUL_MS)).toBeCloseTo(1, 1);
-    // Held twice as long as it needed, it is no fuller: 含住两秒, and then it is simply held.
-    expect(at(MOUTHFUL_MS * 2)).toBeCloseTo(1, 1);
+    // Held past its own fill point, it is no fuller: 含住两秒, and then it is simply held. The read is
+    // taken inside the ceiling 拍板 ① put on a draw (this rod's line is 2000 × 1.6 = 3200 ms); what
+    // happens past it is `puff-ceiling.test.ts`'s claim, not this one's.
+    expect(at(3000)).toBeCloseTo(1, 1);
   });
 
   it('an inhaled draw keeps arriving the whole time it is held, front-loaded', () => {

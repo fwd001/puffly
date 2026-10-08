@@ -58,6 +58,15 @@ export function tickPuff(rt: EngineRuntime, dtMs: number): void {
   puff.progress = shaped;
   puff.intensity = clamp(lerp(profile.intensityMin, profile.intensityMax, shaped), 0, 1);
 
+  // The ceiling. `progress` has been at 1 since the planned length, so this is the stretch where the
+  // player can see the draw is done and is holding on anyway: the mouth comes off the rod by itself
+  // there, and the exhale that follows is the one the release would have produced.
+  const ceiling = Math.max(rt.timers.puffPlannedMs, profile.savourMs) * PUFF.maxHoldFactor;
+  if (puff.heldMs >= ceiling) {
+    endPuff(rt);
+    return;
+  }
+
   // A held draw leaks at the cherry the whole time it is held — and it leaks *continuously*.
   // Four times the rate at a quarter of the particles per burst is the same smoke per second,
   // but spread over time instead of dropped in clumps: the design's ribbon is one unbroken line,

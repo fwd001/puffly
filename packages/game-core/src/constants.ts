@@ -56,6 +56,16 @@ export const BURN = {
 export const PUFF = {
   /** Holds get stronger sub-linearly: a 2s hold is not twice a 1s hold (§14). */
   intensityCurve: 0.7,
+  /**
+   * How much longer than its own planned length one draw may be held, as a multiple.
+   *
+   * 2026-10-08 拍板: 「就是手指按压的长度来决定，但是那一口有一个最大的限制」 — the press decides the
+   * draw, and the draw has a ceiling. Below it a half-sip is as valid as a full one; at it, the draw
+   * ends by itself, because the alternative was a hold that buys smoke forever. 1.6 is not a taste
+   * number: the ring is already full at 1.0 of the planned length, so this is how long a *visibly*
+   * finished draw may be held on for before the mouth is taken off the rod.
+   */
+  maxHoldFactor: 1.6,
   /** Calms down between puffs so `RESTING` is a real rest (§8). */
   loadDecayPerSecond: 0.18,
 } as const;

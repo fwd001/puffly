@@ -1219,6 +1219,37 @@ try {
     `lit=${lit.arc} drawing=${drawing.arc} alt=${drawing.alt}`,
   );
 
+  // 拍板 ① (2026-10-08): the press owns the draw, and each draw has a ceiling — so a finger that
+  // never lifts still gets only one 口. The core pins the line itself; what only a real browser can
+  // show is that the row the player reads follows the mouth off the rod, and that the release which
+  // eventually comes does not buy a second count.
+  //
+  // Polled rather than timed: the ceiling is this rod's own draw window × 1.6, and the shipped rods
+  // roll anywhere from 2.2 s to 4.2 s — a fixed wait would be measuring a guess. (The first version
+  // waited 3.6 s and reported 1 → 1, which was the *rod* being wrong rather than the code.)
+  const countOf = (text) => Number(/^(\d+)\s*\//.exec(text)?.[1] ?? -1);
+  const beforeCeiling = await chrome();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  let stillHeld = beforeCeiling;
+  let waitedMs = 0;
+  while (waitedMs < 6000 && countOf(stillHeld.primary) === countOf(beforeCeiling.primary)) {
+    await page.waitForTimeout(150);
+    waitedMs += 150;
+    stillHeld = await chrome();
+  }
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  const afterRelease = await chrome();
+  check(
+    'a draw held past its ceiling ends itself, and the release afterwards buys nothing',
+    countOf(stillHeld.primary) > countOf(beforeCeiling.primary) &&
+      stillHeld.phase === 'puff' &&
+      countOf(afterRelease.primary) === countOf(stillHeld.primary),
+    `held=${beforeCeiling.primary} → ${stillHeld.primary} after ${String(waitedMs)}ms of the same ` +
+      `press, released=${afterRelease.primary}`,
+  );
+
   // S17 and S19 read together: 按住 0.6 秒 opens the card, 松手只收卡片 closes it again, and the
   // `click` the browser sends *after* that release belongs to the same gesture — so it must not
   // also open the shelf behind it. The card is only readable while the finger is down, which is
