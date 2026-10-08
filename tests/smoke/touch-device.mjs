@@ -1643,6 +1643,34 @@ try {
   await context.close();
 }
 
+// ------------------------------------------------- 取烟 has somewhere to press (S14, the deck's first gesture)
+{
+  const { page, errors, context } = await openPhone({ width: 393, height: 852, dpr: 3 });
+  const aim = await page.evaluate(() => document.querySelector('.stage')?.dataset.aim ?? '');
+  const props = await propsOf(page);
+  check(
+    'the box on the table is one of the places a finger can be aimed at',
+    aim.includes('pack:') && props.pack !== undefined,
+    JSON.stringify(aim.split(' ').map((part) => part.split(':')[0])),
+  );
+
+  const idle = await scene(page);
+  const pack = await stagePoint(page, props.pack?.x ?? 0, props.pack?.y ?? 0);
+  await page.touchscreen.tap(pack.x, pack.y);
+  await page.waitForTimeout(400);
+  const inHand = await scene(page);
+  // The phase cannot tell these two apart — both belong to `light` — but the word under the rod
+  // can, and it is the same mirror the pill reads. This is the whole chain: a pixel on the canvas,
+  // resolved by the engine's own hit table, answered by the verb the deck names 取烟.
+  check(
+    'one tap on the pack takes a rod out of it',
+    idle.affordance === 'pick' && inHand.affordance === 'lighter',
+    `${idle.affordance} → ${inHand.affordance}`,
+  );
+  check('the pack pass threw nothing', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+}
+
 await browser.close();
 const failed = results.filter((entry) => !entry.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

@@ -29,6 +29,7 @@ export function computeAnchors(
   return {
     lighter: { ...layout.lighter },
     ashtray: { ...layout.ashtray },
+    pack: { ...layout.pack },
     body,
     ember: tip,
     ash,
@@ -59,6 +60,7 @@ export function hitCandidates(anchors: StageAnchors, ashLength: number): Candida
       span: [anchors.rodStart, anchors.ember],
     },
     { target: 'lighter', at: anchors.lighter, radius: HIT.lighter },
+    { target: 'pack', at: anchors.pack, radius: HIT.pack },
     {
       target: 'ashtray',
       at: anchors.ashtray,
@@ -125,6 +127,8 @@ export function anchorForTarget(anchors: StageAnchors, target: InputTarget): Poi
       return anchors.lighter;
     case 'ashtray':
       return anchors.ashtray;
+    case 'pack':
+      return anchors.pack;
     case 'stage':
       return null;
   }

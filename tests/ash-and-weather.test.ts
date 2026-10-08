@@ -59,6 +59,10 @@ let measured: Walk[] | null = null;
 const walks = (): Walk[] => (measured ??= DEFAULT_CONTENT.cigarettes.map((rod) => walk(rod.id)));
 
 describe('a gust may take the ash, but never the rod’s last column (§18, §22)', () => {
+  // The budget is for the whole roster's lives walked once, and it is stated because the walk is
+  // real work: alone this file runs in about a second, and in a full-suite run — where every worker
+  // is doing the same thing at the same time — that same second has been measured past vitest's
+  // 5 s default. A green build that turns red because the machine is busy is a red nobody can read.
   it('leaves every rod the content ships a column worth flicking', () => {
     for (const w of walks()) {
       console.log(
@@ -69,7 +73,7 @@ describe('a gust may take the ash, but never the rod’s last column (§18, §22
       expect(w.readyAt, `${w.id} never grew a flickable column`).toBeGreaterThanOrEqual(0);
       expect(w.readyAt, `${w.id} only got its column after the rod was gone`).toBeLessThan(1);
     }
-  });
+  }, 30_000);
 
   it('still lets the room knock the ash off while the rod has more to give', () => {
     // The other half. A guard that simply refused every gust would leave the case above green and

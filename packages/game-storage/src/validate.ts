@@ -59,6 +59,7 @@ const INPUT_TARGETS: readonly InputTarget[] = [
   'ash',
   'lighter',
   'ashtray',
+  'pack',
   'stage',
 ];
 const QUALITY_MODES: readonly QualityMode[] = ['auto', 'high', 'balanced', 'light'];

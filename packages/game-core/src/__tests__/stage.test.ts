@@ -204,6 +204,7 @@ describe('stage shape decides where things live (§55)', () => {
     const anchors: StageAnchors = {
       lighter: { x: 0.1, y: 0.7 },
       ashtray: { x: 0.8, y: 0.9 },
+      pack: { x: 0.28, y: 0.685 },
       body: { x: 0.5, y: 0.6 },
       ember: { x: 0.66, y: 0.55 },
       ash: { x: 0.66, y: 0.55 },
@@ -338,18 +339,20 @@ describe('what is on the table is what you can act on (§49)', () => {
     const h = harness();
     const state = h.state();
     const targets = hitCandidates(state.anchors, 0).map((candidate) => candidate.target);
-    expect(new Set(targets)).toEqual(new Set(['cigarette', 'ember', 'lighter', 'ashtray']));
+    expect(new Set(targets)).toEqual(new Set(['cigarette', 'ember', 'lighter', 'ashtray', 'pack']));
   });
 
-  it('carries no anchor and no radius for the pack, which is scenery', () => {
-    // The red box on the table is where the rod came from: it is drawn, it catches the light, and
-    // it answers nothing. It used to have both an anchor on the state and an entry in the hit
-    // table, and nothing read either — which is how an object advertises itself as a control and
-    // then does nothing when touched. The layout still knows where it is, because the picture and
-    // the clearance both need that; the interaction layer no longer pretends.
+  it('the pack carries an anchor and a radius, because it now answers a tap', () => {
+    // §37's rule was never "no anchor for the pack". It was that an object may not advertise itself
+    // as a control and then do nothing: the pack had both an anchor and a hit entry that nothing
+    // read, so both were taken away. S14's 取烟 gives it a verb, and the two come back — the third
+    // leg (that the verb exists) is what `pack-tap.test.ts` judges, since a radius with no answer is
+    // the exact failure this file was written for.
     const h = harness();
-    expect('pack' in h.state().anchors).toBe(false);
-    expect(HIT).not.toHaveProperty('pack');
-    expect(h.state().stage.layout.pack.x).toBeGreaterThan(0);
+    const state = h.state();
+    expect('pack' in state.anchors).toBe(true);
+    expect(HIT.pack).toBeGreaterThan(0);
+    // One home for the position: the anchor is the layout's point, not a second copy of it.
+    expect(state.anchors.pack).toEqual(state.stage.layout.pack);
   });
 });

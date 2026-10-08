@@ -129,9 +129,15 @@ export function drawPack(
   const band = state.style.cigarette.band;
   const paper = state.style.cigarette.paper;
 
+  // A tapped pack rocks and its contents lift: the same decaying impulse the lighter's cap answers
+  // with, read here rather than owned here, so the picture and the state never disagree about when
+  // the nudge happened (§60 — a tap that moves nothing reads as a tap that was swallowed).
+  const fidget = clamp01(state.pack.fidget);
+  const rock = Math.sin(fidget * Math.PI);
+
   ctx.save();
-  ctx.translate(centre.x, centre.y);
-  ctx.rotate(-0.05);
+  ctx.translate(centre.x, centre.y - rock * h * 0.06);
+  ctx.rotate(-0.05 + rock * 0.05);
 
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
@@ -171,13 +177,16 @@ export function drawPack(
   const rodW = w * 0.15;
   const RISES = [0.2, 0.27, 0.16];
   RISES.forEach((rise, i) => {
+    // Staggered, because a shaken pack's rods do not all move by the same amount and the difference
+    // is what reads as *loose*.
+    const lift = rise + rock * 0.05 * (1 + i * 0.5);
     const x = -w * 0.27 + i * w * 0.27 - rodW / 2;
     ctx.fillStyle = rgbToCss(mixRgb(paper, [150, 156, 168], 0.4), 0.8);
-    ctx.fillRect(x + rodW * 0.42, -h * (0.44 + rise * 0.62), rodW * 0.7, h * (0.14 + rise * 0.4));
+    ctx.fillRect(x + rodW * 0.42, -h * (0.44 + lift * 0.62), rodW * 0.7, h * (0.14 + lift * 0.4));
     ctx.fillStyle = rgbToCss(paper, 0.95);
-    ctx.fillRect(x, -h * (0.46 + rise), rodW, h * (rise + 0.14));
+    ctx.fillRect(x, -h * (0.46 + lift), rodW, h * (lift + 0.14));
     ctx.fillStyle = rgbToCss(state.style.cigarette.filter, 0.95);
-    ctx.fillRect(x, -h * (0.46 + rise), rodW, h * 0.07);
+    ctx.fillRect(x, -h * (0.46 + lift), rodW, h * 0.07);
   });
 
   // The lid, folded back over the rods — a hinged flip, not a removed cap.

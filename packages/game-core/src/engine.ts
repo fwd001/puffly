@@ -284,6 +284,7 @@ export function createEngine(options: EngineOptions): GameEngine {
       soundProfileId: ashtray.soundProfileId,
       extinguishProfileId: ashtray.extinguishProfileId,
     },
+    pack: { fidget: 0 },
     ui: createUiHints(0, settings.sessionTargetMs),
     anchors: computeAnchors(rod.pose, rod.ash.length, layout0),
     progress: projectProgress(
@@ -442,6 +443,15 @@ export function createEngine(options: EngineOptions): GameEngine {
         if (current === 'EXTINGUISHED' || current === 'DISCARDED') discard('drop');
         else if (isLit(current)) beginExtinguish(true);
         break;
+      case 'pack':
+        // S14's 取烟 with an anchor of its own: the pack is where a rod comes from, so the two states
+        // in which "give me one" is a request both answer. With a rod already out the tap has no work
+        // to do, so it gets an answer rather than a `break` — the same rule the lighter's row above
+        // states. Nothing here changes the burn, the draw or the ledger.
+        if (current === 'IDLE') pickUp();
+        else if (current === 'DISCARDED') newRod();
+        else fidgetPack(rt, 1);
+        break;
       default:
         break;
     }
@@ -470,6 +480,12 @@ export function createEngine(options: EngineOptions): GameEngine {
         break;
       case 'ashtray':
         if (isLit(current)) beginExtinguish(false);
+        break;
+      case 'pack':
+        // Held or tapped, the pack's answer is the same: a rod out. The press is not a drag, so the
+        // pack is deliberately left out of the `pressed` gate above.
+        if (current === 'IDLE') pickUp();
+        else if (current === 'DISCARDED') newRod();
         break;
       default:
         break;
@@ -613,6 +629,15 @@ export function createEngine(options: EngineOptions): GameEngine {
    * blips and dies. No ignition attempt and no cherry involved — this is the gesture without the
    * cigarette, which is what makes it worth doing for nothing.
    */
+  /**
+   * One nudge of the pack: the box rocks and the rods inside lift a little, as if a rod had been
+   * shaken loose. No burst and no state change — this is the answer to a tap that has nothing to
+   * take, which is why it may not be silent (§60) and why it may not cost anything either.
+   */
+  function fidgetPack(rt: EngineRuntime, strength: number): void {
+    rt.state.pack.fidget = Math.max(rt.state.pack.fidget, strength);
+  }
+
   function fidgetLighter(rt: EngineRuntime, strength: number): void {
     const lighter = rt.state.lighter;
     lighter.fidget = Math.max(lighter.fidget, strength);
@@ -863,6 +888,8 @@ export function createEngine(options: EngineOptions): GameEngine {
     for (const queued of due) applyInput(queued.input);
 
     tickLighter();
+    // The pack's nudge decays on its own clock, the lighter's flourish on the lighter's.
+    rt.state.pack.fidget = Math.max(0, rt.state.pack.fidget - STEP_MS / FIDGET_MS);
     tickPuff(rt, STEP_MS);
     tickExtinguish();
 

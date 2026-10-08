@@ -59,10 +59,10 @@ import { anchorAtLight } from '../anchor';
 import { isOverLimit } from '../limit';
 import { phaseOf, type Phase } from '../phase';
 
-const AIM_KEYS = ['body', 'ember', 'lighter', 'ashtray'] as const;
+const AIM_KEYS = ['body', 'ember', 'lighter', 'ashtray', 'pack'] as const;
 
 /**
- * The four points a check outside the page aims with, in fractions of the canvas element.
+ * The five points a check outside the page aims with, in fractions of the canvas element.
  *
  * The props are not at fixed numbers: the table lifts clear of the chrome (§55) and the canvas
  * letterboxes the stage inside it, so a position is a function of the window. This is why the

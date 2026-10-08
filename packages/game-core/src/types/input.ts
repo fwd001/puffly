@@ -36,4 +36,9 @@ export interface GameInput {
 
 export type InputSource = 'pointer' | 'touch' | 'mouse' | 'keyboard' | 'shortcut';
 
-export type InputTarget = 'cigarette' | 'ember' | 'ash' | 'lighter' | 'ashtray' | 'stage';
+/**
+ * The six things on the table that answer a hand. `pack` is the deck's 取烟 with an anchor of its
+ * own (S14's six gestures); `stage` is the surface behind them all, which answers a press with
+ * nothing but the folding of the chrome.
+ */
+export type InputTarget = 'cigarette' | 'ember' | 'ash' | 'lighter' | 'ashtray' | 'pack' | 'stage';

@@ -233,6 +233,16 @@ export interface AshtraySnapshot {
   extinguishProfileId: string;
 }
 
+/**
+ * The pack. One field, and it is the same kind of field as `lighter.fidget`: a decaying impulse, so
+ * a tapped pack is a *happening* rather than a mode the scene can get stuck in. It is state and not
+ * a drawing trick for the same reason the lid is: the nudge, the rods shifting inside it, and the
+ * answer to a tap that has no work to do all have to agree on when it happened.
+ */
+export interface PackSnapshot {
+  fidget: number;
+}
+
 export interface LighterSnapshot {
   typeId: string;
   engaged: boolean;
@@ -288,6 +298,8 @@ export interface StageFrame {
 export interface StageAnchors {
   lighter: Point;
   ashtray: Point;
+  /** The pack on the table — where 取烟 comes from, and now a thing a tap can be aimed at. */
+  pack: Point;
   body: Point;
   ember: Point;
   ash: Point;
@@ -332,6 +344,7 @@ export interface GameState {
   world: WorldSnapshot;
   lighter: LighterSnapshot;
   ashtray: AshtraySnapshot;
+  pack: PackSnapshot;
   ui: UiHints;
   anchors: StageAnchors;
   progress: ProgressSnapshot;

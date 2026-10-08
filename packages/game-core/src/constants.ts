@@ -145,11 +145,17 @@ export const ANGLES = {
 } as const;
 
 /** Generous hit radii in normalised units (SPEC.md §66: no precise pixel targets). */
-export const HIT: Record<'body' | 'ember' | 'ash' | 'lighter' | 'ashtray', number> = {
+export const HIT: Record<'body' | 'ember' | 'ash' | 'lighter' | 'ashtray' | 'pack', number> = {
   body: 0.1,
   ember: 0.085,
   ash: 0.075,
   lighter: 0.095,
+  /**
+   * The drawn pack is 0.058 × 0.088 and centred on its own anchor, so this is its half-diagonal
+   * (0.053) rounded up — not a wish. `touchReach` adds the finger's budget on top of it; wider and
+   * it reaches onto the rod lying next to it, which is the mistake the tray's note below warns about.
+   */
+  pack: 0.055,
   /**
    * A floor, not the tray's size: the drawn tray is at least this wide in every layout, and
    * `touchReach` adds the finger budget on top. Higher than this and the tray's touch area
