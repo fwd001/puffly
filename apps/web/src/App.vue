@@ -13,6 +13,10 @@ import SettingsSheet from './components/SettingsSheet.vue';
 import SessionSheet from './components/SessionSheet.vue';
 import CollectionSheet from './components/CollectionSheet.vue';
 import DataRail from './components/DataRail.vue';
+import { dimplePath } from './hintArt';
+
+/** The strip's own size in CSS pixels; the diagram is generated at it, never scaled into it. */
+const DIMPLE = { width: 44, height: 13, d: dimplePath(44, 13) };
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const game = createPuffly();
@@ -143,7 +147,19 @@ function dismissOnScene(event: PointerEvent): void {
       aria-hidden="true"
       :style="{ left: `${summary.hint?.x ?? 0}px`, top: `${summary.hint?.y ?? 0}px` }"
     >
-      {{ summary.hint?.word }}
+      <!-- The wordless tier's half of S15: 提示条换成纸面塌陷示意图. Same shape the rod is drawn with,
+           read off the same two numbers, so the diagram cannot drift away from the thing it diagrams. -->
+      <svg
+        v-if="summary.hint?.picture === 'dimple'"
+        class="dimple"
+        :width="DIMPLE.width"
+        :height="DIMPLE.height"
+        :viewBox="`0 0 ${DIMPLE.width} ${DIMPLE.height}`"
+        focusable="false"
+      >
+        <path :d="DIMPLE.d" />
+      </svg>
+      <template v-else>{{ summary.hint?.word }}</template>
     </p>
 
     <HudBar
@@ -231,6 +247,15 @@ canvas {
  * and takes no taps: `pointer-events: none` keeps the object underneath it reachable, which is
  * the whole point of putting the word on the scene rather than on the bar.
  */
+/* The picture the wordless strip carries is a line drawing on the same dark floor the word sat on, so
+   it inherits the strip's own opacity rather than getting a colour of its own. */
+.hint .dimple path {
+  fill: none;
+  stroke: var(--soft-white);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
 .hint {
   position: absolute;
   transform: translate(-50%, -50%);

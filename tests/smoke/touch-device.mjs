@@ -1623,9 +1623,52 @@ try {
   await page.waitForTimeout(420);
   const quiet = await stageWords(page);
   check(
-    'with no words the stage says the gesture with the halo alone',
-    quiet.hints === 0 && quiet.offenders.length === 0,
+    'with no words the stage says the gesture without any',
+    quiet.hint === '' && quiet.offenders.length === 0,
     JSON.stringify(quiet),
+  );
+
+  // S15's other half, on the tier that has no words to lean on: the strip still has to say 按住, and it
+  // says it as the diagram the deck asked for — the same shape the rod itself collapses into. Aimed off
+  // the machine mirror, because in this tier there is nothing on screen to read.
+  const aim = await propsOf(page);
+  const rodSpot = await stagePoint(page, aim.body.x, aim.body.y);
+  await page.touchscreen.tap(rodSpot.x, rodSpot.y);
+  await page.waitForTimeout(260);
+  const lamp = await stagePoint(page, aim.lighter.x, aim.lighter.y);
+  let wordlessLit = '';
+  for (let attempt = 0; attempt < 3 && wordlessLit === ''; attempt += 1) {
+    await page.touchscreen.tap(lamp.x, lamp.y);
+    wordlessLit = await waitScene(page, LIT);
+  }
+  await wakeChrome(page);
+  const drawn = await page.evaluate(() => {
+    const hint = document.querySelector('.hint');
+    const d = hint?.querySelector('svg path')?.getAttribute('d') ?? '';
+    const numbers = (d.match(/-?\d+(?:\.\d+)?/g) ?? []).map(Number);
+    const xs = numbers.filter((value, index) => index % 2 === 0);
+    const ys = numbers.filter((value, index) => index % 2 === 1);
+    return {
+      affordance: document.querySelector('.stage')?.dataset.affordance ?? 'missing',
+      words: (hint?.textContent ?? '').trim(),
+      boxes: document.querySelectorAll('.hint svg').length,
+      bowed: ys.filter((value) => value > 0.5 && value < 12.5).length,
+      flat: ys.filter((value) => value === 0 || value === 13).length,
+      waist: xs.filter((value) => value > 30 && value < 40).length,
+      d,
+    };
+  });
+  console.log(`HINTART ${JSON.stringify(drawn)}`);
+  check(
+    'the wordless tier carries the 纸面塌陷 diagram, and no word',
+    wordlessLit !== '' &&
+      drawn.affordance === 'puff' &&
+      drawn.boxes === 1 &&
+      drawn.words === '' &&
+      drawn.bowed === 2 &&
+      drawn.flat === 4 &&
+      drawn.waist === 2,
+    JSON.stringify(drawn),
   );
 
   // The choice is a preference, so it comes back — which is the same read path that dropped the

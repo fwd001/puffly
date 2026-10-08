@@ -884,10 +884,10 @@ function roundRect(
 }
 
 /** How deep the paper gives under a full draw, as a share of the rod's own thickness. */
-const DIP_SHARE = 0.22;
+export const DIP_SHARE = 0.22;
 
 /** Where the tube pinches: just behind the cherry, which is where the air is actually leaving. */
-const WAIST = 0.78;
+export const WAIST = 0.78;
 
 /**
  * How far the paper has given inward at one x, sampled from the very curve `rodBodyPath` emits.

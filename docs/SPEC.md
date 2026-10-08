@@ -4007,7 +4007,7 @@ Long-term vision
 
 | 屏 | 稿子点名的东西 | 这一版 | 证据（判据 / 真机检查 / 本节） | 状态 |
 |------|------------------------|------------------|------------------------------------------|--------|
-| S1 待机 | 页头品类标 + 支数环 + 02:14 + 78%；按钮删文字只留组合图标；提示条换成纸面塌陷示意 | HudBar 五格读数；CtaPill 图形 + 一个词；halo 指位提示 | 真机 "S1: the row reads the stick, the clock and what is left of the rod"、"an untouched table names the one thing to do" | 落 |
+| S1 待机 | 页头品类标 + 支数环 + 02:14 + 78%；按钮删文字只留组合图标；提示条换成纸面塌陷示意 | HudBar 五格读数；CtaPill 图形 + 一个词；halo 指位提示；**纯图标那一层的提示条带示意图**（今天之前那一层恰恰是空的） | 真机 "S1: the row reads the stick, the clock and what is left of the rod"、"an untouched table names the one thing to do"、"the wordless tier carries the 纸面塌陷 diagram, and no word" | 落 |
 | S2 点燃 | 点火环 + 0.4s + 78%；0.4s 蓄力 → 砂轮爆 → 纸面着焰 | 翻盖绕合页、火星四溅、着焰那一下推近压暗 | SPEC "点火那一下"、"翻盖终于绕着合页转"；真机 "lighting it moves the rail off the flame and the row onto the draw" | 落 |
 | S3 吸烟 | 环内口数 6/12 + 本次时长 3.2s；按钮只留吐烟图标；阻力波形条替整句 | 口数与秒数进环，秒数不带中文单位；波形条即阻力 | 真机 "holding the pill draws, and the row says so in seconds"、"the head-up row carries the digits, and nothing else on the stage does" | 落 |
 | S4 吐烟 | 力度读数；两端中文换成对照图（三道丝线 / 三层云朵） | 丝线与云朵画在按钮自己身上 | `CtaPill.vue:145` 的 `.art.flick` / 丝线云朵组；真机 "the picture carries the cues…" | 落 |
@@ -4021,9 +4021,9 @@ Long-term vision
 | S12 桌面挂件 | 透明背景、常驻桌面、点击展开 | 常驻透明窗是原生壳的事，PWA 做不到；稿子这条里能做的另一半（空闲降帧省电）落了 | SPEC "两件小而确指的动效条目"；`idle-paint.test.ts` | 已拍板不做（第二批第 4 条），见本节末「桌面挂件为什么不做」；省电那一半 = 落 |
 | S13 挂件展开态 | 320×420 面板，与移动端同一套逻辑、输入换成鼠标 | 等价物是宽屏侧栏 + 同一套 sheet；鼠标路径有判据 | 真机 "desktop: the lighter catches a mouse click"、"desktop: holding the mouse draws" | 落（形态按宽屏那一套；挂件本体 = 第二批明确不做，见本节末「桌面挂件为什么不做」） |
 | S14 零文字 / 多语言 / 本地存储 | 核心循环零文字、**六个手势图标**、三个自定义档位（单口时长 / 吐烟力度 / 每日支数目标）、存档 schema | 零文字与三层降级成立；**三档齐了**：吐烟力度 = 屏上的力度控制，每日支数上限 = `dailyLimitSticks`，单口时长 = `puffDurationSec`（今天补的那一档，出厂故意无默认）；目标时长 = `sessionTargetMs`；六个手势**六个都有自己的记号**（取烟 = ▭，与它今天真正按的那个东西同形） | 真机 "the third tier leaves no words and no unnamed control behind"；`settings.ts`；`puff-row.test.ts` 六条；`puff-length.test.ts` 三条 | 落（记号 6/6，见本节"记号字母表补齐到六处"与"取烟戴上烟盒的记号"；三档见"「单口时长」"那一片；稿子末行那条 RTL 镜像也有反例验证了（见「燃烧方向不跟着阿拉伯语翻」））；那张 0–12 秒定拍表 = 已拍板不做，改成每口上限（见本节末「一口有上限，按住的那一下才算数」） |
-| S15 一致性审计表 | 0 处整段未图标化、0 处数值口径不一致、估算值统一带约等于 | 三条都有判据指着 | 真机 "the screen carries no prose…"、"pinning the card earns tier three, and its estimate carries the ≈"；真机脚本里的 WORD_HOMES 白字出处扫描（`tests/smoke/touch-device.mjs:313`） | 落 |
+| S15 一致性审计表 | 0 处整段未图标化、0 处数值口径不一致、估算值统一带约等于 | 三条都有判据指着 | 真机 "the screen carries no prose…"、"pinning the card earns tier three, and its estimate carries the ≈"；真机脚本里的 WORD_HOMES 白字出处扫描（`tests/smoke/touch-device.mjs` 里的 `WORD_HOMES` 那一行 —— 不写行号，行号会漂：今天正是这条让它现出一处已经错了的引用）；纯图标那一层的提示条从今天起带示意图，不再是空白 | 落 |
 | S16 全球品类与两型 | 吸入型按住吐烟；品鉴型含住 2 秒缓缓吐、不出现肺阻力反馈；过滤型经水；每类给时长 / 口数 / 芯温 | 两型与过滤型的交互各自成立（品鉴型含住正好 2000 ms）；品类清单**十一格全对上**（见本节末「图鉴十一格走上稿子的身份」），稿子 S16 还给丁香补了 8–12 口 / 600–700 °C 两个数，ember 已落回区间内 | `savour.test.ts`；`cigarettes.ts` 里三只 `savourMs: 2000`；`brief-conformance.test.ts`；真机 kinds = 吸入型 7 / 品鉴型 3 / 过滤型 1 | 落（交互、稿子点名的每一格的数、以及十一格的身份与品类词 —— 见本节末「图鉴十一格走上稿子的身份」） |
-| S17 皮肤 | 四层色板 + 环境预设；硬约束不得动时长 / 口数 / 温度 / 灰重 | 皮肤只有四层，物理碰不到 | `skins.test.ts` "a skin is four colours and nothing else"、`skin.test.ts` "a skin cannot reach the ash, the band, the filter or the tray" | 落 |
+| S17 皮肤 | 四层色板 + **环境预设**；硬约束不得动时长 / 口数 / 温度 / 灰重 | 四层色板齐，**"环境预设"没有做** —— 它和已经定下的红线正面相撞：红线写的是皮肤只许改那四层配色，多加一个环境量就是把它从"配色"扩到"场景"。这一半**归他拍板**，不按"顺手补上"处理 | `skins.test.ts` "a skin is four colours and nothing else"、`skin.test.ts` "a skin cannot reach the ash, the band, the filter or the tray" | 部分：四层落，环境预设待拍板 |
 | S18 烟盒收集 | 12 槽、低档保底 / 中高加权、三条底线（不画商标、不做价格对比、不做健康暗示） | 12 槽与三档都在；名字与价格那两条有判据，"不画商标"这一条从今天起也有（发布的图只有应用自己的两个图标） | `packs.test.ts`（含"价格不进格子、只以约等于进档案"）、`archive.test.ts` 三条、`architecture.test.ts` 新增的 art 两条；真机 "烟盒 0 / 12" | 落 |
 | S19 抽到一半看档案 | 手机端按住烟身 0.6 秒；PC 端鼠标停在烟身上 0.6 秒、右栏滑出；松手只收卡；钉住读第三层；数字 ≥15px；白字对深底按 AA | 阈值与三层密度成立；字号那半由 font-floor 判，对比度那半今天起有人判；但挂点在 HUD 的支数标记、卡片是覆盖式而非右栏 | 真机 "a hold opens the archive at tier two…"、"pinning the card earns tier three"；`text-contrast.test.ts` 三条（量的最低一对 5.66） | 落（挂点 = 偏，见下面第 2 条） |
 | S20 图鉴全展开 | 11 格长屏 | 同一屏，滚动即长屏 | 同 S8 | 落 |
@@ -5208,3 +5208,31 @@ P6 不吸也凹（待机就变形）1 红。另加一条"同一个状态画两�
 
 **数**：新增 `packages/game-renderer/src/__tests__/paper-dimple.test.ts` 4 条，npm test 128 → **129 档 /
 986 条**；`text-contrast`、`not-yet-look`、真机 93 条都不受这次改动影响（都在构建之后重跑，见下一格）。
+
+### 纯图标那一层的提示条不再空白：纸面塌陷示意图上了屏（2026-10-08）
+
+S15 第一行自己定了顺序 —— **目标语言 → 英文 → 纯图标** —— 提示条此前只走到"没有"那一步：无字层 `t()`
+回答空 ⇒ `hintWord` 直接 `return null` ⇒ 整条提示不渲染。**最需要那张图的那一层，恰恰是唯一什么都没有的那
+一层。** 上一格补的是烟纸自己会塌（渲染器），这一格补的是稿子那句里的另一半：把那张示意画到屏上。
+
+**做法**：`apps/web/src/hintArt.ts` 两件小事。`hintPictureFor(手势, 词)` 只在**这一层没有词**并且被提示的
+手势是按住时给图 —— 有词的地方词仍然赢（图是最后一层的载体，不是跟文字抢位置的装饰），别的手势一个图都不
+给（稿子只画了这一张，凭空再编一个记号就是要往记号字母表里塞没被点名的东西）。`dimplePath(长, 厚)` 生成的
+是**渲染器自己那条贝塞尔**：腰在 `WAIST = 0.78`、深度是 `DIP_SHARE = 0.22` 个厚度，控制点取两倍深度（二次
+曲线只走到控制偏移的一半），两个常数直接从 `@puffly/game-renderer` 引进来 —— 一张和被示意的东西长得不一样
+的示意图，比没有示意图更糟。开关仍然优先：`settings.hints` 关掉时图也不出来。
+
+**判据** `apps/web/src/__tests__/hint-art.test.ts` 4 条：谁能拿到图（按住、无词）谁拿不到（有词、别的
+手势）；路径字符串必须**等于**用那两个常数算出来的那一条（读常数而不是抄数字，抄了当场红）；面板确实在渲染
+它、并且 `aria-hidden` 还在（一条不该被读屏播报的装饰）；提示词开关的检查排在要图之前（钉的是**先后顺序**，
+不是"有这一行"）。五处单点变异各红 1 条：MA 谁都不给图、MB 有词还抢词、MC 自己编一个形状、MD 面板不再渲染、
+ME 绕过提示词开关。
+
+**真机 93 → 94 条**：无字层里把烟点着，然后读 `.hint` —— 一个词都没有（`words:""`）、一张 svg
+（`boxes:1`）、两条边各自向内弓（`bowed:2`）而四个端点仍贴在平线上（`flat:4`）、两个控制点都落在 0.78 处
+（`waist:2`）。打印 `HINTART {"affordance":"puff","words":"","boxes":1,"bowed":2,"flat":4,"waist":2,`
+`"d":"M 0 0 Q 34.32 5.72 44 0 L 44 13 Q 34.32 7.28 0 13 Z"}`。瞄准全部走 `data-aim` 机器值 —— 那一层没有
+任何可读的字可按。同一轮把原先那条名字起得太宽的检查和它真正在判的事对齐（"无字层的提示条不许带字"），
+台账里 S1 / S15 两行的证据各补上新那条。
+
+**数**：npm test 130 档 / 990 条；真机 94 条（`/tmp/puffly-gate/device-P.log`，构建之后现跑）。

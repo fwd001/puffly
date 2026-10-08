@@ -143,9 +143,14 @@ function deviceLanguages(): string[] {
   return out;
 }
 
-/** Where a hint word sits: CSS pixels on the stage, above the thing it names. */
+/**
+ * Where the scene's one piece of guidance sits, in CSS pixels on the stage, above the thing it names:
+ * a word where the tier has one, and the diagram S15 asked for where it has none.
+ */
 export interface HintWord {
+  /** '' in the wordless tier — the picture is what gets shown then. */
   word: string;
+  picture: HintPicture | null;
   x: number;
   y: number;
 }
@@ -153,6 +158,7 @@ export interface HintWord {
 export type { ArchiveFacts, BoxArchiveFacts, RodArchiveFacts } from '../archiveModel';
 import { archiveFacts as factsFor, type ArchiveFacts } from '../archiveModel';
 import { SWELL_RUNGS, hapticPattern, shapeForEvent, swellRung, type HapticShape } from '../haptics';
+import { hintPictureFor, type HintPicture } from '../hintArt';
 
 export interface Summary {
   state: GameStateView | null;
@@ -438,21 +444,28 @@ export function createPuffly(): Puffly {
   };
 
   /**
-   * The one word the scene is allowed to say, sitting above the object it is about. It follows
-   * the same awake/asleep rule as the halo it labels, and settings can take it away (§28, §64).
-   * The `icons` tier takes it away by default: `t()` answers with nothing, and the halo is the
-   * whole instruction.
+   * The one thing the scene is allowed to say about the next gesture, sitting above the object it is
+   * about. It follows the same awake/asleep rule as the halo it labels, and settings can take it away
+   * (§28, §64).
+   *
+   * S15's order is 目标语言 → 英文 → 纯图标, and the strip used to obey it only halfway: where the tier
+   * had no word, `t()` answered with nothing and the strip disappeared, so 纯图标 — the tier that most
+   * needs a picture — was the one left with none. The wordless tier now carries the diagram the deck
+   * names (纸面塌陷示意图), and only for the gesture the deck drew one for.
    */
   const hintWord = (state: GameStateView): HintWord | null => {
+    if (!settings.value.hints || !state.ui.controlsVisible) return null;
     const key = HINT_KEYS[state.ui.affordance];
-    const word = key === undefined ? null : copy.value.t(key);
-    if (word === null || !settings.value.hints || !state.ui.controlsVisible) return null;
+    const found = key === undefined ? null : copy.value.t(key);
+    const picture = hintPictureFor(state.ui.affordance, found);
+    if (found === null && picture === null) return null;
     const anchor = anchorForTarget(state.anchors, targetForAffordance(state));
     if (anchor === null) return null;
     const at = viewport.px(anchor);
     const floor = viewport.cssHeight - (coarsePointer() ? 104 : 76);
     return {
-      word,
+      word: found ?? '',
+      picture,
       x: at.x,
       y: Math.max(30, Math.min(at.y - viewport.len(0.085), floor)),
     };
