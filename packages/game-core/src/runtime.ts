@@ -278,6 +278,7 @@ export function createCigaretteSnapshot(
       active: false,
       progress: 0,
       intensity: 0,
+      lastDraw: 0,
       heldMs: 0,
       // Not `Infinity`: that would turn into `null` on the way through JSON, and §51 makes a
       // save file out of this model. One settle-window means "there was no previous puff".

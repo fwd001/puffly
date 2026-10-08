@@ -106,8 +106,18 @@ export interface PuffState {
   active: boolean;
   /** 0..1 through this puff's planned duration. */
   progress: number;
-  /** 0..1 draw strength, gameified from `puffProfile.intensityMin/Max` and never shown. */
+  /**
+   * 0..1 draw strength, gameified from `puffProfile.intensityMin/Max`. It is the *live* value: it
+   * fades to 0 after the release, which is what the plume thins on. What the interface reads for
+   * the exhale is `lastDraw`, because a reading of a finished draw must not move.
+   */
   intensity: number;
+  /**
+   * 0..1 the strength of the draw that last ended, held from the release until the next draw begins.
+   * The exhale screen reads this (稿子 S4 环内力度): `intensity` cannot be read there, because it is
+   * on its way to zero while the smoke is still on screen.
+   */
+  lastDraw: number;
   heldMs: number;
   /** Since the previous release; drives `RESTING` and the exhale shape. */
   sinceReleaseMs: number;

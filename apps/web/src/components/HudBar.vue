@@ -12,6 +12,7 @@ import { computed } from 'vue';
 import type { CopyKey } from '../i18n';
 import type { Puffly } from '../composables/usePuffly';
 import { useLongPress } from '../composables/useLongPress';
+import { forceReading } from '../forceArt';
 
 const props = defineProps<{ game: Puffly }>();
 const emit = defineEmits<{ shelf: []; break: []; archive: []; archiveClose: [] }>();
@@ -87,7 +88,24 @@ const reading = computed(() => {
         altLabel: 'a11y.hud.remaining' as CopyKey,
       };
     }
-    case 'puff':
+    case 'puff': {
+      // 吐烟那一相 (S4): the ring wears the strength of the draw that just ended — 「环内力度 62」 —
+      // and the bar under the pill is its legend (三道丝线 ↔ 三层云朵), which is why this number needs
+      // no unit and no word. Both surfaces call the same `forceReading`, so the digits and the knob
+      // cannot drift apart; the count returns as soon as the next draw starts.
+      const exhale = forceReading(rod);
+      if (exhale !== null) {
+        return {
+          mark: '≡',
+          value: String(exhale),
+          fraction: rod.lengthRemaining,
+          primary: `${rod.puff.count} / ${rod.readouts.puffsTarget}`,
+          secondary: left,
+          label: copy.value.say('a11y.hud.force'),
+          numLabel: 'a11y.hud.puffs' as CopyKey,
+          altLabel: 'a11y.hud.remaining' as CopyKey,
+        };
+      }
       return {
         mark: '≡',
         value: '',
@@ -98,6 +116,7 @@ const reading = computed(() => {
         numLabel: 'a11y.hud.puffs' as CopyKey,
         altLabel: (rod.puff.active ? 'a11y.hud.hold' : 'a11y.hud.remaining') as CopyKey,
       };
+    }
     case 'tray':
       return {
         mark: MARKS.tray,

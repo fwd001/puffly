@@ -11,6 +11,7 @@ import { computed, ref } from 'vue';
 import type { Puffly } from '../composables/usePuffly';
 import { ctaKeyFor } from '../i18n';
 import { isSustained } from '../phase';
+import { FORCE_CLOUD, FORCE_THREADS, FORCE_TRACK, forceKnobX, forceReading } from '../forceArt';
 
 const props = defineProps<{ game: Puffly }>();
 
@@ -72,6 +73,21 @@ const wave = computed(() => {
   }
   return points.join(' ');
 });
+
+/**
+ * S4's 力度读数: the draw the finger just took, or `null` outside the window the smoke is leaving.
+ *
+ * The ring wears the same call, so the digits and the knob cannot come from two owners. It is a
+ * reading and not a control — the press owns the draw (2026-10-08 拍板 ①), so the bar under the pill
+ * never asks for a finger.
+ */
+const force = computed(() => {
+  const state = summary.value.state;
+  return state ? forceReading(state.cigarette) : null;
+});
+
+/** Where that reading puts the knob, in the band's own units. */
+const knob = computed(() => forceKnobX(force.value ?? 0));
 </script>
 
 <template>
@@ -115,13 +131,15 @@ const wave = computed(() => {
       <span v-if="label !== null" class="word">{{ label }}</span>
     </button>
 
-    <!-- 阻力波形条: the lungs' resistance, drawn while the draw is happening (§9.2).
+    <!-- 阻力波形条: the lungs' resistance, drawn while the draw is held (§9.2). The window the smoke
+         is leaving belongs to the 力度对照图 below — one bar per moment, never two at once.
          The 品鉴型 have no lungs in this design's vocabulary — 「雪茄、斗烟、水烟都不是往肺里吸的」 —
          and the deck rules their feedback must not show a resistance readout. `loadPerPuff` is 0 for
          them in content, so a bar here would be reporting a quantity the simulation holds at zero. -->
     <svg
       v-if="
         summary.phase === 'puff' &&
+        force === null &&
         (game.archive.value?.subject === 'rod' ? game.archive.value.kind : 'inhale') !== 'savor'
       "
       class="art wave"
@@ -131,6 +149,30 @@ const wave = computed(() => {
     >
       <polyline :points="wave" />
       <line class="floor" x1="0" y1="12" x2="120" y2="12" />
+    </svg>
+
+    <!-- 力度对照图 (S4): the draw the finger just took, read against the smoke it makes. The two ends
+         are 三道丝线 and 三层云朵 — the shapes the deck put where 「小口 · 薄雾」 and 「大口 · 浓团」
+         used to be — and the knob is where this draw landed. Zero words, and nothing to press: the
+         press already decided this one. -->
+    <svg v-else-if="force !== null" class="art force" viewBox="0 0 120 24" aria-hidden="true">
+      <path v-for="thread in FORCE_THREADS" :key="thread" class="thread" :d="thread" />
+      <circle
+        v-for="lobe in FORCE_CLOUD"
+        :key="lobe.cx"
+        class="lobe"
+        :cx="lobe.cx"
+        :cy="lobe.cy"
+        :r="lobe.r"
+      />
+      <line
+        class="floor"
+        :x1="FORCE_TRACK.start"
+        :y1="FORCE_TRACK.y"
+        :x2="FORCE_TRACK.end"
+        :y2="FORCE_TRACK.y"
+      />
+      <circle class="knob" :cx="knob" :cy="FORCE_TRACK.y" r="3.4" />
     </svg>
 
     <!-- 磕灰演示条: a short tap sends the column off the rod. -->
@@ -143,17 +185,6 @@ const wave = computed(() => {
       <line class="floor" x1="6" y1="12" x2="96" y2="12" />
       <line class="dash" x1="98" y1="12" x2="118" y2="12" />
       <circle class="dot" cx="14" cy="12" r="3.4" />
-    </svg>
-
-    <!-- 薄雾丝线 / 浓团云朵: what this rod's smoke is made of, on the way out. -->
-    <svg
-      v-else-if="affordance === 'discard'"
-      class="art cloud"
-      viewBox="0 0 120 24"
-      aria-hidden="true"
-    >
-      <path class="wisp" d="M8 16c8-9 14 3 22-5" />
-      <path class="blob" d="M74 16c-9 0-9-11 1-11 2-7 13-6 14 1 8 0 8 10-1 10z" />
     </svg>
   </div>
 </template>
@@ -267,6 +298,28 @@ const wave = computed(() => {
   stroke-width: 1;
 }
 
+/* The 力度对照图 is read for a position, so its own track is the strongest line in the band and the
+   two pictograms are quieter than it: 三道丝线 taper away from the knob, 三层云朵 pile up behind it. */
+.force .floor {
+  stroke: color-mix(in oklab, var(--soft-white) 55%, transparent);
+  stroke-width: 1.4;
+}
+
+.force .thread {
+  fill: none;
+  stroke: color-mix(in oklab, var(--soft-white) 45%, transparent);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.force .lobe {
+  fill: color-mix(in oklab, var(--soft-white) 22%, transparent);
+}
+
+.force .knob {
+  fill: var(--soft-white);
+}
+
 .flick .dash {
   stroke: color-mix(in oklab, var(--soft-white) 40%, transparent);
   stroke-width: 1;
@@ -276,16 +329,6 @@ const wave = computed(() => {
 .flick .dot {
   fill: var(--ember-core);
   animation: tap-here 1.5s var(--ease-out) infinite;
-}
-
-.cloud .wisp {
-  fill: none;
-  stroke: color-mix(in oklab, var(--soft-white) 45%, transparent);
-  stroke-width: 1.2;
-}
-
-.cloud .blob {
-  fill: color-mix(in oklab, var(--soft-white) 22%, transparent);
 }
 
 @keyframes tap-here {

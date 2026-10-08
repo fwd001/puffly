@@ -105,6 +105,8 @@ export const EN = {
   'a11y.hud.remaining': 'rod left',
   'a11y.hud.hold': 'held for',
   'a11y.hud.puffs': 'draws so far',
+  // S4 吐烟: the ring's digits during the release are the strength of the draw that just ended.
+  'a11y.hud.force': 'how hard that draw was',
   'a11y.hud.ash': 'ash column',
   'a11y.hud.ashMass': 'ash this stick has made',
   // 拍板 ②: two gram figures, two subjects. `ashMass` is this stick's own output; `trayMass` is what
@@ -358,6 +360,7 @@ const ZH: Table = {
   'a11y.hud.remaining': '还剩多少烟',
   'a11y.hud.hold': '已经按住',
   'a11y.hud.puffs': '已经吸了几口',
+  'a11y.hud.force': '这一口有多用力',
   'a11y.hud.ash': '灰柱长度',
   'a11y.hud.ashMass': '这一支生成的灰',
   'a11y.hud.trayMass': '缸里的灰',

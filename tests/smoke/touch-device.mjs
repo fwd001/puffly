@@ -1183,6 +1183,29 @@ try {
     });
 
   const idle = await chrome();
+
+  // S4 吐烟: the ring wears the strength of the draw that just ended, and the bar under the pill is
+  // its legend. Both are read in one sample so a number and a position that disagree cannot pass.
+  const readForce = () =>
+    page.evaluate(() => {
+      const digits = document.querySelector('.hud .ring .digits')?.textContent?.trim() ?? '';
+      const bar = document.querySelector('.cta .art.force');
+      const track = bar?.querySelector('.floor');
+      const x1 = Number(track?.getAttribute('x1') ?? '-1');
+      const x2 = Number(track?.getAttribute('x2') ?? '-1');
+      return {
+        phase: document.querySelector('.stage')?.dataset.phase ?? '',
+        digits,
+        mark: document.querySelector('.hud .ring .mark')?.textContent?.trim() ?? '',
+        threads: bar ? bar.querySelectorAll('.thread').length : -1,
+        lobes: bar ? bar.querySelectorAll('.lobe').length : -1,
+        words: bar ? (bar.textContent ?? '').trim() : '',
+        knob: Number(bar?.querySelector('.knob')?.getAttribute('cx') ?? '-1'),
+        x1,
+        x2,
+      };
+    });
+
   check(
     'S1: the row reads the stick, the clock and what is left of the rod',
     idle.phase === 'light' &&
@@ -1228,12 +1251,38 @@ try {
   await page.mouse.down();
   await page.waitForTimeout(900);
   const drawing = await chrome();
+  const heldForce = await readForce();
   await page.mouse.up();
-  await page.waitForTimeout(300);
+  // The window is finite (`restSettleMs`), so this polls for the sample the deck is about rather than
+  // sleeping a guessed number of milliseconds and reading whatever happens to be on screen.
+  const samples = [];
+  for (let step = 0; step < 8 && !samples.some((sample) => sample.threads >= 0); step += 1) {
+    await page.waitForTimeout(120);
+    samples.push(await readForce());
+  }
+  const exhale = samples.find((sample) => sample.threads >= 0);
   check(
     'holding the pill draws, and the row says so in seconds',
     /\d+\.\d+s/.test(drawing.alt) && drawing.arc !== lit.arc,
     `lit=${lit.arc} drawing=${drawing.arc} alt=${drawing.alt}`,
+  );
+
+  check(
+    'S4: the exhale wears that draw’s force in the ring, and the bar says it without a word',
+    heldForce.digits === '' &&
+      heldForce.mark === '≡' &&
+      exhale !== undefined &&
+      /^\d+$/.test(exhale.digits) &&
+      Number(exhale.digits) >= 1 &&
+      Number(exhale.digits) <= 100 &&
+      exhale.threads === 3 &&
+      exhale.lobes === 3 &&
+      exhale.words === '' &&
+      Math.abs(
+        exhale.knob - (exhale.x1 + (Number(exhale.digits) / 100) * (exhale.x2 - exhale.x1)),
+      ) <= 0.7,
+    `held=${JSON.stringify(heldForce)} samples=${String(samples.length)} ` +
+      `exhale=${JSON.stringify(exhale ?? null)}`,
   );
 
   // 拍板 ① (2026-10-08): the press owns the draw, and each draw has a ceiling — so a finger that

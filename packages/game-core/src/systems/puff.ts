@@ -2,8 +2,8 @@
  * Puff interaction — SPEC.md §14.
  *
  * `hold` is a draw: intensity, ember, smoke density and sound all rise together and
- * `release` lets the smoke expand. `tap` is a short sip. The numbers are gameified and
- * never surfaced to the player (§4).
+ * `release` lets the smoke expand. `tap` is a short sip. The tuning numbers behind them stay
+ * in content (§4) — what reaches the player is the reading of the draw they just took (§14, S4).
  */
 
 import { clamp, clamp01, lerp } from '@puffly/shared';
@@ -21,6 +21,9 @@ export function beginPuff(rt: EngineRuntime): void {
   puff.active = true;
   puff.progress = 0;
   puff.heldMs = 0;
+  // Cleared here rather than left for the release to overwrite: a draw in progress must never be
+  // read as the one before it, and the exhale screen is the only reader of this field.
+  puff.lastDraw = 0;
   puff.intensity = clamp01(profile.intensityMin);
   rt.timers.puffMs = 0;
   // The rod's own window is rolled every single time, whether or not the player overrode it: the
@@ -84,6 +87,9 @@ export function endPuff(rt: EngineRuntime): void {
 
   puff.active = false;
   puff.sinceReleaseMs = 0;
+  // The one figure the exhale is read by, kept at the release: `intensity` starts fading on the next
+  // step, and a reading of a draw that has ended must not move while its smoke is still on screen.
+  puff.lastDraw = intensity;
   puff.count += 1;
   puff.load = clamp01(puff.load + intensity * profile.loadPerPuff);
   rt.state.cigarette.ember.flare = Math.max(rt.state.cigarette.ember.flare, intensity * 0.55);
