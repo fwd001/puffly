@@ -232,6 +232,8 @@ export interface Puffly {
   addTrigger(tag: string): void;
   acknowledgeUnlocks(): void;
   endBreak(): void;
+  /** S23: the player did one of the three 替代动作. Counted today, and nothing else. */
+  takeSubstitute(id: string): void;
   exportJson(): Promise<string>;
   importJson(json: string): Promise<{ ok: boolean; errors: string[] }>;
   resetData(): Promise<void>;
@@ -414,6 +416,9 @@ export function createPuffly(): Puffly {
   const deriveOptions = () => ({
     nowMs: Date.now(),
     utcOffsetMinutes: settings.value.utcOffsetMinutes,
+    // The 替代动作 ledger rides along so the page's three rows read from the one place that keeps
+    // counts, rather than the panel keeping a second tally of its own (§70).
+    substitutes: engine?.progressSnapshot().substitutes ?? [],
     ...(settings.value.quitAnchorTimestamp
       ? { quitAnchorTimestamp: settings.value.quitAnchorTimestamp }
       : {}),
@@ -932,6 +937,13 @@ export function createPuffly(): Puffly {
     },
     endBreak() {
       closeSession();
+    },
+    takeSubstitute(id) {
+      // The core is what owns the ledger, so an id outside the deck's three is refused there and
+      // changes nothing here either — no save, no recompute, no number that appeared from nowhere.
+      if (!engine?.takeSubstitute(id)) return;
+      persistProgress();
+      recompute();
     },
     async exportJson() {
       if (!engine || !persistence) return '{}';

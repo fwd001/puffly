@@ -7,9 +7,11 @@
  * on its own. The eleven categories' stick ladder is deliberately not repeated here — it is
  * already computed and asserted in `tests/sessionLoop.test.ts`.
  *
- * One known difference from the source, recorded rather than hidden: the brief counts 累计支数,
- * while `ruleSatisfied` reads `progress.sessions`, which also counts a break that ended with the
- * rod unlit. In normal play the two are the same number.
+ * The brief's 累计支数 and `progress.sessions` used to be two different counts, with the second one
+ * also taking in a break that ended with the rod unlit. That gap is closed rather than papered over:
+ * `sessionWasLit` is now the single definition of a counted stick (S23's 「点了不抽也行 按照计次」),
+ * read the same way by the gates, the ladder and the day tally — `lifecycle.test.ts` pins both
+ * edges of it, and `reduction.test.ts` keeps the page honest about the same rule.
  */
 
 import { describe, expect, it } from 'vitest';

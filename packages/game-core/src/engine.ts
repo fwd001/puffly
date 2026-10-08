@@ -67,6 +67,7 @@ import {
   evaluateUnlocks,
   initialUnlocks,
   smokeFreeDays,
+  takeSubstitute,
   updateDay,
 } from './progress';
 import {
@@ -88,7 +89,7 @@ import type {
   UnlockRule,
 } from './types/content';
 import type { GameInput, InputTarget } from './types/input';
-import type { Progress } from './types/progress';
+import type { Progress, SubstituteTally } from './types/progress';
 import type { CigaretteStateId, GameState, SceneStyle } from './types/state';
 import type { OpenBreak, Session } from './types/session';
 
@@ -137,6 +138,8 @@ export interface GameEngine {
   sessionId(): string | null;
   setCraving(level: number, phase: 'before' | 'after'): void;
   addTrigger(tag: string): void;
+  /** S23's 替代动作计次: one of the three, today. Unknown ids change nothing. */
+  takeSubstitute(id: string): SubstituteTally | null;
   acknowledgeUnlocks(): void;
   /** Completed fixed steps — what replay aligns inputs to (§71). */
   steps(): number;
@@ -1105,6 +1108,9 @@ export function createEngine(options: EngineOptions): GameEngine {
     },
     addTrigger(tag: string) {
       recordTrigger(rt, tag);
+    },
+    takeSubstitute(id: string) {
+      return takeSubstitute(rt, id);
     },
     acknowledgeUnlocks() {
       rt.progress.acknowledgedUnlocks.push(...rt.state.collection.fresh);

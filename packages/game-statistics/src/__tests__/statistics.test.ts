@@ -33,15 +33,16 @@ describe('deriveStatistics: §33 from the hand-built log', () => {
   });
 
   it('counts events per type out of §69, and puffs out of PUFF events', () => {
-    // ses-1 10 + ses-2 9 + ses-3 7 + ses-4 12 + ses-5 3 = 41
-    expect(statistics.totalEvents).toBe(41);
+    // ses-1 10 + ses-2 9 + ses-3 8 + ses-4 12 + ses-5 3 = 42. ses-3 draws on a rod it has to have
+    // lit, so its LIGHT event is in there: a PUFF with no LIGHT is a story the engine cannot tell.
+    expect(statistics.totalEvents).toBe(42);
     expect(statistics.totalPuffs).toBe(10); // 3 + 2 + 1 + 4 + 0
     expect(statistics.eventCounts).toEqual({
       SESSION_START: 5,
       SESSION_END: 5,
       SESSION_TARGET: 1,
       PICK_UP: 2,
-      LIGHT: 3,
+      LIGHT: 4,
       PUFF: 10,
       ASH: 1,
       ASH_FALL: 1,

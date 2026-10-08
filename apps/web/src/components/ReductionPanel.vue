@@ -2,8 +2,8 @@
 /**
  * S20's numbers, as one block: the day's count against the ceiling the player set, the last seven
  * days as bars, and the difference against the same span a week ago. That is the whole of it — the
- * block is compared to last week and to nothing else, and the three alternatives are marks rather
- * than instructions.
+ * block is compared to last week and to nothing else, and the three alternatives are one tap and a
+ * count rather than instructions.
  *
  * It is a component because the phone puts it behind the break and the PC keeps it on screen at all
  * times (S10's 常驻数据栏), and a second copy of the delta line would be two facts to keep true.
@@ -70,11 +70,21 @@ const ringArc = computed(() => {
   const cap = limit.value ?? Math.max(1, reduction.value.todaySticks);
   return (Math.min(1, reduction.value.todaySticks / cap) * 119.4).toFixed(2);
 });
+/**
+ * S23's three 替代动作. They used to be a row of marks the player could look at and do nothing with;
+ * now tapping one is the mechanic, and the only consequence is a count on that day (§ S23's 计次).
+ * Nothing is rewarded and nothing is streaked, because the brief's redline under this page is that
+ * it must not read as a lesson (§10) — the number is so the player can see the evening, not so the
+ * game can grade it.
+ */
 const ALTERNATIVES = [
-  { key: 'reduction.alt.breathe', glyph: '〜' },
-  { key: 'reduction.alt.water', glyph: '◍' },
-  { key: 'reduction.alt.walk', glyph: '⌇' },
+  { id: 'breathe', key: 'reduction.alt.breathe', glyph: '〜' },
+  { id: 'water', key: 'reduction.alt.water', glyph: '◍' },
+  { id: 'walk', key: 'reduction.alt.walk', glyph: '⌇' },
 ] as const;
+/** Today's counts, keyed by the action rather than by position, so the rows cannot drift apart. */
+const altCount = (id: string): number =>
+  reduction.value.substitutes.find((row) => row.id === id)?.count ?? 0;
 </script>
 
 <template>
@@ -120,10 +130,24 @@ const ALTERNATIVES = [
     <p v-if="noLimitLine !== null" class="delta foot">{{ noLimitLine }}</p>
 
     <div class="alts">
-      <span v-for="alt in ALTERNATIVES" :key="alt.key" class="alt">
+      <button
+        v-for="alt in ALTERNATIVES"
+        :key="alt.id"
+        class="alt"
+        :data-alt="alt.id"
+        :data-count="altCount(alt.id)"
+        :aria-label="
+          copy.say('a11y.alternative', {
+            word: copy.say(alt.key),
+            count: String(altCount(alt.id)),
+          })
+        "
+        @click="game.takeSubstitute(alt.id)"
+      >
         <i aria-hidden="true">{{ alt.glyph }}</i>
         <span v-if="copy.t(alt.key) !== null">{{ copy.t(alt.key) }}</span>
-      </span>
+        <b class="digits" aria-hidden="true">{{ altCount(alt.id) }}</b>
+      </button>
     </div>
     <p v-if="copy.t('reduction.footer') !== null" class="foot">
       {{ copy.t('reduction.footer') }}
@@ -226,11 +250,26 @@ const ALTERNATIVES = [
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px;
+  /* It is a control now, so it takes a finger: the pill grows to the target floor rather than the
+     mark it carries shrinking to fit the old label's height. */
+  min-height: var(--tap-target, 44px);
+  padding: 3px 12px;
   border: 1px solid var(--chrome-line);
   border-radius: 999px;
+  background: none;
   color: var(--smoke-gray);
+  font: inherit;
   font-size: calc(15px * var(--text-scale));
+  text-align: start;
+}
+
+.alt .digits {
+  color: var(--soft-white);
+  font-variant-numeric: tabular-nums;
+}
+
+.alt:active {
+  border-color: var(--ember-orange);
 }
 
 .foot {

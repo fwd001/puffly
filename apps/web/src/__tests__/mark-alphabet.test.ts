@@ -110,9 +110,12 @@ function phaseMarks(source: string): Array<[string, string]> {
 
 /** 减量页's three substitutes are marks from the same geometric family, so they are judged here too. */
 function alternativeMarks(source: string): Array<[string, string]> {
-  return [...source.matchAll(/\{ key: 'reduction\.alt\.(\w+)', glyph: '([^']+)' \}/g)].map(
-    (match) => [String(match[1]), String(match[2])],
-  );
+  // Tolerant of what else the row carries: the alternatives became counted controls and gained an
+  // id, and a shape-locked reader would have dropped all three marks out of the alphabet without
+  // saying which one moved — which is exactly the failure this file exists to catch.
+  return [
+    ...source.matchAll(/\{[^{}]*key: 'reduction\.alt\.(\w+)'[^{}]*glyph: '([^']+)'[^{}]*\}/g),
+  ].map((match) => [String(match[1]), String(match[2])]);
 }
 
 const alphabet: Array<{ glyph: string; meaning: string; where: string }> = [

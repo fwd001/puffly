@@ -830,6 +830,45 @@ const hintCentre = async (page) => {
     puffBack.pressed === 'true' && !puffBack.track,
     JSON.stringify(puffBack),
   );
+  // S23's three 替代动作, as controls: each row says what it is, carries the day's count, and moves
+  // it under a finger. This is the whole of the 计次 decision's visible half — the ledger itself is
+  // judged in `substitutes.test.ts` — and it is what a source-text check cannot see: the wiring from
+  // the row through the shell into the core and back to the number on the row.
+  await openSheet(page, 'break');
+  const altRows = () =>
+    page.evaluate(() =>
+      // The panel is drawn twice — once in the sheet, once on the desk rail — and on a phone only
+      // one of them is on screen. Counting both would have made the same three rows into six.
+      [...document.querySelectorAll('.alt[data-alt]')]
+        .filter((el) => (typeof el.checkVisibility === 'function' ? el.checkVisibility() : true))
+        .map((el) => ({
+          id: el.getAttribute('data-alt') ?? '',
+          count: Number(el.getAttribute('data-count')),
+          label: el.getAttribute('aria-label') ?? '',
+          tall: Math.round(el.getBoundingClientRect().height),
+        })),
+    );
+  const beforeAlt = await altRows();
+  await page.locator('.sheet[data-open="true"] .alt[data-alt="breathe"]').tap();
+  await page.waitForTimeout(300);
+  const afterAlt = await altRows();
+  check(
+    'the 减量 page offers the deck’s three alternatives, each named and finger-sized',
+    beforeAlt.length === 3 &&
+      beforeAlt
+        .map((row) => row.id)
+        .sort()
+        .join(',') === 'breathe,walk,water' &&
+      beforeAlt.every((row) => row.count === 0 && row.tall >= 44 && row.label.length > 0),
+    JSON.stringify(beforeAlt),
+  );
+  check(
+    'taking one counts it, today, on the row itself',
+    afterAlt.find((row) => row.id === 'breathe')?.count === 1 &&
+      afterAlt.filter((row) => row.count > 0).length === 1,
+    JSON.stringify(afterAlt),
+  );
+  await openSheet(page, 'break');
   // §11: the interface follows the hand. A swipe down over nothing puts it away — the sheets,
   // the mark and the word — while the rod goes on burning behind them.
   await page.evaluate(() => {

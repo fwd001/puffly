@@ -37,6 +37,20 @@ export function openSession(rt: EngineRuntime, targetMs: number): SessionLog {
   return log;
 }
 
+/**
+ * Was a rod lit during this break?
+ *
+ * This is the one definition of "a stick that counts" (S23's 「点了不抽也行 按照计次」): lighting one
+ * is a stick spent whether or not it was smoked down, and a break where the rod never caught is a
+ * break spent doing something else. `progress.sessions` (the cabinet's gates, the level ladder) and
+ * the 减量 page's day tally both read through here, so the two can never disagree about what they
+ * are counting. The statistic imports it rather than restating it: two copies of a predicate is how
+ * one of them ends up counting something the other does not.
+ */
+export function sessionWasLit(session: Pick<Session, 'events'>): boolean {
+  return session.events.some((event) => event.type === SessionEventType.LIGHT);
+}
+
 /** Only the §31 countdown can complete a session on its own. */
 export function isSessionTargetReached(rt: EngineRuntime): boolean {
   return (
@@ -77,10 +91,11 @@ export function closeSession(rt: EngineRuntime): Session | null {
     completed,
   };
 
-  rt.progress.sessions += 1;
+  const lit = sessionWasLit(session);
+  if (lit) rt.progress.sessions += 1;
   // A box is a fact about a stick that was actually smoked: a break that ran its length with the
   // rod unlit is a break spent doing something else.
-  const smoked = completed && log.events.some((event) => event.type === SessionEventType.LIGHT);
+  const smoked = completed && lit;
   if (smoked) {
     // A finished stick leaves a box behind, and the roll comes from the session's own generator:
     // replaying the break has to hand back the same collection (§71).

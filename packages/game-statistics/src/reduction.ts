@@ -8,7 +8,12 @@
  */
 
 import { dayKey } from '@puffly/shared';
-import type { Session } from '@puffly/game-core';
+import {
+  SUBSTITUTE_IDS,
+  sessionWasLit,
+  type Session,
+  type SubstituteIdValue,
+} from '@puffly/game-core';
 import type { StatisticsOptions } from './types';
 
 const DAY_MS = 86_400_000;
@@ -22,6 +27,12 @@ export interface ReductionDay {
 
 export interface ReductionView {
   todaySticks: number;
+  /**
+   * S23's three 替代动作, today, in the order the page draws them. A count and nothing else: no
+   * streak, no reward, no advice attached — the deck's 减量 page offers an alternative, it does not
+   * keep score of whether the player took it (§10).
+   */
+  substitutes: readonly { id: SubstituteIdValue; count: number }[];
   /** Seven days, oldest first, ending at today. */
   week: ReductionDay[];
   /**
@@ -36,10 +47,16 @@ export interface ReductionView {
   deltaSticks: number;
 }
 
-/** One session is one stick: the log's own unit, not a换算. */
+/**
+ * One **lit** session is one stick — and the predicate is the core's, not a copy of it, because the
+ * same number is what the cabinet's gates and the level ladder read (§ S23's 「点了不抽也行」). A break
+ * recorded without ever catching a rod is a break spent doing something else, and it is not this
+ * tally's business.
+ */
 function sticksByDay(sessions: readonly Session[], utcOffsetMinutes: number): Map<string, number> {
   const tally = new Map<string, number>();
   for (const session of sessions) {
+    if (!sessionWasLit(session)) continue;
     const key = dayKey(session.startedAt, utcOffsetMinutes);
     tally.set(key, (tally.get(key) ?? 0) + 1);
   }
@@ -68,6 +85,12 @@ export function deriveReduction(
 
   return {
     todaySticks: tally.get(today) ?? 0,
+    substitutes: SUBSTITUTE_IDS.map((id) => ({
+      id,
+      count:
+        (options.substitutes ?? []).find((row) => row.id === id && row.dayKey === today)?.count ??
+        0,
+    })),
     week,
     // `week.length`, not a literal 7: the denominator has to be the window that was just built, or
     // the two halves of this sentence stop talking about the same days.

@@ -100,6 +100,7 @@ export {
   itemKey,
   ruleSatisfied,
   smokeFreeDays,
+  takeSubstitute,
   unlockablesFrom,
   type Unlockable,
 } from './progress';
@@ -110,6 +111,7 @@ export {
   openSession,
   recordCraving,
   recordTrigger,
+  sessionWasLit,
 } from './session';
 
 /** Adapter contracts: the seams a platform implements (SPEC.md §45, §50, §79, §86). */

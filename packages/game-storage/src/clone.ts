@@ -141,6 +141,11 @@ export function cloneProgress(progress: Progress): Progress {
     ...(progress.collectedPacks === undefined
       ? {}
       : { collectedPacks: [...progress.collectedPacks] }),
+    // Each tally is a small record, so the rows themselves are copied: a shared object would let an
+    // imported file's count be written by the live one on the next 替代动作.
+    ...(progress.substitutes === undefined
+      ? {}
+      : { substitutes: progress.substitutes.map((tally) => ({ ...tally })) }),
     lastActiveDayKey: progress.lastActiveDayKey,
     activeDays: [...progress.activeDays],
   };

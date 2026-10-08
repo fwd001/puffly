@@ -6,7 +6,7 @@
  * the only source of truth and these types are read-only views of it.
  */
 
-import type { Session } from '@puffly/game-core';
+import type { Session, SubstituteTally } from '@puffly/game-core';
 
 /** What a derivation needs besides the log: a wall clock and the player's own offset (§71). */
 export interface StatisticsOptions {
@@ -19,6 +19,11 @@ export interface StatisticsOptions {
    * absent the count falls back to the first session in the log — never to a guess.
    */
   quitAnchorTimestamp?: number;
+  /**
+   * S23's 替代动作计次, straight from the player's own ledger. Absent is an empty ledger: the page
+   * still shows the three rows, each at zero, because the deck's row is a choice and not a score.
+   */
+  substitutes?: readonly SubstituteTally[];
 }
 
 /** §33's list, expressed as numbers only so the shell needs no sentences (§35). */

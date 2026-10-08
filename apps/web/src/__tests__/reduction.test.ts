@@ -160,4 +160,28 @@ describe('the reduction page says nothing but the player log (S20, §10)', () =>
       'reduction.alt.water',
     ]);
   });
+
+  it('counts a taken alternative instead of describing one (S23 按照计次)', () => {
+    const panel = readFileSync(
+      new URL('../components/ReductionPanel.vue', import.meta.url),
+      'utf8',
+    );
+    // Three rows that a finger can act on, wired to the ledger rather than to a caption, each showing
+    // the day's own count. A "row of advice" and a "row you can do" are the same markup until you
+    // look for the handler, so that is what this looks for.
+    expect(panel).toContain('@click="game.takeSubstitute(alt.id)"');
+    expect(panel).toContain(':data-alt="alt.id"');
+    expect(panel).toContain(':data-count="altCount(alt.id)"');
+    const alts = panel.slice(
+      panel.indexOf('<div class="alts">'),
+      panel.indexOf('</div>', panel.indexOf('<div class="alts">')),
+    );
+    expect(alts).toContain('<button');
+    expect(alts).not.toContain('<span v-for');
+    // Named for a screen reader with both the action and the count, since the count is the part that
+    // changes under a finger and the digits are `aria-hidden` decoration next to it.
+    expect(panel).toContain("copy.say('a11y.alternative'");
+    // And a control takes a finger: the pill was sized for a label, and that is no longer enough.
+    expect(panel.slice(panel.indexOf('.alt {'))).toContain('min-height: var(--tap-target');
+  });
 });

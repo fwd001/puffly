@@ -98,6 +98,18 @@ export function makeSession(seed: SessionSeed): Session {
  *   ses-4  01-08 07:00 -> 07:30  1_800_000ms morning  puffs 4  craving 9->2, no target
  *   ses-5  01-08 21:00 -> 23:00  7_200_000ms night    puffs 0  craving 4 (before only)
  */
+/**
+ * A break with a rod actually lit in it. `deriveReduction` counts sticks, and a stick is a rod that
+ * caught (S23's 「点了不抽也行」), so a fixture that means "one more stick" has to say so in its events
+ * rather than rely on the record existing.
+ */
+export function litSession(seed: SessionSeed): Session {
+  return makeSession({
+    ...seed,
+    events: [ev(SessionEventType.LIGHT, seed.startedAt + 200), ...(seed.events ?? [])],
+  });
+}
+
 export function sampleSessions(): Session[] {
   return [
     makeSession({
@@ -152,6 +164,7 @@ export function sampleSessions(): Session[] {
       events: [
         ev(SessionEventType.SESSION_START, at(6, 23, 58)),
         ev(SessionEventType.PICK_UP, at(6, 23, 58, 5)),
+        ev(SessionEventType.LIGHT, at(6, 23, 58, 8)),
         ev(SessionEventType.PUFF, at(6, 23, 59), { intensity: 0.5, count: 1 }),
         ev(SessionEventType.WIND, at(7, 0, 0), { strength: 0.4 }),
         ev(SessionEventType.ASH_FALL, at(7, 0, 1)),
@@ -209,6 +222,7 @@ export function openEndedSessions(): Session[] {
       timeOfDay: 'morning',
       events: [
         ev(SessionEventType.SESSION_START, at(9, 6, 0)),
+        ev(SessionEventType.LIGHT, at(9, 6, 0, 20)),
         ev(SessionEventType.PUFF, at(9, 6, 1)),
         ev(SessionEventType.PUFF, at(9, 6, 2)),
       ],

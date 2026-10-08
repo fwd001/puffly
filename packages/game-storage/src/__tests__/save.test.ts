@@ -270,6 +270,43 @@ it('keeps the boxes in the collection, because the last skin is gated on them (�
   expect(bare && 'collectedPacks' in bare).toBe(false);
 });
 
+it('keeps the 替代动作 ledger, and refuses an entry it cannot read (S23)', () => {
+  const errors: string[] = [];
+  const tallies = [
+    { id: 'breathe', dayKey: '2026-01-08', count: 2 },
+    { id: 'walk', dayKey: '2026-01-07', count: 1 },
+  ];
+  const kept = readProgress(
+    { ...JSON.parse(JSON.stringify(makeProgress())), substitutes: tallies },
+    'progress',
+    errors,
+  );
+  expect(errors).toEqual([]);
+  expect(kept?.substitutes).toEqual(tallies);
+
+  // A player who never saw that row has an empty ledger, not a missing field.
+  const bare = readProgress(JSON.parse(JSON.stringify(makeProgress())), 'progress', errors);
+  expect(bare && 'substitutes' in bare).toBe(false);
+
+  // Each rejection is one row the deck does not offer, or a count that cannot have happened: a
+  // fourth alternative would be advice, and a zero or a fraction would be a made-up tally.
+  for (const bad of [
+    [{ id: 'quit', dayKey: '2026-01-08', count: 1 }],
+    [{ id: 'water', dayKey: '08-01-2026', count: 1 }],
+    [{ id: 'water', dayKey: '2026-01-08', count: 0 }],
+    [{ id: 'water', dayKey: '2026-01-08', count: 1.5 }],
+  ]) {
+    const rejected: string[] = [];
+    const read = readProgress(
+      { ...JSON.parse(JSON.stringify(makeProgress())), substitutes: bad },
+      'progress',
+      rejected,
+    );
+    expect(rejected.join(' | '), JSON.stringify(bad)).toContain('substitutes');
+    expect(read?.substitutes).toBeUndefined();
+  }
+});
+
 describe('what a reader keeps (§64, §49)', () => {
   const selection = {
     cigarette: 'long-thin',

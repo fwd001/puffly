@@ -405,4 +405,29 @@ describe('the hand is the interface (§66, "touch the world")', () => {
     h.flush();
     expect(h.state().ui.chromeFolded).toBe(false);
   });
+
+  // 点了不抽也行，按照计次 (S23): a stick is spent when the cherry catches, not when the rod is
+  // smoked down. The same predicate decides the cabinet's gates, the level ladder and the 减量
+  // page's day tally, so both edges of it have to be pinned here rather than left to reading.
+  it('counts a rod that was lit and then put down (§ S23)', () => {
+    const h = harness({ settings: { sessionTargetMs: 60_000 } });
+    const before = h.engine.progressSnapshot().sessions;
+    h.engine.startSession();
+    h.tap('cigarette');
+    h.run(16);
+    h.tap('lighter');
+    h.run(900);
+    h.engine.endSession();
+    expect(h.engine.progressSnapshot().sessions - before).toBe(1);
+  });
+
+  it('does not count a break that never caught a rod (§ S23)', () => {
+    const h = harness({ settings: { sessionTargetMs: 60_000 } });
+    const before = h.engine.progressSnapshot().sessions;
+    h.engine.startSession();
+    h.tap('cigarette');
+    h.run(2_000);
+    h.engine.endSession();
+    expect(h.engine.progressSnapshot().sessions).toBe(before);
+  });
 });

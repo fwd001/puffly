@@ -10,7 +10,14 @@ import { dayKey, daysBetween } from '@puffly/shared';
 import { emit, record } from './emit';
 import { levelFor } from './levels';
 import { SessionEventType } from './types/events';
-import { CollectionCategory, type CollectionCategoryValue, type Progress } from './types/progress';
+import {
+  CollectionCategory,
+  SUBSTITUTE_IDS,
+  type CollectionCategoryValue,
+  type Progress,
+  type SubstituteIdValue,
+  type SubstituteTally,
+} from './types/progress';
 import type { ContentBundle, UnlockRule } from './types/content';
 import type { CollectionSnapshot } from './types/state';
 import type { EngineRuntime } from './runtime';
@@ -152,6 +159,28 @@ export function updateDay(rt: EngineRuntime): void {
       ? Math.max(progress.longestStreakDays, progress.activeDays.length)
       : progress.longestStreakDays;
   progress.lastActiveDayKey = today;
+}
+
+/**
+ * The player did one of the deck's three 替代动作 instead of lighting something (S23).
+ *
+ * Counted, per day, on the same day key the journey line keeps — and counted only: no streak, no
+ * reward, no punishment for skipping it, which is the line §10 draws under this page. An id the
+ * three do not include returns null rather than inventing a fourth row; that is the only guard the
+ * mechanic needs, because a fourth "alternative" is the deck's 减量 page turning into advice.
+ */
+export function takeSubstitute(rt: EngineRuntime, id: string): SubstituteTally | null {
+  if (!(SUBSTITUTE_IDS as readonly string[]).includes(id)) return null;
+  const today = dayKey(rt.state.wallClockMs, rt.settings.utcOffsetMinutes);
+  const ledger = (rt.progress.substitutes ??= []);
+  const entry = ledger.find((tally) => tally.id === id && tally.dayKey === today);
+  if (entry === undefined) {
+    const added: SubstituteTally = { id: id as SubstituteIdValue, dayKey: today, count: 1 };
+    ledger.push(added);
+    return added;
+  }
+  entry.count += 1;
+  return entry;
 }
 
 /**

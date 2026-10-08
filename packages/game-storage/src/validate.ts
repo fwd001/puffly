@@ -12,6 +12,7 @@ import {
   CRAVING_SCALE_MAX,
   CollectionCategory,
   SAVE_SCHEMA_VERSION,
+  SUBSTITUTE_IDS,
   type CollectionCategoryValue,
   type ContrastMode,
   type GameInput,
@@ -25,6 +26,8 @@ import {
   type Selection,
   type Session,
   type SessionEvent,
+  type SubstituteIdValue,
+  type SubstituteTally,
   type Settings,
   type TimeOfDayId,
   type UserProfile,
@@ -386,6 +389,54 @@ function optionalStringArray(
   return found === null ? undefined : found;
 }
 
+/**
+ * The 替代动作 ledger (S23's 计次).
+ *
+ * An absent field is a fact rather than a missing one, so this reads to `undefined` and not to `[]`.
+ * A broken entry drops the whole ledger rather than keeping the rows it likes: a tally that is
+ * half-believed is how a counting feature starts showing numbers nobody did. The three ids are the
+ * deck's own, so a fourth row is rejected here too — that row would be advice, and §10 forbids it.
+ */
+function readSubstitutes(
+  source: Record<string, unknown>,
+  key: string,
+  path: string,
+  errors: ValidationErrors,
+): SubstituteTally[] | undefined {
+  const value: unknown = source[key];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) {
+    fail(errors, `${path}.${key}`, 'expected an array of tallies or nothing at all');
+    return undefined;
+  }
+  const ledger: SubstituteTally[] = [];
+  for (const [index, item] of (value as unknown[]).entries()) {
+    const row = requireRecord(item, `${path}.${key}[${String(index)}]`, errors);
+    if (row === null) return undefined;
+    const id = row['id'];
+    const dayKey = row['dayKey'];
+    const count = row['count'];
+    const known = SUBSTITUTE_IDS.includes(id as SubstituteIdValue);
+    if (
+      !known ||
+      typeof dayKey !== 'string' ||
+      !DAY_KEY.test(dayKey) ||
+      typeof count !== 'number' ||
+      !Number.isInteger(count) ||
+      count < 1
+    ) {
+      fail(
+        errors,
+        `${path}.${key}[${String(index)}]`,
+        `expected one of ${SUBSTITUTE_IDS.join(', ')} on a YYYY-MM-DD day with a count of 1 or more`,
+      );
+      return undefined;
+    }
+    ledger.push({ id: id as SubstituteIdValue, dayKey, count });
+  }
+  return ledger;
+}
+
 // --------------------------------------------------------------------------- §69 events
 
 function readEvent(value: unknown, path: string, errors: ValidationErrors): SessionEvent | null {
@@ -595,6 +646,7 @@ export function readProgress(
   const acknowledgedUnlocks = optionalStringArray(record, 'acknowledgedUnlocks', path, errors);
   const collectedPacks = optionalStringArray(record, 'collectedPacks', path, errors);
   const activeDays = optionalStringArray(record, 'activeDays', path, errors);
+  const substitutes = readSubstitutes(record, 'substitutes', path, errors);
 
   if (version !== null && version !== 1) {
     fail(
@@ -675,6 +727,7 @@ export function readProgress(
     },
     acknowledgedUnlocks,
     ...(collectedPacks === undefined ? {} : { collectedPacks }),
+    ...(substitutes === undefined ? {} : { substitutes }),
     lastActiveDayKey,
     activeDays,
   };
