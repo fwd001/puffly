@@ -329,6 +329,9 @@ function sparksThroughTheScene(realism: number): { landed: Spark[]; plane: numbe
 }
 
 describe('a spark takes the table the way the dial says, through the scene', () => {
+  // Both of these walk a whole scene, so they are the two heaviest lines in the file: alone the
+  // whole file is ~0.4 s, but in a full-suite run on a busy machine this one was killed at vitest's
+  // 5 s default at 7.2 s — a timeout, not an assertion. The ceiling says so; the claims do not move.
   it('at 写实 lands and stays landed, without being killed by the landing', () => {
     const { landed, plane } = sparksThroughTheScene(1);
     expect(landed.length, 'no spark ever reached the table').toBeGreaterThan(0);
@@ -342,7 +345,7 @@ describe('a spark takes the table the way the dial says, through the scene', () 
       expect(spark.contacts, 'a spark crossed the plane more than once').toBe(1);
       expect(spark.costs, 'a spark was charged the landing more than once').toBeLessThanOrEqual(1);
     }
-  });
+  }, 20_000);
 
   it('hops at the shipped split, higher at the 卡通 end, and never faster than it fell', () => {
     const shipped = sparksThroughTheScene(DECK_SPLIT);
@@ -368,7 +371,7 @@ describe('a spark takes the table the way the dial says, through the scene', () 
     for (const spark of cartoonish.landed) {
       expect(spark.restitution, 'a spark came back faster than it fell').toBeLessThan(1);
     }
-  });
+  }, 20_000);
 });
 
 describe('the dial cannot reach the burn (Frozen Core, redrawn for a look)', () => {

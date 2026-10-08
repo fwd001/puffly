@@ -406,6 +406,7 @@ const stageWords = (page) =>
     return {
       hint: (hint?.textContent ?? '').trim().toLowerCase(),
       hints: document.querySelectorAll('.hint').length,
+      sheets: document.querySelectorAll('.sheet[data-open="true"]').length,
       affordance: document.querySelector('.stage')?.dataset.affordance ?? 'missing',
       offenders: [...new Set(offenders)],
     };
@@ -443,24 +444,34 @@ const SHEET_HANDLE = {
 };
 
 /**
- * The interface folds itself away 2.6 s after the last input (§10), so a control that was there a
- * moment ago can be `visibility: hidden` by the time a check reaches for it. A tap on empty sky
- * wakes it without touching anything: the upper-left of the stage is above every prop anchor.
+ * The interface folds itself away 2.6 s after the last input (§10, `controlsIdleMs` — measured: a
+ * hint word held ~1.6 s of that window, then went with the rail and stayed gone until a press), so a
+ * control that was there a moment ago can be `display: none` by the time a check reaches for it. A
+ * press on empty sky wakes it without touching a prop: the upper-left of the stage is above every
+ * anchor, and the shell sends a tap whatever it lands on, which is what resets the core's idle clock.
+ *
+ * The test is on **the control that is about to be pressed**, not on the rail. Waking the rail and
+ * then tapping the head-up row is how two runs of this file died — once in Playwright's own 30 s
+ * retry loop (`element is not visible`) and once with three sheet checks reading a state the wake had
+ * not produced. Three presses then a named failure: a control that genuinely cannot be woken is a
+ * product defect worth a message, not a half-minute of retries.
  */
-async function wakeChrome(page) {
-  const rail = page.locator('.rail');
-  if (await rail.isVisible().catch(() => false)) return;
-  // A pointer click on empty sky: the app runs on Pointer Events, so this wakes the same way a
-  // finger does, in a touch context and a mouse one alike.
-  await page
-    .locator('canvas')
-    .click({ position: { x: 24, y: 24 }, force: true, noWaitAfter: true });
-  await rail.waitFor({ state: 'visible', timeout: 4000 });
+async function wakeChrome(page, target = '.rail') {
+  const control = page.locator(target);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (await control.isVisible().catch(() => false)) return;
+    await page
+      .locator('canvas')
+      .click({ position: { x: 24, y: 24 }, force: true, noWaitAfter: true });
+    await page.waitForTimeout(120);
+  }
+  throw new Error(`wakeChrome: ${target} stayed hidden through three presses on the sky`);
 }
 
 async function openSheet(page, id, mouse = false) {
-  await wakeChrome(page);
-  const handle = page.locator(SHEET_HANDLE[id]);
+  const selector = SHEET_HANDLE[id];
+  await wakeChrome(page, selector);
+  const handle = page.locator(selector);
   if (mouse) await handle.click();
   else await handle.tap();
   await page.waitForTimeout(460);
@@ -633,6 +644,20 @@ const hintCentre = async (page) => {
     );
     await page.waitForTimeout(600);
   }
+  // Drawing on the rod left the scene nudging the next gesture, and the hint names it. This reading
+  // is taken *first* among the post-breath checks, and that is the whole point: the chrome folds
+  // itself 2.6 s after the last input (§10, `controlsIdleMs`) and the word goes away with it — a
+  // probe run measured the word holding ~1.6 s and then leaving with the rail (`hints=0 rail=down`)
+  // until a press brought it back. Sampling after two pixel reads put this line across that rule, and
+  // it went red once in two runs; waking the chrome instead added a press and a second of waiting,
+  // which pushed three later sheet checks off their timing. The word needs three things to be absent
+  // (the setting off, the chrome folded, a sheet on top), so `sheets` travels with the reading.
+  const words = await stageWords(page);
+  check(
+    'the screen carries no prose, and the hint still names the gesture being nudged',
+    words.offenders.length === 0 && words.hints === 1 && words.affordance === 'puff',
+    JSON.stringify(words),
+  );
   const after = await airSample(page);
   const breath = breathDelta(before, after);
   check(
@@ -655,14 +680,6 @@ const hintCentre = async (page) => {
   );
   const inHandAgain = await scenePhase(page);
   check('the rod is still in hand, not in the tray', LIT.test(inHandAgain), inHandAgain);
-
-  // Drawing on the rod left the scene nudging the next gesture, and the hint names it.
-  const words = await stageWords(page);
-  check(
-    'the screen carries no prose, and the hint still names the gesture being nudged',
-    words.offenders.length === 0 && words.hints === 1 && words.affordance === 'puff',
-    JSON.stringify(words),
-  );
 
   // Double-tapping the *air* is what a player does while looking for something to touch. It must
   // not zoom the scene. Not the rod's place on the table: the tray's own drawn radius reaches
@@ -1779,6 +1796,11 @@ try {
   await openSheet(page, 'shelf', true);
   await page.click('.sheet[data-open="true"] .close');
   await page.waitForTimeout(900);
+  // Awake on both sides of the comparison. `atRest` was taken with the chrome up; once the sheet is
+  // closed nothing holds it up any more, so 2.6 s of stillness folds the head-up row and its rect
+  // goes to zero — which is the rule working, not the scene failing to come back. One run read it
+  // the wrong way and reported `{"canvasY":0,"hudY":0,…,"sheets":0}` as a broken restore.
+  await wakeChrome(page, '.hud');
   const closed = await deskView();
   check(
     'S10: closing the sheet brings the scene back to the same pixels',
@@ -1860,6 +1882,66 @@ try {
     JSON.stringify(ladder.rows.slice(0, 6)),
   );
   check('成就: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+
+  // The reveal, on real pixels rather than in the source. Two things the built app can answer and a
+  // regex cannot: whether arriving on the ladder is silently treated as a batch of achievements
+  // (nothing here should be animating the moment the sheet opens), and whether the styles that make
+  // the two states visible actually reached the built CSS the phone is loading.
+  const reveal = await page.evaluate(() => {
+    const block = document.querySelector('[data-hook="achievements"]');
+    const rows = [...(block?.querySelectorAll('.line') ?? [])];
+    let fade = false;
+    let gated = false;
+    for (const sheet of Array.from(document.styleSheets)) {
+      let rules;
+      try {
+        rules = sheet.cssRules;
+      } catch {
+        continue;
+      }
+      for (const rule of Array.from(rules)) {
+        if (/prefers-reduced-motion/.test(rule.media?.mediaText ?? '')) {
+          for (const inner of Array.from(rule.cssRules ?? [])) {
+            if (/data-fresh/.test(inner.selectorText ?? '') && /none/.test(inner.cssText)) {
+              gated = true;
+            }
+          }
+        } else if (/data-fresh/.test(rule.selectorText ?? '') && /rung-lit/.test(rule.cssText)) {
+          fade = true;
+        }
+      }
+    }
+    return {
+      animating: rows.filter((row) => getComputedStyle(row).animationName !== 'none').length,
+      marked: rows.filter((row) => row.getAttribute('data-fresh') === 'true').length,
+      moments: rows
+        .filter((row) => row.classList.contains('moment'))
+        .map((row) => Number(getComputedStyle(row).opacity)),
+      locked: rows
+        .filter((row) => !row.classList.contains('moment'))
+        .map((row) => Number(getComputedStyle(row).opacity)),
+      fade,
+      gated,
+    };
+  });
+  console.log(`REVEAL ${JSON.stringify(reveal)}`);
+  check(
+    '成就: opening the ladder reveals nothing',
+    reveal.animating === 0 && reveal.marked === 0,
+    `animating=${String(reveal.animating)} marked=${String(reveal.marked)}`,
+  );
+  check(
+    '成就: a gust that was never drawn looks locked, and the rows beside it do not',
+    reveal.moments.length > 0 &&
+      reveal.moments.every((value) => Math.abs(value - 0.3) < 0.02) &&
+      reveal.locked.every((value) => value > 0.9),
+    `moments=${String(reveal.moments)} plain=${String(reveal.locked)}`,
+  );
+  check(
+    '成就: the built style sheet carries the fade and its reduced-motion gate',
+    reveal.fade && reveal.gated,
+    `fade=${String(reveal.fade)} gated=${String(reveal.gated)}`,
+  );
   await context.close();
 }
 

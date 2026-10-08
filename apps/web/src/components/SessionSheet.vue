@@ -12,6 +12,7 @@ import ReductionPanel from './ReductionPanel.vue';
 import type { CopyKey } from '../i18n';
 import { DEFAULT_CONTENT } from '@puffly/game-content';
 import { nextRodGate } from '../shelf';
+import { useJustLit } from '../reveal';
 import { achievementsFor, reachedCount } from '@puffly/game-core';
 
 const props = defineProps<{
@@ -101,6 +102,19 @@ const rungs = computed(() =>
     stats.value.strongestGust,
   ),
 );
+// §39 asks the moment to say so by itself — 它自己亮一下, no dialog and no sentence — and the 图鉴
+// already does it with `collection.fresh`. That channel cannot be reused here: it is a field of the
+// persisted state, and giving the ladder its own "previously lit" field would be exactly the second
+// account §70 forbids. So the reveal reads a display-only cache (`reveal.ts`): nothing persisted,
+// nothing a read-out can quote, emptied when the sheet closes.
+const reachedIds = computed(() =>
+  rungs.value.filter((rung) => rung.reached).map((rung) => rung.achievement.id),
+);
+const fresh = useJustLit(
+  () => reachedIds.value,
+  () => props.open,
+);
+
 // One name per subject, and the ledger's rows above already say three of them: the ladder reuses
 // those keys rather than inventing parallel words, so the two cannot disagree about what 累计支数
 // means on the same screen. The ash axis is the odd one out — the row above counts 磕灰 (flicks),
@@ -121,6 +135,10 @@ const ladder = computed(() =>
       reached: mine.filter((rung) => rung.reached).length,
       total: mine.length,
       goal: next?.achievement.goal ?? 0,
+      // The row is a whole axis, so it lights when any rung on it lights — and the digit it prints
+      // (reached/total) is the thing that just changed, which is why the row has no per-rung id to
+      // hang the flag on.
+      fresh: mine.some((rung) => fresh.value.has(rung.achievement.id)),
     };
   }),
 );
@@ -139,6 +157,7 @@ const momentRows = computed(() =>
     ...row,
     name: copy.value.t(row.key),
     reached: rungs.value.find((rung) => rung.achievement.id === row.id)?.reached ?? false,
+    fresh: fresh.value.has(row.id),
   })).filter((row) => row.name !== null),
 );
 const achieved = computed(() => reachedCount(rungs.value));
@@ -309,12 +328,9 @@ watch(
         <span v-if="copy.t('ach.title') !== null" class="name">{{ copy.t('ach.title') }}</span>
         <span class="count digits">{{ achieved }} / {{ rungs.length }}</span>
       </p>
-      <p
-        v-for="row in ladder"
-        :key="row.axis"
-        class="line"
-        :data-reached="row.reached === row.total"
-      >
+      <!-- An axis row states its own completion in digits — the reached count meets the total and the
+           next goal drops out — so it carries no reached attribute, only the moment it changed. -->
+      <p v-for="row in ladder" :key="row.axis" class="line" :data-fresh="row.fresh">
         <span v-if="copy.t(row.key) !== null" class="name">{{ copy.t(row.key) }}</span>
         <span class="count digits">
           {{ row.reached }}/{{ row.total
@@ -327,7 +343,13 @@ watch(
         <span v-if="copy.t('ach.gust') !== null" class="name">{{ copy.t('ach.gust') }}</span>
         <span class="count digits">{{ stats.strongestGust }}</span>
       </p>
-      <p v-for="row in momentRows" :key="row.id" class="line moment" :data-reached="row.reached">
+      <p
+        v-for="row in momentRows"
+        :key="row.id"
+        class="line moment"
+        :data-reached="row.reached"
+        :data-fresh="row.fresh"
+      >
         <span class="name">{{ row.name }}</span>
       </p>
     </div>
@@ -452,5 +474,37 @@ watch(
 
 .digits {
   font-variant-numeric: tabular-nums;
+}
+
+/* The ladder's two states, both read from an attribute rather than invented per row. A moment the
+   player has not drawn keeps the cabinet's locked look — the same opacity a 图鉴 cell uses before it
+   is collected, so "not yet" is one shape across screens. */
+.line.moment:not([data-reached='true']) {
+  opacity: 0.3;
+}
+
+/* And the row that just lit plays once, by itself (§39: no dialog, no sentence). The flag only ever
+   comes from a rung that changed while this sheet was already looking, so the fade needs no saved
+   "what was lit before" record — nothing here is a second account of anything. */
+.line[data-fresh='true'] {
+  animation: rung-lit 1400ms var(--ease-out);
+}
+
+@keyframes rung-lit {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  35% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .line[data-fresh='true'] {
+    animation: none;
+  }
 }
 </style>

@@ -33,6 +33,15 @@ function statsBlock(): string {
   return SHEET.slice(start, end);
 }
 
+/** The ladder on its own, and the styles that give its two markers a reader. */
+function ladderBlock(): string {
+  const start = SHEET.indexOf('data-hook="achievements"');
+  expect(start, 'the break sheet lost its achievement ladder').toBeGreaterThan(-1);
+  return SHEET.slice(start, SHEET.indexOf('<ReductionPanel', start));
+}
+
+const STYLE = SHEET.slice(SHEET.indexOf('<style scoped>'));
+
 describe('the 统计 block is a landing and a ledger (S11, S13)', () => {
   it('answers every break-sheet entry in the rail with an element', () => {
     const landed = hooks(SHEET).concat(
@@ -91,5 +100,52 @@ describe('the 统计 block is a landing and a ledger (S11, S13)', () => {
     // The label says 总时长 and the digit is a count of minutes: the conversion has to be a
     // division by 60000 in one place, not a formatting choice in two.
     expect(SHEET).toMatch(/totalDurationMs \/ 60000/);
+  });
+});
+
+/**
+ * The ladder's two states, each with exactly one writer and one reader (§39: 它自己亮一下).
+ *
+ * This is where the previous commit left a hole: it bound `data-reached` on the axis rows and gave it
+ * no reader at all, so the attribute was a claim the file could not show — and the three gust names
+ * rendered identically whether the player had drawn one or not. So the guard counts bindings as well
+ * as looking for rules: a marker written twice with one reader is exactly the bug that shipped.
+ */
+describe('the ladder says its two states, and only its two states (S13)', () => {
+  it('binds the fade to both halves and the locked look to the one that needs it', () => {
+    const block = ladderBlock();
+    expect(
+      [...block.matchAll(/:data-fresh=/g)].length,
+      'the ladder and the moments both fade',
+    ).toBe(2);
+    expect(
+      [...block.matchAll(/:data-reached=/g)].length,
+      'only the moments have a state the digits do not carry',
+    ).toBe(1);
+    // One home for the rule that decides when a row counts as just-lit, imported rather than
+    // re-implemented in the row.
+    expect(SHEET).toContain("import { useJustLit } from '../reveal'");
+  });
+
+  it('reads every marker it writes', () => {
+    expect(STYLE).toMatch(/\.line\[data-fresh='true'\]\s*\{[^}]*animation:\s*rung-lit/);
+    const frames = /@keyframes rung-lit\s*\{[\s\S]*?\n\}/.exec(STYLE);
+    expect(frames, 'the animation names a set of frames that is not there').not.toBeNull();
+    // It starts below and transparent: an offset that is not positive is a flash, not a rise.
+    expect(String(frames?.[0])).toMatch(/0%\s*\{[^}]*translateY\([1-9]\d*px\)/);
+    expect(String(frames?.[0])).toMatch(/0%\s*\{[^}]*opacity:\s*0/);
+    // 未抽到 keeps the cabinet's locked look, so the three gust names are not three identical rows.
+    expect(STYLE).toMatch(/\.line\.moment:not\(\[data-reached='true'\]\)\s*\{\s*opacity:\s*0\.3/);
+  });
+
+  it('gives the fade the same reduced-motion gate the rest of the house does', () => {
+    const gate =
+      /prefers-reduced-motion:\s*reduce\s*\)\s*\{[\s\S]*?\.line\[data-fresh='true'\]\s*\{\s*animation:\s*none/.exec(
+        STYLE,
+      );
+    expect(
+      gate,
+      'a motion that cannot be turned off is not one the player agreed to',
+    ).not.toBeNull();
   });
 });

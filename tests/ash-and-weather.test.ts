@@ -63,6 +63,9 @@ describe('a gust may take the ash, but never the rod’s last column (§18, §22
   // real work: alone this file runs in about a second, and in a full-suite run — where every worker
   // is doing the same thing at the same time — that same second has been measured past vitest's
   // 5 s default. A green build that turns red because the machine is busy is a red nobody can read.
+  // 2026-10-08 raised it again: on a box already carrying two browser suites, this test was killed at
+  // the 30 s ceiling it had itself been given, with every ASH line printed and no assertion involved.
+  // A ceiling for CPU work is a statement about the machine, so it gets the margin, not the claim.
   it('leaves every rod the content ships a column worth flicking', () => {
     for (const w of walks()) {
       console.log(
@@ -73,7 +76,7 @@ describe('a gust may take the ash, but never the rod’s last column (§18, §22
       expect(w.readyAt, `${w.id} never grew a flickable column`).toBeGreaterThanOrEqual(0);
       expect(w.readyAt, `${w.id} only got its column after the rod was gone`).toBeLessThan(1);
     }
-  }, 30_000);
+  }, 90_000);
 
   it('still lets the room knock the ash off while the rod has more to give', () => {
     // The other half. A guard that simply refused every gust would leave the case above green and
