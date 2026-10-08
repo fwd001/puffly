@@ -459,6 +459,54 @@ describe('§73 architecture guards', () => {
     expect(unresolvableCitations(doc), 'the ledger points at tests that are not there').toEqual([]);
   });
 
+  /**
+   * The ledger's other pointer: 「见「X」」 names a section by its heading. Following one of those to
+   * a place that is not there is the same failure the scan above catches for test files — and this
+   * session wrote three of them from memory before checking, which is why the check is here.
+   */
+  function unresolvableSectionRefs(text: string): string[] {
+    const titles = text
+      .split('\n')
+      .filter((line) => /^#{2,4} /.test(line))
+      .map((line) => line.replace(/^#+ /, '').trim());
+    const missing: string[] = [];
+    for (const match of text.matchAll(/见(?:本节末)?「([^」]{2,40})」/g)) {
+      const name = String(match[1]);
+      if (!titles.some((title) => title.includes(name))) missing.push(name);
+    }
+    return [...new Set(missing)].sort();
+  }
+
+  it('sends a reader to a section that is there', () => {
+    const doc = readFileSync(join(root, 'docs/SPEC.md'), 'utf8');
+    const refs = [...doc.matchAll(/见(?:本节末)?「([^」]{2,40})」/g)].map((match) =>
+      String(match[1]),
+    );
+    expect(
+      refs.length,
+      'the document points at no sections, so this scan proves nothing',
+    ).toBeGreaterThanOrEqual(15);
+    console.log(
+      `SECTION_REFS ${String(refs.length)} mentions of ${String(new Set(refs).size)} headings`,
+    );
+    expect(
+      unresolvableSectionRefs(doc),
+      'the ledger points at a heading that is not there',
+    ).toEqual([]);
+  });
+
+  it('the section scan reports a heading that is not there', () => {
+    // The positive control, in the same shape as the citation one: a name that exists and one that
+    // does not, in the same sentence.
+    // The heading has to be in the same text that is scanned: unlike a test file, a section has no
+    // existence outside this document, so the control carries its own heading line.
+    expect(
+      unresolvableSectionRefs(
+        '### 烟羽的三层：各有各的速度（2026-10-08）\n见「烟羽的三层」与见本节末「这一片根本不存在」',
+      ),
+    ).toEqual(['这一片根本不存在']);
+  });
+
   it('the citation scan reports a file that is not there', () => {
     // The positive control: a name that exists and one that does not, in the same sentence.
     expect(
