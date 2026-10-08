@@ -408,6 +408,67 @@ describe('§73 architecture guards', () => {
   });
 
   /**
+   * The ledger cites its own evidence: 24 audit rows and a dozen dated sections name the test that
+   * stands behind each claim, in backticks. A rename or a deleted file leaves the sentence pointing
+   * at nothing, and nothing in the suite reads the document, so the drift is silent — this is the
+   * class of bug the ledger itself recorded once already (a row that named the wrong file).
+   */
+  const testBasenames = new Set<string>();
+  {
+    const walk = (path: string): void => {
+      for (const entry of readdirSync(path)) {
+        if (entry === 'node_modules' || entry === 'dist' || entry === '.git') continue;
+        const full = join(path, entry);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (entry.endsWith('.test.ts')) testBasenames.add(entry);
+      }
+    };
+    walk(root);
+  }
+
+  /** The cited files a reader could not open: bare names by basename, paths by path. */
+  function unresolvableCitations(text: string): string[] {
+    const missing: string[] = [];
+    for (const match of text.matchAll(/`((?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.test\.ts)`/g)) {
+      const cited = String(match[1]);
+      if (cited.includes('/')) {
+        try {
+          statSync(join(root, cited));
+        } catch {
+          missing.push(cited);
+        }
+      } else if (!testBasenames.has(cited)) {
+        missing.push(cited);
+      }
+    }
+    return [...new Set(missing)].sort();
+  }
+
+  it('points at a real test wherever the ledger claims one', () => {
+    const doc = readFileSync(join(root, 'docs/SPEC.md'), 'utf8');
+    const citations = [...doc.matchAll(/`((?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.test\.ts)`/g)].map(
+      (match) => String(match[1]),
+    );
+    expect(
+      citations.length,
+      'the document cites no tests, so this scan proves nothing',
+    ).toBeGreaterThan(20);
+    console.log(
+      `DOC_CITATIONS ${String(citations.length)} mentions of ${String(new Set(citations).size)} files`,
+    );
+    expect(unresolvableCitations(doc), 'the ledger points at tests that are not there').toEqual([]);
+  });
+
+  it('the citation scan reports a file that is not there', () => {
+    // The positive control: a name that exists and one that does not, in the same sentence.
+    expect(
+      unresolvableCitations(
+        'see `no-such-guard.test.ts`, `tests/architecture.test.ts` and `docs/dead.test.ts`',
+      ),
+    ).toEqual(['docs/dead.test.ts', 'no-such-guard.test.ts']);
+  });
+
+  /**
    * S18's own premise: 商标与包装图形一律不画, "这是这条线能上线的前提". The *words* half of that line
    * has had guards for a while (`archive.test.ts` refuses a brand in the loop, `packs.test.ts` keeps a
    * price out of the grid). The *picture* half was only ever a fact about how the app is built — every
