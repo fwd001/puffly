@@ -77,6 +77,15 @@ describe('the archive data rules (§10, §13)', () => {
       expect(['inhale', 'savor', 'filter']).toContain(rod.archive.kind);
       // The three tier-two cells are all arithmetic on content the rod already carries.
       expect(rod.physical.puffs.target, rod.id).toBeGreaterThan(0);
+      // `puffs.min` and `puffs.max` are the rod's own spread around that target — nothing computes
+      // with them, which is exactly why they need to be coherent: an unread pair can drift past the
+      // number the card shows and no behaviour would notice.
+      expect(rod.physical.puffs.min, `${rod.id} min above target`).toBeLessThanOrEqual(
+        rod.physical.puffs.target,
+      );
+      expect(rod.physical.puffs.max, `${rod.id} max below target`).toBeGreaterThanOrEqual(
+        rod.physical.puffs.target,
+      );
       expect(rod.physical.centerTempC[0], rod.id).toBeLessThan(rod.physical.centerTempC[1]);
     }
   });

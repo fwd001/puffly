@@ -84,3 +84,87 @@ describe('the skins carry the brief’s own colours (§57)', () => {
     expect(gated).toEqual(['skin:cinnabar']);
   });
 });
+
+/**
+ * S9's parameter table and S16's category cards, for the five rods that name a deck category AND
+ * burn for the length the deck gives that category. The six cigarette slots are not asserted here:
+ * the deck names them by flavour (薄荷 / 冰凉 / 典藏 / 丁香) while the build names them by shape, so
+ * pairing a number to a rod would be my invention rather than a reading — see SPEC.md,
+ * 「稿子的参数表逐只对了一遍」.
+ */
+const BRIEF_ROD_NUMBERS: Record<
+  string,
+  {
+    puffs: { within?: [number, number]; contains?: number };
+    temp: { within?: [number, number]; contains?: number };
+  }
+> = {
+  // 「手卷 RYO 7.5 min 17 口 芯温 820 C」 — 17 is a point, not a window.
+  ryo: { puffs: { contains: 17 }, temp: { contains: 820 } },
+  cigarillo: { puffs: { within: [15, 20] }, temp: { within: [700, 800] } },
+  cigar: { puffs: { within: [25, 40] }, temp: { within: [800, 900] } },
+  pipe: { puffs: { within: [10, 15] }, temp: { within: [600, 750] } },
+  hookah: { puffs: { within: [60, 80] }, temp: { within: [350, 450] } },
+};
+
+function inside(
+  id: string,
+  label: string,
+  value: number,
+  bound: { within?: [number, number]; contains?: number },
+) {
+  if (bound.within) {
+    const [lo, hi] = bound.within;
+    expect(
+      value,
+      `${id} ${label} ${String(value)} outside the deck's ${String(lo)}-${String(hi)}`,
+    ).toBeGreaterThanOrEqual(lo);
+    expect(
+      value,
+      `${id} ${label} ${String(value)} outside the deck's ${String(lo)}-${String(hi)}`,
+    ).toBeLessThanOrEqual(hi);
+  }
+  if (bound.contains !== undefined) {
+    expect(value, `${id} ${label} never reaches the deck's ${String(bound.contains)}`).toBe(
+      bound.contains,
+    );
+  }
+}
+
+describe('the five world categories keep the deck’s own numbers (§ S9, § S16)', () => {
+  it('give the 口数 the deck gives them', () => {
+    for (const [id, brief] of Object.entries(BRIEF_ROD_NUMBERS)) {
+      const rod = CIGARETTES.find((candidate) => candidate.id === id);
+      expect(rod, `no rod named ${id}`).toBeDefined();
+      // Only the target is the deck's number: 「按区间中值给参数」. min/max are this build's own
+      // variability around it, and a roll that comes out one puff short of the deck's floor is not
+      // a contradiction of anything the deck claims.
+      if (brief.puffs.within) {
+        const [lo, hi] = brief.puffs.within;
+        console.log(
+          `PUFFS ${id} target=${String(rod?.physical.puffs.target)} deck ${lo}-${hi} mid=${String((lo + hi) / 2)}`,
+        );
+      }
+      inside(id, 'puffs', rod?.physical.puffs.target ?? -1, brief.puffs);
+    }
+  });
+
+  it('keep their 芯温 window where the deck puts it', () => {
+    for (const [id, brief] of Object.entries(BRIEF_ROD_NUMBERS)) {
+      const rod = CIGARETTES.find((candidate) => candidate.id === id);
+      expect(rod, `no rod named ${id}`).toBeDefined();
+      const [lo, hi] = rod?.physical.centerTempC ?? [-1, -1];
+      if (brief.temp.contains === undefined) {
+        inside(id, 'temp low', lo, brief.temp);
+        inside(id, 'temp high', hi, brief.temp);
+      } else {
+        expect(lo, `${id} core window starts above the deck's point`).toBeLessThanOrEqual(
+          brief.temp.contains,
+        );
+        expect(hi, `${id} core window ends below the deck's point`).toBeGreaterThanOrEqual(
+          brief.temp.contains,
+        );
+      }
+    }
+  });
+});
