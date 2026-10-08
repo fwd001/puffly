@@ -27,6 +27,34 @@ describe('the archive data rules (§10, §13)', () => {
     expect(COPY['zh-CN']?.['archive.range']).toBeTypeOf('string');
   });
 
+  it('arrives from below, and stands still when the player asks it to (§ S19)', () => {
+    // S19's 「右栏档案区从下方滑出」. A shape read, and only what one can buy: that the card declares a
+    // rise and that the same rule is switched off under reduced motion. Whether 18px over 220ms
+    // *reads* as a slide rather than a flicker is the eye's call, not this case's.
+    const card = readFileSync(new URL('../components/ArchiveCard.vue', import.meta.url), 'utf8');
+    const style = card.slice(card.indexOf('<style scoped>'));
+    const rise = /animation:\s*archive-rise\s+\d+ms\s+var\(--ease-out\)/.exec(style);
+    expect(rise, 'the card no longer declares its arrival').not.toBeNull();
+    // The easing is the token the rest of the interface moves with, not a private curve.
+    expect(String(rise?.[0])).toContain('var(--ease-out)');
+    const keyframes = /@keyframes archive-rise\s*\{[\s\S]*?\}/.exec(style);
+    expect(keyframes, 'the animation names a set of frames that is not there').not.toBeNull();
+    // It starts below where it lands: a `from` that is not a positive translateY is a fade, not a rise.
+    expect(String(keyframes?.[0])).toMatch(/from\s*\{[\s\S]*?translateY\((?:[1-9]\d*)px\)/);
+    const gate =
+      /prefers-reduced-motion:\s*reduce\s*\)\s*\{[\s\S]*?\.archive[\s\S]*?animation:\s*none/.exec(
+        style,
+      );
+    expect(gate, 'the arrival ignores the reduced-motion request').not.toBeNull();
+    // The positive control: the shape the scan forbids must be reported by it, or this case is a
+    // comment about CSS rather than a check of it.
+    expect(
+      /prefers-reduced-motion:\s*reduce\s*\)\s*\{[\s\S]*?\.archive[\s\S]*?animation:\s*none/.test(
+        '.other { animation: archive-rise 220ms var(--ease-out) both; }',
+      ),
+    ).toBe(false);
+  });
+
   it('the three figures on the card belong to this game, and the card says so', () => {
     // The number on the card is arithmetic on the rod's own burn range — not a claim about how long
     // a real stick of the kind lasts, which is what the design's 10.0-minute table is. The 口径 line

@@ -159,6 +159,29 @@ const cells = computed(() => {
   background: var(--chrome-bg);
   color: var(--soft-white);
   z-index: 3;
+  /* S19: 「右栏档案区从下方滑出」. The card is already docked to the right edge, so the half the
+     deck still asks for is the arrival — it comes up from under where it lands rather than blinking
+     in. One line of travel, because this card opens over a burning rod the player is watching. */
+  animation: archive-rise 220ms var(--ease-out) both;
+}
+
+@keyframes archive-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* The same arrival the pill's invitation defers to: a card that flies in at reduced motion is the
+   one thing this screen would be asked to turn off. */
+@media (prefers-reduced-motion: reduce) {
+  .archive {
+    animation: none;
+  }
 }
 
 .head {
