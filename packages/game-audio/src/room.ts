@@ -25,6 +25,11 @@ const DECAY_TO = 0.001;
 export const TAIL_BASE_SEC = 0.34;
 /** 混响拉长: how much bigger the room opens for the one event that asked for it. */
 export const TAIL_STRETCH = 1.8;
+/**
+ * The deck's own ceiling on this whole layer — 「混响尾巴 ≤ 0.4s」. It binds the stretched room too:
+ * 拉长 is a request to open the room for one event, not a licence to break the line above it.
+ */
+export const TAIL_CEILING_SEC = 0.4;
 /** The send's level when the player turned the room on: a room you hear, never a second event. */
 export const WET_BASE = 0.15;
 /** Above about 0.3 a short click arrives nearly as loud as it was made, which is not a room. */
@@ -120,11 +125,20 @@ export function createRoomSend(
     },
     stretch: (atSec: number): void => {
       for (const comb of combs) {
-        // A bigger room is a longer first reflection: with the feedback held, opening the spacing
-        // moves the −60 dB point out by the same factor. Then it closes on the audio clock.
-        comb.delay.delayTime.setValueAtTime(comb.spacing * TAIL_STRETCH, atSec);
+        // A bigger room is a longer first reflection. Held at the base feedback, though, that factor
+        // moves the −60 dB point with it: 0.34 × 1.8 = 0.61 s, past the ceiling the deck writes two
+        // lines above the 拉长 request. So the room opens *and* drains faster, which pushes the tail
+        // right up to 0.4 and not one millisecond past it. Both params hand back on the audio clock.
+        const opened = comb.spacing * TAIL_STRETCH;
+        comb.delay.delayTime.setValueAtTime(opened, atSec);
+        comb.feedback.gain.setValueAtTime(feedbackFor(opened, TAIL_CEILING_SEC), atSec);
         comb.delay.delayTime.setTargetAtTime(
           comb.spacing,
+          atSec + STRETCH_HOLD_SEC,
+          STRETCH_SETTLE_TC,
+        );
+        comb.feedback.gain.setTargetAtTime(
+          feedbackFor(comb.spacing, TAIL_BASE_SEC),
           atSec + STRETCH_HOLD_SEC,
           STRETCH_SETTLE_TC,
         );

@@ -102,18 +102,39 @@ describe('混响拉长 happens on the two events that ask for it', () => {
     h.fire(sessionEvent('PUFF'), mature);
 
     for (const index of [0, 1]) {
-      const param = h.ctx.param(`room:comb${String(index)}.delay`, 'delayTime');
-      const bump = param?.of('setValueAtTime') ?? [];
-      const handBack = param?.of('setTarget') ?? [];
+      const name = `room:comb${String(index)}`;
+      const delay = h.ctx.param(`${name}.delay`, 'delayTime');
+      const feedback = h.ctx.param(`${name}.fb`, 'gain');
+      const bump = delay?.of('setValueAtTime') ?? [];
+      const handBack = delay?.of('setTarget') ?? [];
+      const dried = feedback?.of('setValueAtTime') ?? [];
+      const driedBack = feedback?.of('setTarget') ?? [];
       expect(bump.length, `comb${String(index)} never opened`).toBe(1);
       expect(handBack.length, `comb${String(index)} stayed open`).toBe(1);
       // Scheduled ahead of the clock the harness last advanced, never in the past.
       expect(bump[0]?.time ?? 0).toBeGreaterThan(0);
-      // A bigger room is a longer first reflection, and the −60 dB point moves with it.
-      const stretched = tailSeconds(bump[0]?.value ?? 0, combs(h)[index]?.feedback ?? 0);
+      // 拉长 used to be judged only as "longer", with a 0.75 s allowance nobody had read off the deck.
+      // The deck's own line is two lines above that request — 「混响尾巴 ≤ 0.4s」 — and opening the
+      // spacing while holding the feedback moves the −60 dB point by the same factor (0.34 × 1.8 =
+      // 0.61 s). So the room has to drain faster as it opens: both params move, and both hand back.
+      expect(dried.length, `comb${String(index)} never dried as it opened`).toBe(1);
+      expect(driedBack.length, `comb${String(index)} stayed dry`).toBe(1);
+      expect(
+        (dried[0]?.value ?? 1) < (combs(h)[index]?.feedback ?? 0),
+        'feedback did not drop',
+      ).toBe(true);
+      const stretched = tailSeconds(bump[0]?.value ?? 0, dried[0]?.value ?? 0);
       expect(stretched, `comb${String(index)} stretched tail`).toBeGreaterThan(TAIL_BASE_SEC);
-      expect(stretched).toBeLessThanOrEqual(0.75);
+      // 0.4 is written here as the deck's number on purpose, not as `TAIL_CEILING_SEC`: a guard that
+      // reads its passing line from the module under test cannot notice that module moving.
+      expect(stretched, `comb${String(index)} crosses the deck's 0.4s`).toBeLessThanOrEqual(
+        0.4 + 1e-9,
+      );
       expect(handBack[0]?.value).toBeLessThan(bump[0]?.value ?? 0);
+      console.log(
+        `ROOM stretch comb${String(index)} delay=${(bump[0]?.value ?? 0).toFixed(4)} ` +
+          `fb=${(dried[0]?.value ?? 0).toFixed(4)} tail=${stretched.toFixed(3)}`,
+      );
     }
   });
 
