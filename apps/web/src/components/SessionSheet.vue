@@ -12,6 +12,7 @@ import ReductionPanel from './ReductionPanel.vue';
 import type { CopyKey } from '../i18n';
 import { DEFAULT_CONTENT } from '@puffly/game-content';
 import { nextRodGate } from '../shelf';
+import { achievementsFor, reachedCount } from '@puffly/game-core';
 
 const props = defineProps<{
   open: boolean;
@@ -82,6 +83,65 @@ const sticksKept = computed(() => props.game.summary.value.state?.progress.sessi
 const nextRod = computed(() => nextRodGate(DEFAULT_CONTENT.cigarettes, sticksKept.value));
 /** Minutes, rounded: a lifetime of seconds is not a number anybody can read at a glance. */
 const hoursSmoked = computed(() => Math.round(stats.value.totalDurationMs / 60000));
+
+/**
+ * The achievement ladder (2026-10-08 拍板 ⑤): four axes the log already counts — 支 / 口 / 克 /
+ * 分钟 — and the three rare moments read off the hardest gust it recorded. Nothing here is stored a
+ * second time: the rungs are derived from the same ledger the rows above print, so the two can never
+ * disagree about what happened.
+ */
+const rungs = computed(() =>
+  achievementsFor(
+    {
+      sticks: sticksKept.value,
+      puffs: stats.value.totalPuffs,
+      ashGrams: summary.value.state?.progress.ashGrams ?? 0,
+      minutes: hoursSmoked.value,
+    },
+    stats.value.strongestGust,
+  ),
+);
+// One name per subject, and the ledger's rows above already say three of them: the ladder reuses
+// those keys rather than inventing parallel words, so the two cannot disagree about what 累计支数
+// means on the same screen. The ash axis is the odd one out — the row above counts 磕灰 (flicks),
+// this one counts grams — so it gets its own key, and neither number borrows the other's name.
+const AXES: ReadonlyArray<{ axis: 'sticks' | 'puffs' | 'ash' | 'time'; key: CopyKey }> = [
+  { axis: 'sticks', key: 'stats.sticks' },
+  { axis: 'puffs', key: 'stats.draws' },
+  { axis: 'ash', key: 'ach.axis.ash' },
+  { axis: 'time', key: 'stats.time' },
+];
+const ladder = computed(() =>
+  AXES.map((row) => {
+    const mine = rungs.value.filter((rung) => rung.achievement.axis === row.axis);
+    const next = mine.find((rung) => !rung.reached) ?? mine[mine.length - 1];
+    return {
+      axis: row.axis,
+      key: row.key,
+      reached: mine.filter((rung) => rung.reached).length,
+      total: mine.length,
+      goal: next?.achievement.goal ?? 0,
+    };
+  }),
+);
+// The three rare moments by name (拍板 ⑥). Keys are written out rather than built from the id, so
+// the copy table stays the compiler's check: an achievement without a name is a type error, not a
+// row that renders blank.
+const MOMENT_KEYS: ReadonlyArray<{ id: string; key: CopyKey }> = [
+  { id: 'moment.gust', key: 'ach.moment.gust' },
+  { id: 'moment.squall', key: 'ach.moment.squall' },
+  { id: 'moment.freak', key: 'ach.moment.freak' },
+];
+// Filtered here rather than with a `v-if` beside the `v-for`: a moment is a *name*, so in the tier
+// with no words there is nothing left to say and the row is not drawn at all.
+const momentRows = computed(() =>
+  MOMENT_KEYS.map((row) => ({
+    ...row,
+    name: copy.value.t(row.key),
+    reached: rungs.value.find((rung) => rung.achievement.id === row.id)?.reached ?? false,
+  })).filter((row) => row.name !== null),
+);
+const achieved = computed(() => reachedCount(rungs.value));
 
 const SECTION_HOOKS: Readonly<Record<string, string>> = { reduction: 'reduction', stats: 'stats' };
 const root = ref<HTMLElement | null>(null);
@@ -231,6 +291,44 @@ watch(
       <p v-if="nextRod !== null" class="line">
         <span v-if="copy.t('stats.next') !== null" class="name">{{ copy.t('stats.next') }}</span>
         <span class="count digits">{{ nextRod.at }}</span>
+      </p>
+    </div>
+
+    <!-- 成就 (拍板 ⑤): the same four local numbers, read as a ladder. One row per axis carries
+         digits only — how many rungs are met, and what the next one costs — so the block stays
+         complete in the icons tier, and the three moment rows below it are words by nature: they are
+         names of things that happened once. No new glyph is worn here; the marks a player reads this
+         screen by are the ones the rail and the HUD already use. -->
+    <div
+      class="stats group"
+      data-hook="achievements"
+      role="group"
+      :aria-label="copy.say('ach.title')"
+    >
+      <p class="line">
+        <span v-if="copy.t('ach.title') !== null" class="name">{{ copy.t('ach.title') }}</span>
+        <span class="count digits">{{ achieved }} / {{ rungs.length }}</span>
+      </p>
+      <p
+        v-for="row in ladder"
+        :key="row.axis"
+        class="line"
+        :data-reached="row.reached === row.total"
+      >
+        <span v-if="copy.t(row.key) !== null" class="name">{{ copy.t(row.key) }}</span>
+        <span class="count digits">
+          {{ row.reached }}/{{ row.total
+          }}<template v-if="row.reached < row.total"> · {{ row.goal }}</template>
+        </span>
+      </p>
+      <!-- A moment row has no digit of its own: it is a name and a state. The number that backs all
+           three is printed once, above them, as the reading it is — the hardest gust the log holds. -->
+      <p class="line">
+        <span v-if="copy.t('ach.gust') !== null" class="name">{{ copy.t('ach.gust') }}</span>
+        <span class="count digits">{{ stats.strongestGust }}</span>
+      </p>
+      <p v-for="row in momentRows" :key="row.id" class="line moment" :data-reached="row.reached">
+        <span class="name">{{ row.name }}</span>
       </p>
     </div>
 

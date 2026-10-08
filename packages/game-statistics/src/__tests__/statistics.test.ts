@@ -125,6 +125,49 @@ describe('deriveStatistics: §70 really derived', () => {
     expect(deriveStatistics(sessions, PLAIN).cravingsHandled).toBe(1);
   });
 
+  it('reads the hardest gust out of the two things that share one event type (拍板 ⑥)', () => {
+    const sessions = sampleSessions();
+    // The sample log's only ASH_FALL row is the column letting go on its own — a cause, no strength
+    // — so an untouched log has never met a gust, and that reads as 0 rather than as a gap.
+    expect(deriveStatistics(sessions, PLAIN).strongestGust).toBe(0);
+    const first = sessions.find((session) => session.id === 'ses-1');
+    if (first === undefined) throw new Error('fixture lost ses-1');
+
+    first.events.push(
+      {
+        id: 'evt-gust-1',
+        type: SessionEventType.ASH_FALL,
+        timestamp: at(5, 9, 4),
+        payload: { cause: 'natural', grams: 0.03 },
+      },
+      // Harder than either gust below, and on *purpose*: a 风 event's strength is not what the ladder
+      // is measured on, and a filter that widened itself to "any row with a strength" would report
+      // this number instead of the ash row's.
+      {
+        id: 'evt-wind-1',
+        type: SessionEventType.WIND,
+        timestamp: at(5, 9, 5),
+        payload: { strength: 0.995 },
+      },
+      {
+        id: 'evt-gust-2',
+        type: SessionEventType.ASH_FALL,
+        timestamp: at(5, 9, 6),
+        payload: { strength: 0.62 },
+      },
+      {
+        id: 'evt-gust-3',
+        type: SessionEventType.ASH_FALL,
+        timestamp: at(5, 9, 7),
+        payload: { strength: 0.986 },
+      },
+    );
+    const derived = deriveStatistics(sessions, PLAIN);
+    console.log(`GUST strongest=${String(derived.strongestGust)} (a wind at 0.995 is not a gust)`);
+    expect(derived.strongestGust).toBe(0.986);
+    expect(deriveStatistics([], PLAIN).strongestGust).toBe(0);
+  });
+
   it('never writes back to the log it is handed (§70)', () => {
     const frozen = deepFreeze(sampleSessions());
     expect(() => deriveStatistics(frozen, PLAIN)).not.toThrow();

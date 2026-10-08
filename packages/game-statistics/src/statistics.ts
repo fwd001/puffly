@@ -37,6 +37,7 @@ function emptyStatistics(nowMs: number, utcOffsetMinutes: number): Statistics {
     longestSessionId: null,
     totalPuffs: 0,
     totalEvents: 0,
+    strongestGust: 0,
     eventCounts: {},
     averageCravingBefore: 0,
     averageCravingAfter: 0,
@@ -92,6 +93,27 @@ function resolveAnchor(
     : { anchorMs: first, explicit: false };
 }
 
+/**
+ * The hardest gust in the log, read off the rows the weather wrote.
+ *
+ * Filtered on the payload rather than on the event type alone: `ASH_FALL` carries two meanings in
+ * this log (the column letting go on its own, and a draught in the room), and only the second one
+ * rolls a strength. A log with neither is 0.
+ */
+function hardestGust(log: readonly Session[]): number {
+  let strongest = 0;
+  for (const session of log) {
+    for (const event of session.events) {
+      if (event.type !== SessionEventType.ASH_FALL) continue;
+      const strength = event.payload?.['strength'];
+      if (typeof strength === 'number' && Number.isFinite(strength) && strength > strongest) {
+        strongest = strength;
+      }
+    }
+  }
+  return strongest;
+}
+
 export function deriveStatistics(
   sessions: readonly Session[],
   options: StatisticsOptions,
@@ -103,6 +125,7 @@ export function deriveStatistics(
   if (log.length === 0) return emptyStatistics(nowMs, utcOffsetMinutes);
 
   const eventCounts = countByType(log);
+  const strongestGust = hardestGust(log);
   let totalEvents = 0;
   for (const count of eventCounts.values()) totalEvents += count;
 
@@ -153,6 +176,7 @@ export function deriveStatistics(
     longestSessionId,
     totalPuffs: eventCounts.get(SessionEventType.PUFF) ?? 0,
     totalEvents,
+    strongestGust,
     eventCounts: toSortedRecord(eventCounts),
     averageCravingBefore,
     averageCravingAfter,

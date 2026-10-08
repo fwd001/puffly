@@ -42,6 +42,13 @@ export interface Statistics {
   totalEvents: number;
   /** §33 "events": per `SessionEvent.type` count, keyed by the raw type string. */
   eventCounts: Record<string, number>;
+  /**
+   * The hardest 一阵风 the log ever recorded: the maximum `strength` among the `ash_fall` events the
+   * *weather* wrote (the rows `dropAsh` writes carry a `cause` and no strength, and the two meanings
+   * of that one event type are documented in SPEC.md). 0 when the room never blew that hard — which
+   * is a reading, not a missing number. 2026-10-08 拍板 ⑥'s rare achievements are cut against this.
+   */
+  strongestGust: number;
   /** Mean over sessions that report a value; 0 when none do. */
   averageCravingBefore: number;
   averageCravingAfter: number;

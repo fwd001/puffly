@@ -174,6 +174,21 @@ export function scanLanguageUse(rel: string, raw: string): string[] {
   return scanReads(rel, raw, LANGUAGE_READ, "reads the player's language");
 }
 
+/**
+ * The achievement ladder (2026-10-08 拍板 ⑤⑥) is a reading of numbers the engine already keeps.
+ * If it ever rolled a die of its own, §71's replay would stop matching the session it replays, and
+ * the rare moments would stop being readings of what actually happened. The pure layer's own tests
+ * may not read files (§47), so the source-shape half of that claim lives here.
+ */
+const LADDER_SOURCE = 'packages/game-core/src/achievements.ts';
+const ROLL_READ =
+  /Math\.random|\brng\.|createRng|Date\.now|performance\.now|window\.|localStorage/g;
+
+/** A file that invents a number instead of being handed one. */
+export function scanRolls(rel: string, raw: string): string[] {
+  return scanReads(rel, raw, ROLL_READ, 'rolls a die or reaches for a clock');
+}
+
 /** A file that acts on the player's ceiling, rather than only storing that they set one. */
 export function scanLimitUse(rel: string, raw: string): string[] {
   return scanReads(rel, raw, LIMIT_READ, 'acts on the daily ceiling');
@@ -250,6 +265,15 @@ function scanAdapter(dir: string): string[] {
 }
 
 describe('§73 architecture guards', () => {
+  it('the achievement ladder rolls nothing and reads no clock (§71)', () => {
+    const offenders = scanRolls(LADDER_SOURCE, readFileSync(join(root, LADDER_SOURCE), 'utf8'));
+    expect(offenders).toEqual([]);
+    // Positive and negative control: the pattern must see the draw it forbids, and the comment
+    // stripper must not let this file's own prose about §71 count as one.
+    expect(scanRolls('x.ts', 'const roll = Math.random();').length).toBe(1);
+    expect(scanRolls('x.ts', '// §71: no Math.random here').length).toBe(0);
+  });
+
   it('finds the pure layer at all, so the scan is not empty', () => {
     for (const dir of PURE_PACKAGES) {
       expect(sources(dir).length, dir).toBeGreaterThan(0);

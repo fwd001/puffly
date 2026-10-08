@@ -1830,6 +1830,39 @@ try {
   await context.close();
 }
 
+// ------------------------------------------------------------------ the 成就 ladder (拍板 ⑤)
+{
+  // The ladder is the same four local numbers read as rungs, so the check is that the screen agrees
+  // with the core table on a fresh save: nothing reached, and each axis showing what its first rung
+  // costs. The goals are written here as the numbers the deck's pacing produces (25 分钟/天 × 60 天),
+  // and `achievements.test.ts` judges that arithmetic in core — this is the row that proves the
+  // shell is printing it rather than its own idea of a ladder.
+  const { page, errors, context } = await openPhone({ width: 393, height: 852, dpr: 3 });
+  await openSheet(page, 'break');
+  const ladder = await page.evaluate(() => {
+    const block = document.querySelector('[data-hook="achievements"]');
+    return {
+      present: !!block,
+      rows: [...(block?.querySelectorAll('.line') ?? [])].map((row) => ({
+        name: (row.querySelector('.name')?.textContent ?? '').trim(),
+        count: (row.querySelector('.count')?.textContent ?? '').trim(),
+      })),
+    };
+  });
+  const axes = ladder.rows.filter((row) => /^\d+\/\d+ · \d+$/.test(row.count));
+  console.log(`LADDER ${JSON.stringify(ladder.rows.map((row) => `${row.name}=${row.count}`))}`);
+  check(
+    '成就: the ladder is on the ledger screen, and its four rows are the core table',
+    ladder.present &&
+      ladder.rows[0]?.count === '0 / 23' &&
+      axes.map((row) => row.count).join(' | ') === '0/5 · 13 | 0/5 · 150 | 0/5 · 4 | 0/5 · 125' &&
+      axes.every((row) => row.name !== ''),
+    JSON.stringify(ladder.rows.slice(0, 6)),
+  );
+  check('成就: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+}
+
 await browser.close();
 const failed = results.filter((entry) => !entry.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

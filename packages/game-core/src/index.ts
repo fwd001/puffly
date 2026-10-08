@@ -51,6 +51,18 @@ export {
   STEP_MS,
 } from './constants';
 
+export {
+  ACHIEVEMENTS,
+  DECK_PACING,
+  achievementsFor,
+  reachedCount,
+  twoMonthTotal,
+  type Achievement,
+  type AchievementAxis,
+  type AchievementLedger,
+  type AchievementRung,
+} from './achievements';
+
 export { createContentLookup, ContentError, type ContentLookup } from './content/lookup';
 export {
   anchorForTarget,

@@ -177,6 +177,19 @@ export const EN = {
   'stats.draws': 'draws',
   'stats.ash': 'ash dropped',
   'stats.next': 'next rod',
+  // 成就 (拍板 ⑤ 与 ⑥). The axis rows are digits plus one unit word; the three moments are the deck's
+  // own kind of joke — a gust the room happened to roll hard — and nothing here says a word about
+  // health or about quitting (§10, §20).
+  'ach.title': 'achievements',
+  'ach.gust': 'hardest gust',
+  // Only the ash row needs a word of its own: the ledger row above counts 磕灰 (flicks) and this
+  // one counts grams, so neither may borrow the other's name. The other three axes reuse the
+  // ledger's own keys, and 支数 / 口数 never appear here — §23 keeps quantifiers off the stage.
+  'ach.axis.ash': 'grams of ash',
+  'ach.axis.time': 'minutes',
+  'ach.moment.gust': 'a stiff one',
+  'ach.moment.squall': 'a squall',
+  'ach.moment.freak': 'the freak gust',
   'shelf.rods.ladder': 'total {total} sticks · next at {next}',
   'shelf.hint': 'swipe up for all {total} · hold a card for its archive',
   'shelf.kind.inhale': 'inhaled',
@@ -406,6 +419,13 @@ const ZH: Table = {
   'stats.draws': '总口数',
   'stats.ash': '磕灰',
   'stats.next': '下一支',
+  'ach.title': '成就',
+  'ach.gust': '最大阵风',
+  'ach.axis.ash': '灰重',
+  'ach.axis.time': '分钟',
+  'ach.moment.gust': '一阵风',
+  'ach.moment.squall': '妖风',
+  'ach.moment.freak': '邪风',
   'shelf.rods.ladder': '累计 {total} 支 · 下一档 {next} 支',
   'shelf.hint': '下滑查看全部 {total} 款 · 长按卡片查档案',
   'shelf.kind.inhale': '吸入型',

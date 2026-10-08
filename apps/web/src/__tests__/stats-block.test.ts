@@ -54,12 +54,27 @@ describe('the 统计 block is a landing and a ledger (S11, S13)', () => {
     // Every one is a named fact off `stats` (the statistics layer), `summary` (the live ledger) or
     // `nextRod` (the ladder's own threshold). A digit written as a literal would land here unnamed.
     expect(fields.length, 'the block prints numbers').toBeGreaterThanOrEqual(5);
+    // The ladder's rows are in this block too, and they name the same kind of facts — each one is a
+    // read-out of `achievementsFor` / `reachedCount`, which are core functions over the ledger. The
+    // rule stays what it was: no arithmetic and no literal digits in the template.
     const allowed =
-      /^(stats\.[a-zA-Z0-9]+|summary\.[a-zA-Z0-9]+|sticksKept|hoursSmoked|nextRod\.at)$/;
+      /^(stats\.[a-zA-Z0-9]+|summary\.[a-zA-Z0-9.]+|sticksKept|hoursSmoked|nextRod\.at|achieved|rungs\.length|row\.(name|reached|total|goal))$/;
     for (const field of fields) expect(field, `${field} is not a ledger field`).toMatch(allowed);
     expect(fields).toContain('stats.totalPuffs');
     expect(fields).toContain('stats.currentStreakDays');
     expect(fields).toContain('hoursSmoked');
+    // What the ladder is allowed to print is a named value off a core function, so the function has
+    // to be imported here rather than re-derived in the template.
+    expect(SHEET).toContain("achievementsFor, reachedCount } from '@puffly/game-core'");
+    expect(fields).toContain('achieved');
+    // And a number written as prose is the same failure in the other direction: the pass above only
+    // sees what is inside `{{ }}`, so a literal baked into the markup (`/ 23`) needs its own look.
+    const literalDigits = [
+      ...statsBlock()
+        .replace(/\{\{[^}]*\}\}/g, '')
+        .matchAll(/[0-9]/g),
+    ].length;
+    expect(literalDigits, 'a digit written into the markup instead of read off the ledger').toBe(0);
   });
 
   it('names each row in both tiers that says words', () => {
