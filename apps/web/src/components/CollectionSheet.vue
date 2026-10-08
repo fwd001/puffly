@@ -522,9 +522,20 @@ watch(
   height: 30px;
 }
 
+/* 「还没有」压的是色块，不是字。这枚格子是可聚焦的按钮（`aria-pressed`、点它有自己的含义），所以
+   WCAG 1.4.3 那条"非活动组件"的豁免用不上 —— 而整格 opacity 0.45 实测把名字和那个最该看清的"差几支"
+   数字一起压到 4.02:1（对缸底，`--soft-white` 全值是 16.99）。次级色用 `--ash-gray`：对缸底 4.89，由
+   `text-contrast.test.ts` 判，不是这里自己说的。 */
 .room[data-locked='true'] {
-  opacity: 0.45;
   cursor: default;
+}
+
+.room[data-locked='true'] .chip {
+  opacity: 0.45;
+}
+
+.room[data-locked='true'] :is(.room-name, .rung) {
+  color: var(--ash-gray);
 }
 
 .room[data-selected='true'] {

@@ -1343,6 +1343,19 @@ try {
       kinds: [...sheet.querySelectorAll('.kind')].map((el) => (el.textContent ?? '').trim()),
       rodGroups: sheet.querySelectorAll('[data-group="rods"]').length,
       locked: tiles.filter((tile) => tile.dataset.locked === 'true').length,
+      // 「还没有」 in real pixels. The cell used to be dimmed whole, which took the room's name and its
+      // 差几支 figure to 4.02:1 against the floor; the dim belongs on the colour chip and the words go
+      // to the declared 次级色 (`--ash-gray`, 4.89 by `text-contrast.test.ts`).
+      roomLook: (() => {
+        const room = sheet.querySelector('.room[data-locked="true"]');
+        const name = room?.querySelector('.room-name');
+        const chip = room?.querySelector('.chip');
+        return {
+          colour: name ? getComputedStyle(name).color : 'no name rendered',
+          roomOpacity: room ? Number(getComputedStyle(room).opacity) : -1,
+          chipOpacity: chip ? Number(getComputedStyle(chip).opacity) : -1,
+        };
+      })(),
       hint: (sheet.querySelector('.browse-hint')?.textContent ?? '').trim(),
       // S8's third line, read as the player sees it: the figure, and how tall a line it got.
       lengths: tiles.map((tile) => {
@@ -1367,6 +1380,17 @@ try {
       cabinet.rodGroups === 3 &&
       cabinet.locked === 10,
     JSON.stringify(cabinet),
+  );
+
+  // The dim moved onto the chip, so the name is the declared 次级色 and the cell itself is at full
+  // strength. Reading it here matters because the CSS is a computed value: a whole-cell `opacity` and
+  // a colour look the same in a source file and different in a browser.
+  check(
+    '图鉴: a locked cell dims its colour chip, not its name',
+    cabinet.roomLook.roomOpacity === 1 &&
+      Math.abs(cabinet.roomLook.chipOpacity - 0.45) < 0.02 &&
+      cabinet.roomLook.colour === 'rgb(126, 126, 130)',
+    JSON.stringify(cabinet.roomLook),
   );
 
   check(
@@ -1914,9 +1938,11 @@ try {
     return {
       animating: rows.filter((row) => getComputedStyle(row).animationName !== 'none').length,
       marked: rows.filter((row) => row.getAttribute('data-fresh') === 'true').length,
+      // 未抽到 reads as a colour, not a dim: the name has to stay on the AA 次级色, and an opacity
+      // would have to be read off the whole row instead of off the word.
       moments: rows
         .filter((row) => row.classList.contains('moment'))
-        .map((row) => Number(getComputedStyle(row).opacity)),
+        .map((row) => getComputedStyle(row.querySelector('.name')).color),
       locked: rows
         .filter((row) => !row.classList.contains('moment'))
         .map((row) => Number(getComputedStyle(row).opacity)),
@@ -1931,10 +1957,10 @@ try {
     `animating=${String(reveal.animating)} marked=${String(reveal.marked)}`,
   );
   check(
-    '成就: a gust that was never drawn looks locked, and the rows beside it do not',
+    '成就: a gust that was never drawn reads as 还没有, and nothing on the row is dimmed',
     reveal.moments.length > 0 &&
-      reveal.moments.every((value) => Math.abs(value - 0.3) < 0.02) &&
-      reveal.locked.every((value) => value > 0.9),
+      reveal.moments.every((colour) => colour === 'rgb(126, 126, 130)') &&
+      reveal.locked.every((value) => value === 1),
     `moments=${String(reveal.moments)} plain=${String(reveal.locked)}`,
   );
   check(

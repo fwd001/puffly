@@ -92,6 +92,16 @@ const PAIRS: readonly { colour: string; on: string; text: Rgb; surface: Rgb }[] 
     text: hexToRgb('#1a1109'),
     surface: mixRgb(token('--ember-orange'), token('--deep-charcoal'), 0.12),
   },
+  {
+    // The declared 次级色, and the one place it is allowed to carry words: 「还没有」 in the 图鉴 and in
+    // the achievement ladder. It is here because the shell used to express "not yet" by dimming whole
+    // cells with `opacity`, which takes a 16.99 name down to 4.02 and a 11.59 name to 1.98 — measured,
+    // and under the bar. A colour the guard can judge beats an opacity nobody judged.
+    colour: 'var(--ash-gray)',
+    on: 'the sheet floor',
+    text: token('--ash-gray'),
+    surface: token('--deep-charcoal'),
+  },
 ];
 
 /** Every `color:` value in the shell, comments stripped, the way the other scanner guards do it. */

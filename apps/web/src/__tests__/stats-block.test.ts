@@ -134,8 +134,14 @@ describe('the ladder says its two states, and only its two states (S13)', () => 
     // It starts below and transparent: an offset that is not positive is a flash, not a rise.
     expect(String(frames?.[0])).toMatch(/0%\s*\{[^}]*translateY\([1-9]\d*px\)/);
     expect(String(frames?.[0])).toMatch(/0%\s*\{[^}]*opacity:\s*0/);
-    // 未抽到 keeps the cabinet's locked look, so the three gust names are not three identical rows.
-    expect(STYLE).toMatch(/\.line\.moment:not\(\[data-reached='true'\]\)\s*\{\s*opacity:\s*0\.3/);
+    // 未抽到 goes to the declared 次级色, and `not-yet-look.test.ts` is what forbids the other way
+    // (dimming the row), so the three gust names are not three identical rows without going unreadable.
+    const locked = STYLE.slice(
+      STYLE.indexOf(".line.moment:not([data-reached='true'])"),
+      STYLE.indexOf('}', STYLE.indexOf(".line.moment:not([data-reached='true'])")),
+    );
+    expect(locked, 'the moment rows lost their 还没有 colour').toContain('color: var(--ash-gray)');
+    expect(locked).not.toMatch(/opacity:/);
   });
 
   it('gives the fade the same reduced-motion gate the rest of the house does', () => {

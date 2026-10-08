@@ -477,10 +477,11 @@ watch(
 }
 
 /* The ladder's two states, both read from an attribute rather than invented per row. A moment the
-   player has not drawn keeps the cabinet's locked look — the same opacity a 图鉴 cell uses before it
-   is collected, so "not yet" is one shape across screens. */
-.line.moment:not([data-reached='true']) {
-  opacity: 0.3;
+   player has not drawn goes to the declared 次级色 `--ash-gray` (4.89 on the sheet floor, judged by
+   `text-contrast.test.ts`) — not to an opacity: `--smoke-gray` at 0.3 measures 1.98:1, which is the
+   same trick the 图鉴 used to pull on its room names and their 差几支 digits. */
+.line.moment:not([data-reached='true']) .name {
+  color: var(--ash-gray);
 }
 
 /* And the row that just lit plays once, by itself (§39: no dialog, no sentence). The flag only ever
