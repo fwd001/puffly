@@ -4017,7 +4017,7 @@ Long-term vision
 | S11 桌面版 | 侧栏六入口、剩余 68% 与 03:12 对齐、说明去中文量词 | 侧栏八个入口，读数以数字为准 | 真机 "S10: eight entries, each a finger-sized target wearing a word at the type floor" | 落（八 ⊇ 稿子六） |
 | S12 桌面挂件 | 透明背景、常驻桌面、点击展开 | 常驻透明窗是原生壳的事，PWA 做不到；稿子这条里能做的另一半（空闲降帧省电）落了 | SPEC "两件小而确指的动效条目"；`idle-paint.test.ts` | 偏：能力边界；原生壳 = 未开工 |
 | S13 挂件展开态 | 320×420 面板，与移动端同一套逻辑、输入换成鼠标 | 等价物是宽屏侧栏 + 同一套 sheet；鼠标路径有判据 | 真机 "desktop: the lighter catches a mouse click"、"desktop: holding the mouse draws" | 偏（形态不同，逻辑同一套） |
-| S14 零文字 / 多语言 / 本地存储 | 核心循环零文字、**六个手势图标**、三个自定义档位（单口时长 / 吐烟力度 / 每日支数目标）、存档 schema | 零文字与三层降级成立；**三档齐了**：吐烟力度 = 屏上的力度控制，每日支数上限 = `dailyLimitSticks`，单口时长 = `puffDurationSec`（今天补的那一档，出厂故意无默认）；目标时长 = `sessionTargetMs`；六个手势里五个有自己的记号，取烟仍落回烟杆那个 `—`；**但取烟今天有了自己的落点**（烟盒是一个可点的东西，见本节末「烟盒今天能点」那片） | 真机 "the third tier leaves no words and no unnamed control behind"；`settings.ts`；`puff-row.test.ts` 六条；`puff-length.test.ts` 三条 | 落（记号 5/6，见本节"记号字母表补齐到六处"；三档见"「单口时长」"那一片）；欠：那张 0–12 秒定拍表 |
+| S14 零文字 / 多语言 / 本地存储 | 核心循环零文字、**六个手势图标**、三个自定义档位（单口时长 / 吐烟力度 / 每日支数目标）、存档 schema | 零文字与三层降级成立；**三档齐了**：吐烟力度 = 屏上的力度控制，每日支数上限 = `dailyLimitSticks`，单口时长 = `puffDurationSec`（今天补的那一档，出厂故意无默认）；目标时长 = `sessionTargetMs`；六个手势**六个都有自己的记号**（取烟 = ▭，与它今天真正按的那个东西同形） | 真机 "the third tier leaves no words and no unnamed control behind"；`settings.ts`；`puff-row.test.ts` 六条；`puff-length.test.ts` 三条 | 落（记号 6/6，见本节"记号字母表补齐到六处"与"取烟戴上烟盒的记号"；三档见"「单口时长」"那一片）；欠：那张 0–12 秒定拍表 |
 | S15 一致性审计表 | 0 处整段未图标化、0 处数值口径不一致、估算值统一带约等于 | 三条都有判据指着 | 真机 "the screen carries no prose…"、"pinning the card earns tier three, and its estimate carries the ≈"；真机脚本里的 WORD_HOMES 白字出处扫描（`tests/smoke/touch-device.mjs:313`） | 落 |
 | S16 全球品类与两型 | 吸入型按住吐烟；品鉴型含住 2 秒缓缓吐、不出现肺阻力反馈；过滤型经水；每类给时长 / 口数 / 芯温 | 两型与过滤型的交互各自成立（品鉴型含住正好 2000 ms）；品类清单本身只有五格对上（见 S8 那行），而那五格的三个数今天都在稿子给的区间里 | `savour.test.ts`；`cigarettes.ts` 里三只 `savourMs: 2000`；`brief-conformance.test.ts`；真机 kinds = 吸入型 7 / 品鉴型 3 / 过滤型 1 | 落（交互与那五格的数）／缺（另六格的品类身份） |
 | S17 皮肤 | 四层色板 + 环境预设；硬约束不得动时长 / 口数 / 温度 / 灰重 | 皮肤只有四层，物理碰不到 | `skins.test.ts` "a skin is four colours and nothing else"、`skin.test.ts` "a skin cannot reach the ash, the band, the filter or the tray" | 落 |
@@ -4720,3 +4720,24 @@ classic 10.0 / silver 9.0 / night 12.0 …… 11 格全是 `\d+\.\d`，行高 18
 下一个人猜。**它上线第一件事就是把自己红了一次**：这一段刚写的那句指路句里就带着一个不存在的名字，第一次
 门禁 `test exit=1`（`SECTION_REFS 19 mentions of 10 headings`，缺的就是它）。
 
+
+### 取烟戴上烟盒的记号：S14 那六个手势凑齐（2026-10-08）
+
+S14 把核心循环画成六个图标：取烟 · 点燃 · 吸入 · 吐烟 · 磕灰 · 掐灭。#75 那次把六个位置都接进了
+记号字母表，但只有五个有自己的形状 —— 取烟走 `v-else` 落到 `—`，而 `—` 在轨道与 HUD 上是"一支烟"。
+当时那是**对的**：取烟就是点那根躺在桌上的烟杆。今天烟盒是一个可点的东西了（见「烟盒今天能点」），
+手指动的对象换了，形状也该换。
+
+**规则没变，变的是指代**：这条字母表的老规矩是"手势用它按的那个东西的形状"（`discard` = ○ = 烟灰缸，
+`lighter` = △ = 打火机）。所以取烟 = ▭ = 烟盒 —— 这个字符在轨道与门槛轴上本来就意味着"一个烟盒"，
+**不是新形状**，是把已有的形状给一个刚找到自己的对象的手势。`—` 从此只有一义。
+
+**判据**：`mark-alphabet.test.ts` 里那条"故意留着等拍板"的反向判据翻成正向（`pill:pick === '▭'`、
+▭ 恰好三处且都是"一个烟盒"、`—` 恰好两处且都是"一支"），字母表分母 31 → **32**（`ALPHABET 32 marks`
+就是那行读数）。两次变异各红其所：把 ▭ 换成另一个方框字符 → 1 条红；**把 ▭ 换回 `—`（借烟杆的形状）
+→ 3 条红，其中一条正是那条"一个形状不许有两义"** —— 这条判据当初写下就是为了等这一天。
+`v-else` 那条兜底留着：没被放过的 affordance 仍然落回 `—`，那是要在画面里看出来的缺口，不是悄悄造形。
+
+**真机读过一眼**（Brave、393×852、dpr 3）：待机时那颗 pill 上是 `▭`（30×15px 的字形，不是豆腐块 ——
+▭ 本来就在轨道上活着，字体这一关早就过了），点一下烟盒之后 pill 换成 `△`。**pill 上的形状与桌上该按的
+东西对上**这件事，是这片的全部主张。

@@ -66,7 +66,9 @@ const MEANING: Record<string, string> = {
   // referent on purpose: `△` on the pill (hold the lighter) and `△` on the tab (the 点燃 phase) are
   // both the lighter. That rule is what the two clashes below were measured against, and it resolved
   // both: the shape says what the moment is about, never which finger motion is asked for.
-  pick: 'a rod',
+  // 取烟 is the pack's shape now that the pack is a thing to press (S14's sixth gesture). The rod is
+  // what arrives, but a gesture is named by what the finger acts on — as `discard` is the tray.
+  pick: 'a box',
   puff: 'a draw',
   flick: 'the ash',
   extinguish: 'a stubbed rod',
@@ -171,9 +173,9 @@ describe('the mark alphabet means one thing (§23, §55)', () => {
     // S11's 统计 — a new entry has to be added to that number on purpose, which is the whole point
     // of writing the denominator out. The next two terms are S14's gesture marks on the pill and
     // S1-S6's three phase tabs, added when this file started covering the loop itself: the pill term
-    // is five because 取烟 has no mark of its own, which the case below pins. The last three are
+    // is six now that 取烟 has its own shape, and the last three are
     // S23's substitutes, which wear marks from this same geometric family.
-    expect(alphabet.length).toBe(8 + 3 + 4 + 5 + 5 + 3 + 3);
+    expect(alphabet.length).toBe(8 + 3 + 4 + 5 + 6 + 3 + 3);
   });
 
   it('never lets one shape mean two things', () => {
@@ -231,6 +233,7 @@ describe('the mark alphabet means one thing (§23, §55)', () => {
       'flick',
       'extinguish',
       'discard',
+      'pick',
     ]);
     expect(phaseMarks(TAB_SOURCE).map(([key]) => key)).toEqual(['light', 'puff', 'tray']);
     expect(alternativeMarks(REDUCE_SOURCE).map(([key]) => key)).toEqual([
@@ -248,14 +251,22 @@ describe('the mark alphabet means one thing (§23, §55)', () => {
     console.log(`LOOKALIKE ${flick?.glyph}(${flick?.meaning}) vs ${walk?.glyph}(${walk?.meaning})`);
   });
 
-  it('leaves the first gesture of the loop without a mark of its own (§ S14)', () => {
-    // S14 lists six: 取烟 点燃 吸入 吐烟 磕灰 掐灭. The pill defines five and lets 取烟 fall through to
-    // `—`, which is the rod - not wrong, but not the sixth shape the deck drew (a finger lifting the
-    // rod off the table). Written as a case so that giving it one is a decision, and so that an
-    // accidental second `—` on the pill reddens the clash case rather than passing unnoticed.
-    expect(gestureMarks(PILL_SOURCE).map(([key]) => key)).not.toContain('pick');
+  it('gives the first gesture of the loop a mark of its own (§ S14)', () => {
+    // S14 lists six: 取烟 点燃 吸入 吐烟 磕灰 掐灭. Five had shapes and the first fell through to `—`,
+    // which is the rod's own mark — defensible while 取烟 *was* a tap on the rod. The pack is what the
+    // finger acts on now, so the gesture wears the pack's shape and `—` means one thing again.
+    const marks = Object.fromEntries(gestureMarks(PILL_SOURCE));
+    expect(marks.pick).toBe('▭');
     expect(PILL_SOURCE).toContain('<template v-else>');
-    const borrowed = alphabet.filter((entry) => entry.glyph === '—');
-    for (const entry of borrowed) expect(entry.meaning, entry.where).toBe('a rod');
+    // The fall-through stays, and it stays the rod's: an affordance nobody has placed is a gap to
+    // notice in the picture, not a mark to invent silently.
+    const boxes = alphabet.filter((entry) => entry.glyph === '▭');
+    expect(boxes.length, 'the box mark is worn in more places than the three that mean it').toBe(3);
+    for (const entry of boxes) expect(entry.meaning, entry.where).toBe('a box');
+    const rods = alphabet.filter((entry) => entry.glyph === '—');
+    for (const entry of rods) expect(entry.meaning, entry.where).toBe('a rod');
+    console.log(
+      `PICK ▭ at ${boxes.map((entry) => entry.where).join(', ')}; — at ${rods.map((entry) => entry.where).join(', ')}`,
+    );
   });
 });

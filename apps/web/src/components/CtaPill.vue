@@ -107,6 +107,9 @@ const wave = computed(() => {
         <template v-else-if="affordance === 'flick'">⌁</template>
         <template v-else-if="affordance === 'extinguish'">◌</template>
         <template v-else-if="affordance === 'discard'">○</template>
+        <!-- 取烟 is the box: the gesture wears the shape of the thing it now acts on, which is the
+             pack on the table rather than the rod it hands over. `—` stays the rod's own. -->
+        <template v-else-if="affordance === 'pick'">▭</template>
         <template v-else>—</template>
       </span>
       <span v-if="label !== null" class="word">{{ label }}</span>
