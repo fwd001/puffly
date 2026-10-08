@@ -5,10 +5,11 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_CONTENT } from '@puffly/game-content';
+import { DEFAULT_CONTENT, createDefaultLookup } from '@puffly/game-content';
 import { createI18n, rodNoteKey } from '../i18n';
 import { cardLabel, rungShownFor } from '../scenes';
 import { nextRodGate, shelfCount, shelvesOf } from '../shelf';
+import { archiveFacts, rodMinutes } from '../archiveModel';
 
 const rods = DEFAULT_CONTENT.cigarettes;
 
@@ -120,6 +121,35 @@ describe('the 图鉴 (§ S8, § S8b)', () => {
     for (const rod of rods) {
       expect(['inhale', 'savor', 'filter']).toContain(rod.archive.kind);
     }
+  });
+
+  it('says the same minutes on the tile and on the card, because they are one division', () => {
+    // S8's third line and S17's 口径 line are the same number in two places. The bug this keeps out
+    // is the ordinary one: the tile gets its own arithmetic, the content's window moves, and the two
+    // screens start disagreeing about how long the same rod takes.
+    const lookup = createDefaultLookup();
+    for (const rod of rods) {
+      const shown = rodMinutes(rod);
+      expect(shown, `${rod.id} is not to a tenth`).toMatch(/^\d+\.\d$/);
+      const card = archiveFacts(lookup, rod.id);
+      expect(card && card.subject === 'rod' ? card.minutes : null, rod.id).toBe(shown);
+      console.log(`TILE ${rod.id.padEnd(10)} ${shown} min`);
+    }
+  });
+
+  it('keeps the length as digits when the tier stops saying words', () => {
+    // The tile's own shape claim, read off the component because there is no harness here: the
+    // number must live outside the gate that drops the words, and the unit must live inside one.
+    const tile = readFileSync(new URL('../components/ArchiveTile.vue', import.meta.url), 'utf8');
+    const from = tile.indexOf('<span v-if="minutes');
+    expect(from, 'the tile no longer shows a length').toBeGreaterThan(-1);
+    const block = tile.slice(from, tile.indexOf('</button>', from));
+    expect(block).toContain('<span class="digits">{{ minutes }}</span>');
+    expect(block).toContain('v-if="unit !== null"');
+    // The names block is the one the icons tier empties; if the length ever moves inside it, the
+    // number goes with the words and the wordless tier loses the only figure S8 asks it to keep.
+    expect(tile.slice(0, from)).toContain('v-if="copy.t(\'shelf.rods\') !== null"');
+    expect(block).not.toContain('shelf.rods');
   });
 });
 

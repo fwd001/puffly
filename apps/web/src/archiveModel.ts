@@ -10,6 +10,15 @@
 import { PACKS } from '@puffly/game-content';
 import type { ContentLookup } from '@puffly/game-core';
 
+/**
+ * Minutes for the whole stick, to a tenth: the middle of this rod's own burn range. S8 puts this
+ * number on the tile and S17 puts it on the card, so it is divided in one place — the two lines
+ * cannot then disagree about what the same rod takes to finish.
+ */
+export function rodMinutes(rod: { burnDuration: { min: number; max: number } }): string {
+  return ((rod.burnDuration.min + rod.burnDuration.max) / 2 / 60_000).toFixed(1);
+}
+
 /** S17's card about a rod in the hand. Every number here is content or the rod's own arithmetic. */
 export interface RodArchiveFacts {
   subject: 'rod';
@@ -73,13 +82,12 @@ export function archiveFacts(content: ContentLookup, id: string): ArchiveFacts |
   }
   const rod = content.cigarettes().find((entry) => entry.id === id);
   if (!rod) return null;
-  const middle = (rod.burnDuration.min + rod.burnDuration.max) / 2;
   return {
     subject: 'rod',
     name: rod.name,
     zhName: rod.archive.zhName,
     kind: rod.archive.kind,
-    minutes: (middle / 60_000).toFixed(1),
+    minutes: rodMinutes(rod),
     puffs: rod.physical.puffs.target,
     tempLow: rod.physical.centerTempC[0],
     tempHigh: rod.physical.centerTempC[1],

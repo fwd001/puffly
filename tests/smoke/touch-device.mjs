@@ -1234,6 +1234,16 @@ try {
       rodGroups: sheet.querySelectorAll('[data-group="rods"]').length,
       locked: tiles.filter((tile) => tile.dataset.locked === 'true').length,
       hint: (sheet.querySelector('.browse-hint')?.textContent ?? '').trim(),
+      // S8's third line, read as the player sees it: the figure, and how tall a line it got.
+      lengths: tiles.map((tile) => {
+        const el = tile.querySelector('.length .digits');
+        return {
+          rod: tile.dataset.rod ?? '?',
+          text: (el?.textContent ?? '').trim(),
+          height: Math.round(el?.getBoundingClientRect().height ?? 0),
+          unit: (tile.querySelector('.length .unit')?.textContent ?? '').trim(),
+        };
+      }),
     };
   });
   check(
@@ -1249,6 +1259,13 @@ try {
     JSON.stringify(cabinet),
   );
 
+  check(
+    'S8: every tile says how long its own rod takes, as digits big enough to read',
+    cabinet.lengths.length === 11 &&
+      cabinet.lengths.every((row) => /^\d+\.\d$/.test(row.text) && row.height >= 15),
+    JSON.stringify(cabinet.lengths.slice(0, 3)),
+  );
+
   // A locked card never enters the hand, but it does open its own archive.
   const before = await page.evaluate(
     () => document.querySelector('.tile[data-selected="true"]')?.dataset.rod ?? 'none',
@@ -1260,18 +1277,35 @@ try {
   await lockedTile.dispatchEvent('pointerup', { pointerType: 'touch' });
   await lockedTile.dispatchEvent('click');
   await page.waitForTimeout(340);
-  const heldLocked = await page.evaluate(() => {
-    const card = document.querySelector('[data-hook="archive"]');
-    return {
-      name: (card?.querySelector('.name')?.textContent ?? '').trim(),
-      cells: card?.querySelectorAll('.cells dd').length ?? 0,
-      chosen: document.querySelector('.tile[data-selected="true"]')?.dataset.rod ?? 'none',
-    };
-  });
+  const heldLocked = await page.evaluate(
+    ([rod]) => {
+      const card = document.querySelector('[data-hook="archive"]');
+      return {
+        name: (card?.querySelector('.name')?.textContent ?? '').trim(),
+        cells: card?.querySelectorAll('.cells dd').length ?? 0,
+        chosen: document.querySelector('.tile[data-selected="true"]')?.dataset.rod ?? 'none',
+        // The same rod's two numbers, read off the page it is standing on: the tile's line and the
+        // card's cells. Which cell the minutes land in is the card's business, so all three are kept.
+        tile: (
+          document.querySelector(`.tile[data-rod="${rod}"] .length .digits`)?.textContent ?? ''
+        ).trim(),
+        cellsText: [...(card?.querySelectorAll('.cells dd') ?? [])].map((el) =>
+          (el.textContent ?? '').trim(),
+        ),
+      };
+    },
+    [lockedRod],
+  );
   check(
     'holding a card you have not met opens its archive without putting it in the hand',
     heldLocked.cells === 3 && heldLocked.chosen === before && heldLocked.name.length > 0,
     `${lockedRod} → ${JSON.stringify({ ...heldLocked, before })}`,
+  );
+  check(
+    'the tile and the card say the same number of minutes for the same rod',
+    /^\d+\.\d$/.test(heldLocked.tile) &&
+      heldLocked.cellsText.some((text) => text.includes(heldLocked.tile)),
+    `${lockedRod}: tile ${heldLocked.tile} vs ${JSON.stringify(heldLocked.cellsText)}`,
   );
 
   // S18: the skins row is four bars per card, one of them is worn, and a locked one is inert.

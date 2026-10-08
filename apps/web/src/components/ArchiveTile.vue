@@ -24,6 +24,8 @@ const props = defineProps<{
   /** This rod's own rung, already marked: `◷14`, `65`, or empty for the one that is free. */
   rung: string;
   unlock: UnlockRule;
+  /** S8's third line: this rod's own minutes, already to a tenth. Digits, so no tier drops it. */
+  minutes: string;
   copy: I18n;
 }>();
 
@@ -41,11 +43,22 @@ const note = computed(() => {
   const key = rodNoteKey(props.id);
   return key === undefined ? null : props.copy.t(key);
 });
+/** The unit is a word, so the icons tier drops it and the number has to stand on its own. */
+const unit = computed(() => props.copy.t('archive.unitMin'));
+/**
+ * Spoken, the number needs its axis even where the picture cannot show one — a bare "10.0" on a
+ * screen reader is a figure with no unit, which is the thing §26's readouts exist to prevent.
+ */
+const named = computed(() =>
+  props.minutes === ''
+    ? props.name
+    : `${props.name} ${props.minutes} ${props.copy.say('archive.unitMin')}`,
+);
 /** The dot that marks a card as unreadable is decoration; the name has to carry it instead. */
 const label = computed(() =>
   cardLabel(
     props.copy,
-    props.copy.say('a11y.tile', { name: props.name, zhName: props.zhName }),
+    props.copy.say('a11y.tile', { name: named.value, zhName: props.zhName }),
     props.unlock,
     props.locked,
   ),
@@ -74,6 +87,10 @@ const label = computed(() =>
       <span class="name">{{ name }}</span>
       <span class="zh">{{ zhName }}</span>
       <span v-if="note !== null" class="note">{{ note }}</span>
+    </span>
+    <span v-if="minutes !== ''" class="length">
+      <span class="digits">{{ minutes }}</span>
+      <span v-if="unit !== null" class="unit">{{ unit }}</span>
     </span>
   </button>
 </template>
@@ -135,6 +152,15 @@ const label = computed(() =>
 .note {
   color: var(--smoke-gray);
   font-size: calc(15px * var(--text-scale));
+}
+
+/* S8's third line, outside the names block: the icons tier drops the words and keeps this number. */
+.length {
+  display: flex;
+  gap: 3px;
+  color: var(--smoke-gray);
+  font-size: calc(15px * var(--text-scale));
+  line-height: 1.2;
 }
 
 .lock {

@@ -24,6 +24,7 @@ import ArchiveTile from './ArchiveTile.vue';
 import { PACKS, SKINS } from '@puffly/game-content';
 import { nextRodGate, shelfCount, shelvesOf } from '../shelf';
 import { byRung, cardLabel, rungCount, rungShown, rungShownFor } from '../scenes';
+import { rodMinutes } from '../archiveModel';
 
 const props = defineProps<{
   open: boolean;
@@ -222,6 +223,7 @@ watch(
           :selected="chosen === rod.id"
           :rung="rungShownFor(rod.unlock)"
           :unlock="rod.unlock"
+          :minutes="rodMinutes(rod)"
           :copy="copy"
           @use="game.select({ cigarette: $event })"
           @archive="emit('archive', $event)"
