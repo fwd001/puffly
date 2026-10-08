@@ -549,6 +549,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         clockMs / 1000,
         state.stage.layout.table.y,
         cartoon,
+        // The venue reaches the plume's structure, not only its paint: how hard a draught pulls the
+        // curl layer off the column is this frame's own 通风系数.
+        ventDraught(state.environment.ventilation),
       );
 
       const dropped = state.cigarette.ash.dropped;
@@ -663,6 +666,15 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
               rise: particle.rise,
               gravity: particle.gravity,
               drag: particle.drag,
+              // Carried rather than re-defaulted. These three are the plume's own history: `swing`
+              // and `layer` are what make one body of air into a core with an edge and a curl, and
+              // `delay` is what makes a breath a stream instead of a lump. Left out, a resize handed
+              // every particle in the air the pool's defaults — the column went fog and the un-born
+              // half of a breath arrived at once — the moment 烟雾 changed tier, which the auto tier
+              // does on its own the frame the scene starts to drop.
+              swing: particle.swing,
+              layer: particle.layer,
+              delay: particle.delay,
               tint: particle.tint,
               heat: particle.heat,
               depth: particle.depth,

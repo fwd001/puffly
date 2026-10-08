@@ -9,6 +9,13 @@
 import type { Rgb } from '@puffly/shared';
 import { curl2 } from './noise';
 
+/**
+ * S7's 「主体、边缘、卷曲三层」 — the three layers a plume is made of, each with its own speed and
+ * its own brightness. `null` means *this particle is not plume air*: a spark, a flake of ash and the
+ * puff of a struck flint are events, and an event has no halo.
+ */
+export type PlumeLayer = 'core' | 'edge' | 'curl';
+
 export interface Particle {
   x: number;
   y: number;
@@ -48,6 +55,8 @@ export interface Particle {
    * far less than the same turbulence would push a speck of dust.
    */
   swing: number;
+  /** Which of the plume's three layers this body belongs to, or `null` for a non-plume event. */
+  layer: PlumeLayer | null;
   /** Previous position, so a spark can be drawn as a streak instead of a dot. */
   px: number;
   py: number;
@@ -79,6 +88,7 @@ export interface SpawnInit {
   gravity: number;
   drag: number;
   swing?: number;
+  layer: PlumeLayer | null;
   tint: Rgb;
   heat: number;
   depth: number;
@@ -130,6 +140,7 @@ const EMPTY: Particle = {
   gravity: 0,
   drag: 0.9,
   swing: 1,
+  layer: null,
   tint: [200, 200, 200],
   heat: 0,
   depth: 0.5,
@@ -189,6 +200,7 @@ export class ParticlePool {
     slot.gravity = init.gravity;
     slot.drag = init.drag;
     slot.swing = init.swing ?? 1;
+    slot.layer = init.layer;
     slot.tint = init.tint;
     slot.heat = init.heat;
     slot.depth = init.depth;
@@ -213,6 +225,12 @@ export class ParticlePool {
    * `sparkBounceScale` is S6's 写实度 as the frame reads it: 1 is `SPARK_BOUNCE` itself, 0 lets the
    * table keep the spark, and the cartoon end is capped inside this file at `SPARK_BOUNCE_MAX` so a
    * hop always settles instead of growing.
+   *
+   * `curlShred` is the venue's share of the plume's *structure*, 0..1: a draught does not tear a plume
+   * in half, it takes the outside first. Only the 卷曲 layer pays for it, so an open place peels the
+   * wisps off while the 主体 keeps the line the player breathed — which is the part of S7's 「分层」 that
+   * #57's 通风系数 could not reach, because that number changes how the plume is *painted*, not how it
+   * comes apart.
    */
   update(
     dtMs: number,
@@ -221,6 +239,7 @@ export class ParticlePool {
     timeSeconds: number,
     sparkFloor: number | null,
     sparkBounceScale = 1,
+    curlShred = 0,
   ): void {
     if (this.activeCount === 0) return;
 
@@ -264,8 +283,11 @@ export class ParticlePool {
         0,
       );
 
-      // Turbulence is the acceleration; the wind is the air the particle is sitting in.
-      particle.vx += swirl.vx * particle.turbulence * particle.swing * dt;
+      // Turbulence is the acceleration; the wind is the air the particle is sitting in. The draught
+      // is added where the plume is weakest: a torn-off curl goes sideways, while the body keeps
+      // climbing its own buoyancy path.
+      const swing = particle.layer === 'curl' ? particle.swing * (1 + curlShred) : particle.swing;
+      particle.vx += swirl.vx * particle.turbulence * swing * dt;
       particle.vy += (swirl.vy * particle.turbulence - particle.rise + particle.gravity) * dt;
 
       // Air drags a particle back to still; without this it accelerates into streaks. The rate is

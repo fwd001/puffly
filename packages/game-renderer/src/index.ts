@@ -16,7 +16,7 @@ export {
 } from './renderer';
 
 export { createViewport, type Viewport, type StageRect } from './viewport';
-export { ParticlePool, type Particle, type SpawnInit } from './particles';
+export { ParticlePool, type Particle, type PlumeLayer, type SpawnInit } from './particles';
 export {
   budgetFor as defaultParticleBudget,
   FIELD_SCALE,

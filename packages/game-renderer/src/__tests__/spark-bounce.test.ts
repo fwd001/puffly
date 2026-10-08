@@ -175,6 +175,8 @@ describe('the table takes the spark (S12: 落地有弹跳)', () => {
         rise: 0,
         gravity: 0.35,
         drag: 0.2,
+        // Not plume air: this pool holds a spark, and the three layers belong to a breath.
+        layer: null,
         tint: [255, 200, 120],
         heat: 1,
         depth: 1,

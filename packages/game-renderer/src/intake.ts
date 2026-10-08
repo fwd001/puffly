@@ -9,7 +9,7 @@
 import { createRng } from '@puffly/shared';
 import type { Rgb } from '@puffly/shared';
 import type { Burst, BurstKind } from '@puffly/game-core';
-import type { ParticlePool } from './particles';
+import type { ParticlePool, PlumeLayer } from './particles';
 
 /** Lattice size for the curl field: about eight cells across the visible stage. */
 export const FIELD_SCALE = 8;
@@ -96,6 +96,55 @@ const STREAM_TAPER = 0.5;
  */
 const LATERAL_SWING = 0.45;
 
+/**
+ * S7's 「烟羽分层：主体、边缘、卷曲三层独立速度与透明度」 — what each layer is born with, as a multiple
+ * of what the simulation authored for the plume as a whole.
+ *
+ * The column was already one body of air (#38), on stage (#39) and continuous (#40), but every puff
+ * in it had the same brightness, the same buoyancy and the same share of the room's eddies. That is
+ * why it read as one rope. A plume has a body, an edge that did not keep up, and curls that leave:
+ *
+ * - `core` *is* the authored picture, so the head of a breath still moves at the speed the three
+ *   calibrated plume files were measured against;
+ * - `edge` is dimmer and slower, so it hangs out to the sides of the body instead of stacking on it;
+ * - `curl` is the dimmest and slowest, and the only layer a venue's draught pulls further (the
+ *   `curlShred` argument of `ParticlePool.update`) — 「卷曲后变淡」 as motion rather than as a fade.
+ *
+ * The three `swing`s weigh out to exactly 1 over the shares `plumeLayerFor` deals, so the layering
+ * buys structure without moving the cloud: against this same table collapsed to one layer, the plume's
+ * footprint goes 22.2% → 23.0% of the stage and a breath's lit width at 2 s 0.103 → 0.092 stage heights.
+ * The `alpha`s weigh out to 1.03 rather than 1 on purpose — the halo is *added* light instead of the
+ * body's light spent on it, and spending it is what brought 烟看不清 back (equal alpha alone puts the
+ * peak-to-room ratio at 4.60, under the floor `plume-contrast.test.ts` holds at 5). The `rise`s are not
+ * weighed at all: the head of a breath is the body's, and it keeps the authored buoyancy, while the
+ * outer layers lag behind it. `plume-layers.test.ts` reads all three numbers per layer and per rod.
+ */
+const PLUME_LAYERS = {
+  core: { alpha: 1.5, rise: 1, swing: 0.55 },
+  edge: { alpha: 0.7, rise: 0.72, swing: 1.15 },
+  curl: { alpha: 0.35, rise: 0.5, swing: 1.9 },
+} satisfies Record<PlumeLayer, { alpha: number; rise: number; swing: number }>;
+
+/** What a particle that is not plume air is born with: the authored numbers, and the whole field. */
+const UNSPLIT = { alpha: 1, rise: 1, swing: 1 };
+
+/**
+ * Which layer the `index`th birth of a burst belongs to: five body, three edge, two curl, dealt so
+ * that **any five consecutive births contain all three**.
+ *
+ * The order is the substance. A burst is a *stream* (see `streamWindow`), so birth index is position
+ * along the column: dealing all the cores first would put the body at the head of the breath and the
+ * curls at the mouth — three layers sliced in time, which is the picture this replaces — instead of a
+ * body with an edge and a curl around it at every height. The three slots of each layer also sit at
+ * the same mean position, which is why the layers separate by *speed* rather than by arrival time.
+ */
+export function plumeLayerFor(index: number): PlumeLayer {
+  const slot = index % 10;
+  if (slot === 3 || slot === 6) return 'curl';
+  if (slot === 1 || slot === 4 || slot === 8) return 'edge';
+  return 'core';
+}
+
 const streamWindow = (burst: Burst): number => {
   const share = STREAM_SHARE[burst.kind];
   return share === undefined ? 0 : Math.min(burst.lifeMs.min * share, STREAM_MAX_MS);
@@ -130,6 +179,10 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
     // bunching the births made the breath front-loaded in *mass* as well as in brightness, and the
     // clumps read as a dashed line once they had risen.
     const share = spawnCount > 1 ? i / (spawnCount - 1) : 0;
+    // The layer comes from the birth index and not from the RNG: an extra draw here would move
+    // every number the calibrated plume pictures were measured against (§71).
+    const layer = STREAMED_BURSTS.has(burst.kind) ? plumeLayerFor(i) : null;
+    const authoring = layer === null ? UNSPLIT : PLUME_LAYERS[layer];
     const angle = degToRad(
       burst.directionDeg + rng.range(-burst.spreadDeg / 2, burst.spreadDeg / 2),
     );
@@ -143,7 +196,8 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       radius,
-      alphaPeak: burst.alphaPeak * rng.range(0.7, 1.1) * (1 - STREAM_TAPER * share) * lift,
+      alphaPeak:
+        burst.alphaPeak * rng.range(0.7, 1.1) * (1 - STREAM_TAPER * share) * lift * authoring.alpha,
       alphaDecay: burst.alphaDecay,
       life,
       noiseSeed: rng.int(0, 65535),
@@ -151,10 +205,11 @@ export function intakeBurst(burst: Burst, pool: ParticlePool, options: IntakeOpt
       scale: rng.range(0.7, 1.35),
       scaleGrowth: burst.scaleGrowth * rng.range(0.8, 1.2),
       turbulence: burst.turbulence,
-      rise: burst.rise * rng.range(0.75, 1.25),
+      rise: burst.rise * rng.range(0.75, 1.25) * authoring.rise,
       gravity: burst.gravity,
       drag: dragFor(burst.kind),
-      swing: STREAMED_BURSTS.has(burst.kind) ? LATERAL_SWING : 1,
+      swing: layer === null ? 1 : LATERAL_SWING * authoring.swing,
+      layer,
       tint: tintFor(burst, options.plumeTint),
       heat: burst.heat * rng.range(0.6, 1),
       // Depth is sampled, not derived from index, so a puff never bands into layers.

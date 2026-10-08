@@ -60,6 +60,7 @@ describe('particles (§15, §54)', () => {
       rise: 0.2,
       gravity: 0,
       drag: SMOKE_DRAG,
+      layer: null,
       tint: [10, 20, 30],
       heat: 0.5,
       depth: 0.5,
