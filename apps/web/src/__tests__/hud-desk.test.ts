@@ -87,3 +87,58 @@ describe('the desk HUD keeps all five (S11)', () => {
     expect(markup.match(/<button/g) ?? []).toHaveLength(1);
   });
 });
+
+/**
+ * The two gram figures on this screen, and why they are two.
+ *
+ * 2026-10-08 拍板 ② moved the deck's S5 reading (灰柱环 + 9mm + 2.1g) onto the tray's own mass, while
+ * the desk row keeps the stick's output. One screen, two subjects, two fields, two names — which is
+ * exactly the class of thing that silently collapses back into one number. Structural for the usual
+ * reason (apps/web has no component harness): these read the wiring, not the rendered text.
+ */
+function trayCase(): string {
+  const start = HUD.indexOf("case 'tray':");
+  expect(start, 'HudBar lost the tray reading').toBeGreaterThan(-1);
+  const end = HUD.indexOf('default:', start);
+  expect(end, 'the tray case runs to the end of the switch').toBeGreaterThan(start);
+  return HUD.slice(start, end);
+}
+
+describe('the 克 on this screen says two different things (S5, 拍板 ②)', () => {
+  it('the ashtray cell reads the tray, and names it as the tray', () => {
+    const body = trayCase();
+    // The deck pairs a millimetre column with a gram tray on one screen; both have to be there, and
+    // the gram one is the tray's accumulation, not the stick's output.
+    expect(body).toContain('rod.readouts.ashMm');
+    expect(body).toContain('state.ashtray.grams');
+    expect(body).toContain("'a11y.hud.trayMass'");
+    // A real stick's column is hundredths of a gram, so the reading keeps two decimals — one place.
+    expect(body).toMatch(/Math\.round\(state\.ashtray\.grams \* 100\) \/ 100/);
+    expect(body, 'the stick figure must not also live in the tray cell').not.toContain(
+      'readouts.ashGrams',
+    );
+  });
+
+  it('the desk figure reads the stick, and is not re-rounded here', () => {
+    const desk = deskBody();
+    expect(desk).toContain("key: 'a11y.hud.ashMass'");
+    expect(desk).toContain('value: `${rod.readouts.ashGrams}g`');
+    // Core rounds the rod's figure once (§26: derived once, formatted everywhere); a second rounding
+    // here would be a second owner of the same number.
+    const ashRow = desk.slice(desk.indexOf("key: 'a11y.hud.ashMass'"));
+    expect(ashRow.slice(0, 120), 'the desk re-rounds the stick figure').not.toContain('Math.round');
+  });
+
+  it('the two names are two names, in both languages that say words', () => {
+    const stick = COPY['en']?.['a11y.hud.ashMass' as CopyKey];
+    const tray = COPY['en']?.['a11y.hud.trayMass' as CopyKey];
+    const stickZh = COPY['zh-CN']?.['a11y.hud.ashMass' as CopyKey];
+    const trayZh = COPY['zh-CN']?.['a11y.hud.trayMass' as CopyKey];
+    expect([stick, tray, stickZh, trayZh].every((word) => typeof word === 'string')).toBe(true);
+    expect(stick).not.toBe(tray);
+    expect(stickZh).not.toBe(trayZh);
+    // And each names its own subject, so neither row can be read as the other's number.
+    expect(trayZh).toContain('缸');
+    expect(stickZh).toContain('这一支');
+  });
+});
