@@ -161,6 +161,22 @@ function minutesToMs(minutes: number): number {
   return Math.round(minutes * 60_000);
 }
 
+/**
+ * S14's 「单口时长」 — the third custom dial the deck names. `—` means the rod decides: every one of
+ * them was authored around its own row of S9's 单口吸入 column, and that column is one of the few
+ * ways six cigarettes differ, so there is no default number here on purpose. Tapping the dial takes
+ * the deck's own machine figure (2.0 s, the ISO 3308 draw its table is headed with), and the track
+ * then carries it across the deck's 1.0 – 4.0 s 吸入 window.
+ */
+const puffOwn = computed(() => settings.value.puffDurationSec === undefined);
+/** The seconds the row shows, or the mark that says the rod's own window is in force. */
+const puffSeconds = computed(() =>
+  puffOwn.value ? '—' : String(settings.value.puffDurationSec?.toFixed(1)),
+);
+function togglePuff(): void {
+  props.game.setSettings({ puffDurationSec: puffOwn.value ? 2 : undefined });
+}
+
 watch(
   () => props.open,
   (isOpen) => {
@@ -301,6 +317,41 @@ watch(
         "
       />
       <span class="digits">{{ Math.round(settings.sessionTargetMs / 60000) }}</span>
+    </div>
+
+    <!-- S14's 三个自定义档, third one: the dial on the left is the choice itself (the rod's own, or
+         the deck's 2.0 s), and the track only appears once a number has been picked — the same way
+         the ambient bed appears only once the mix is not muted. -->
+    <div class="row">
+      <span v-if="word('settings.puff') !== null" class="label">{{ word('settings.puff') }}</span>
+      <button
+        class="choice"
+        data-setting="puff"
+        :aria-pressed="puffOwn"
+        :aria-label="copy.say('a11y.puffOwn')"
+        @click="togglePuff"
+      >
+        <span class="glyph digits" aria-hidden="true">{{ puffSeconds }}</span>
+        <span v-if="puffOwn && word('settings.smoke.auto') !== null" class="sub">
+          {{ word('settings.smoke.auto') }}
+        </span>
+      </button>
+      <input
+        v-if="!puffOwn"
+        class="grow"
+        type="range"
+        data-setting="puff-track"
+        min="1"
+        max="4"
+        step="0.5"
+        :value="settings.puffDurationSec"
+        :aria-label="copy.say('a11y.puffLength')"
+        @input="
+          game.setSettings({
+            puffDurationSec: Number(($event.target as HTMLInputElement).value),
+          })
+        "
+      />
     </div>
 
     <div class="row">

@@ -86,32 +86,61 @@ describe('the skins carry the brief’s own colours (§57)', () => {
 });
 
 /**
- * S9's parameter table and S16's category cards, for the five rods that name a deck category AND
- * burn for the length the deck gives that category. The six cigarette slots are not asserted here:
- * the deck names them by flavour (薄荷 / 冰凉 / 典藏 / 丁香) while the build names them by shape, so
- * pairing a number to a rod would be my invention rather than a reading — see SPEC.md,
- * 「稿子的参数表逐只对了一遍」.
+ * The deck's two number tables, keyed by the **gate** that opens each slot: S8's grid writes each
+ * 时长 next to the 「抽满 N 支」 that opens that same cell, and S9's 参数表 lists 口数 / 单口吸入 / 余烬
+ * 温度 for the eleven slots. The eleven gates are the same eleven numbers this build uses, so a rod
+ * is paired with a number through its *slot* rather than through its name — which is the whole point:
+ * the deck calls its 卷烟 原生 / 薄荷 / 手卷 / 深焙 / 冰凉 / 典藏 / 丁香 while this build names them by
+ * shape, and which flavour is which rod is still an open question (SPEC.md 「稿子的参数表逐只对了一遍」).
+ * Every number below is therefore decided without answering that.
+ *
+ * Only the columns the deck really prints for a slot are filled: 丁香 has a length on the grid and
+ * nothing in the table, and the five world categories give a range where the six 卷烟 give a point.
  */
-const BRIEF_ROD_NUMBERS: Record<
+const BRIEF_SLOT: Record<
   string,
   {
-    puffs: { within?: [number, number]; contains?: number };
-    temp: { within?: [number, number]; contains?: number };
+    minutes: number;
+    puffs?: { within?: [number, number]; is?: number };
+    temp?: { within?: [number, number]; is?: number };
+    /** 单口吸入, in milliseconds — S9's own column. */
+    drawMs?: number;
   }
 > = {
-  // 「手卷 RYO 7.5 min 17 口 芯温 820 C」 — 17 is a point, not a window.
-  ryo: { puffs: { contains: 17 }, temp: { contains: 820 } },
-  cigarillo: { puffs: { within: [15, 20] }, temp: { within: [700, 800] } },
-  cigar: { puffs: { within: [25, 40] }, temp: { within: [800, 900] } },
-  pipe: { puffs: { within: [10, 15] }, temp: { within: [600, 750] } },
-  hookah: { puffs: { within: [60, 80] }, temp: { within: [350, 450] } },
+  // 原生 Standard: 10.0 min · 12 口 · 2.0 s · 780 C.
+  default: { minutes: 10.0, puffs: { is: 12 }, temp: { is: 780 }, drawMs: 2_000 },
+  // 薄荷 Menthol: 9.0 min · 11 口 · 1.8 s · 740 C.
+  '8': { minutes: 9.0, puffs: { is: 11 }, temp: { is: 740 }, drawMs: 1_800 },
+  // 手卷 Roll-Your-Own: 7.5 min · 17 口 · 2.8 s · 820 C.
+  '20': { minutes: 7.5, puffs: { is: 17 }, temp: { is: 820 }, drawMs: 2_800 },
+  // 丁香: the grid gives a length, the parameter table has no row for it.
+  '40': { minutes: 7.5 },
+  // 冰凉 Ice Cool: 14.0 min · 16 口 · 1.6 s · 700 C.
+  '65': { minutes: 14.0, puffs: { is: 16 }, temp: { is: 700 }, drawMs: 1_600 },
+  // 深焙 Dark Roast: 12.0 min · 14 口 · 2.6 s · 800 C.
+  '95': { minutes: 12.0, puffs: { is: 14 }, temp: { is: 800 }, drawMs: 2_600 },
+  // 小雪茄: 18.0 min · 15-20 口 · 700-800 C.
+  '135': { minutes: 18.0, puffs: { within: [15, 20] }, temp: { within: [700, 800] } },
+  // 典藏 Reserve: 13 口 · 2.2 s · 850 C. The deck's two tables disagree on its length (S8 says
+  // 10.0 min, S9 says 11.0), so the grid wins — it is the screen this build was rebuilt from — and
+  // the one-minute gap is recorded rather than hidden.
+  '190': { minutes: 10.0, puffs: { is: 13 }, temp: { is: 850 }, drawMs: 2_200 },
+  // 雪茄: 50.0 min · 25-40 口 · 800-900 C.
+  '250': { minutes: 50.0, puffs: { within: [25, 40] }, temp: { within: [800, 900] } },
+  // 斗烟: 40.0 min · 10-15 口 · 600-750 C.
+  '320': { minutes: 40.0, puffs: { within: [10, 15] }, temp: { within: [600, 750] } },
+  // 水烟: 50.0 min · 60-80 口 · 350-450 C.
+  '420': { minutes: 50.0, puffs: { within: [60, 80] }, temp: { within: [350, 450] } },
 };
+
+const gateKey = (unlock: { kind: string; count?: number }): string =>
+  unlock.kind === 'default' ? 'default' : String(unlock.count ?? -1);
 
 function inside(
   id: string,
   label: string,
   value: number,
-  bound: { within?: [number, number]; contains?: number },
+  bound: { within?: [number, number]; is?: number },
 ) {
   if (bound.within) {
     const [lo, hi] = bound.within;
@@ -124,93 +153,90 @@ function inside(
       `${id} ${label} ${String(value)} outside the deck's ${String(lo)}-${String(hi)}`,
     ).toBeLessThanOrEqual(hi);
   }
-  if (bound.contains !== undefined) {
-    expect(value, `${id} ${label} never reaches the deck's ${String(bound.contains)}`).toBe(
-      bound.contains,
-    );
+  if (bound.is !== undefined) {
+    expect(value, `${id} ${label} never reaches the deck's ${String(bound.is)}`).toBe(bound.is);
   }
 }
 
-describe('the five world categories keep the deck’s own numbers (§ S9, § S16)', () => {
-  it('give the 口数 the deck gives them', () => {
-    for (const [id, brief] of Object.entries(BRIEF_ROD_NUMBERS)) {
-      const rod = CIGARETTES.find((candidate) => candidate.id === id);
-      expect(rod, `no rod named ${id}`).toBeDefined();
-      // Only the target is the deck's number: 「按区间中值给参数」. min/max are this build's own
-      // variability around it, and a roll that comes out one puff short of the deck's floor is not
-      // a contradiction of anything the deck claims.
-      if (brief.puffs.within) {
-        const [lo, hi] = brief.puffs.within;
-        console.log(
-          `PUFFS ${id} target=${String(rod?.physical.puffs.target)} deck ${lo}-${hi} mid=${String((lo + hi) / 2)}`,
-        );
-      }
-      inside(id, 'puffs', rod?.physical.puffs.target ?? -1, brief.puffs);
-    }
-  });
-
-  it('keep their 芯温 window where the deck puts it', () => {
-    for (const [id, brief] of Object.entries(BRIEF_ROD_NUMBERS)) {
-      const rod = CIGARETTES.find((candidate) => candidate.id === id);
-      expect(rod, `no rod named ${id}`).toBeDefined();
-      const [lo, hi] = rod?.physical.centerTempC ?? [-1, -1];
-      if (brief.temp.contains === undefined) {
-        inside(id, 'temp low', lo, brief.temp);
-        inside(id, 'temp high', hi, brief.temp);
-      } else {
-        expect(lo, `${id} core window starts above the deck's point`).toBeLessThanOrEqual(
-          brief.temp.contains,
-        );
-        expect(hi, `${id} core window ends below the deck's point`).toBeGreaterThanOrEqual(
-          brief.temp.contains,
-        );
-      }
-    }
-  });
-});
-
-/**
- * S8's grid writes each 时长 next to the gate that opens that slot, and the eleven gates are the
- * same eleven numbers this build uses — so a rod is paired with a duration through its **gate**, not
- * through a name. That distinction is the whole point: the deck calls its six 卷烟 薄荷 / 深焙 /
- * 冰凉 / 典藏 / 丁香 while this build calls them by shape, and which flavour is which rod is still
- * an open question. The minutes get decided without answering it.
- */
-const BRIEF_MINUTES: Record<string, number> = {
-  default: 10.0,
-  '8': 9.0,
-  '20': 7.5,
-  '40': 7.5,
-  '65': 14.0,
-  '95': 12.0,
-  '135': 18.0,
-  '190': 10.0,
-  '250': 50.0,
-  '320': 40.0,
-  '420': 50.0,
-};
-
-const gateKey = (unlock: { kind: string; count?: number }): string =>
-  unlock.kind === 'default' ? 'default' : String(unlock.count ?? -1);
-
-describe('every rod burns for the minutes the deck’s grid gives its slot (S8)', () => {
-  it('occupies a slot the grid names, and leaves no slot over', () => {
+describe('every rod keeps the numbers the deck gives its slot (§ S8, § S9, § S16)', () => {
+  it('occupies a slot the deck names, and leaves no slot over', () => {
+    // The pairing rule judges itself: eleven gates in, eleven slots out, one each way. Without this
+    // the four cases below could each be quietly reading the wrong row.
     expect(CIGARETTES.map((rod) => gateKey(rod.unlock)).sort()).toEqual(
-      Object.keys(BRIEF_MINUTES).sort(),
+      Object.keys(BRIEF_SLOT).sort(),
     );
   });
 
-  it('puts the middle of its window on the deck’s own minute', () => {
-    for (const rod of CIGARETTES) {
-      const deck = BRIEF_MINUTES[gateKey(rod.unlock)];
-      expect(deck, `${rod.id} sits in a slot the grid does not name`).toBeDefined();
-      // 「游戏里按区间中值给参数」(S9) — the deck’s figure is the midpoint, and the spread around it
+  it('burns for the minutes the grid prints', () => {
+    for (const [gate, deck] of Object.entries(BRIEF_SLOT)) {
+      const rod = CIGARETTES.find((candidate) => gateKey(candidate.unlock) === gate);
+      expect(rod, `no rod occupies slot ${gate}`).toBeDefined();
+      // 「游戏里按区间中值给参数」(S9) — the deck's figure is the midpoint, and the spread around it
       // is this build's own. The tenth is what the grid itself prints (7.5, 18.0, 50.0).
-      const middle = (rod.burnDuration.min + rod.burnDuration.max) / 2 / 60_000;
+      const middle = ((rod?.burnDuration.min ?? 0) + (rod?.burnDuration.max ?? 0)) / 2 / 60_000;
       console.log(
-        `MINUTES ${rod.id} gate=${gateKey(rod.unlock)} mid=${middle.toFixed(1)} deck=${String(deck)}`,
+        `MINUTES ${String(rod?.id)} gate=${gate} mid=${middle.toFixed(1)} deck=${String(deck.minutes)}`,
       );
-      expect(Number(middle.toFixed(1)), rod.id).toBe(deck);
+      expect(Number(middle.toFixed(1)), `${String(rod?.id)} minutes`).toBe(deck.minutes);
+    }
+  });
+
+  it('give the 口数 the deck gives them', () => {
+    for (const [gate, deck] of Object.entries(BRIEF_SLOT)) {
+      if (deck.puffs === undefined) continue;
+      const rod = CIGARETTES.find((candidate) => gateKey(candidate.unlock) === gate);
+      expect(rod, `no rod occupies slot ${gate}`).toBeDefined();
+      // Only the target is the deck's number: 「按区间中值给参数」. min/max are this build's own
+      // variability around it, and a roll that comes out one puff short of the deck's floor is not
+      // a contradiction of anything the deck claims.
+      console.log(
+        `PUFFS ${String(rod?.id)} gate=${gate} target=${String(rod?.physical.puffs.target)} ` +
+          `deck=${JSON.stringify(deck.puffs)}`,
+      );
+      inside(String(rod?.id), 'puffs', rod?.physical.puffs.target ?? -1, deck.puffs);
+    }
+  });
+
+  it('keep their 芯温 where the deck puts it', () => {
+    for (const [gate, deck] of Object.entries(BRIEF_SLOT)) {
+      if (deck.temp === undefined) continue;
+      const rod = CIGARETTES.find((candidate) => gateKey(candidate.unlock) === gate);
+      expect(rod, `no rod occupies slot ${gate}`).toBeDefined();
+      const [lo, hi] = rod?.physical.centerTempC ?? [-1, -1];
+      console.log(
+        `HEAT ${String(rod?.id)} gate=${gate} window=${String(lo)}-${String(hi)} ` +
+          `deck=${JSON.stringify(deck.temp)}`,
+      );
+      if (deck.temp.is === undefined) {
+        inside(String(rod?.id), 'temp low', lo, deck.temp);
+        inside(String(rod?.id), 'temp high', hi, deck.temp);
+      } else {
+        expect(
+          lo,
+          `${String(rod?.id)} core window starts above the deck's point`,
+        ).toBeLessThanOrEqual(deck.temp.is);
+        expect(
+          hi,
+          `${String(rod?.id)} core window ends below the deck's point`,
+        ).toBeGreaterThanOrEqual(deck.temp.is);
+      }
+    }
+  });
+
+  it('draw the 单口吸入 the table gives them', () => {
+    for (const [gate, deck] of Object.entries(BRIEF_SLOT)) {
+      if (deck.drawMs === undefined) continue;
+      const rod = CIGARETTES.find((candidate) => gateKey(candidate.unlock) === gate);
+      expect(rod, `no rod occupies slot ${gate}`).toBeDefined();
+      // The middle again: `durationMin/Max` are the hand's own variation around one draw, and what
+      // the deck prints is the figure a machine gives (ISO 3308's 2.0 s / 35 ml is the row's header).
+      const window = rod?.puffProfile;
+      const middle = ((window?.durationMin ?? 0) + (window?.durationMax ?? 0)) / 2;
+      console.log(
+        `DRAW ${String(rod?.id)} gate=${gate} window=${String(window?.durationMin)}-` +
+          `${String(window?.durationMax)} mid=${String(middle)} deck=${String(deck.drawMs)}`,
+      );
+      expect(middle, `${String(rod?.id)} 单口吸入`).toBe(deck.drawMs);
     }
   });
 });

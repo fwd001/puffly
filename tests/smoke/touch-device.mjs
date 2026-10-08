@@ -548,7 +548,12 @@ const hintCentre = async (page) => {
       },
       [held.x, held.y],
     );
-    await page.waitForTimeout(800);
+    // Longer than one full draw, on purpose. The deck's 单口吸入 for the default rod is 2.0 s (S9) and
+    // its own window tops at 2.6, so a hold shorter than that is a sip: the air moves, but only as
+    // much as a half-filled breath moves it. This check's claim is about *a drawn breath*, so the
+    // finger has to outlast the fill — the first version of this line held 800 ms and reported a
+    // shallow breath as a broken picture.
+    await page.waitForTimeout(2300);
     await page.evaluate(
       ([x, y]) => {
         document.querySelector('canvas').dispatchEvent(
@@ -788,6 +793,42 @@ const hintCentre = async (page) => {
       breakRow.value <= breakRow.max &&
       breakRow.digits === String(Math.round(breakRow.value)),
     JSON.stringify(breakRow),
+  );
+  // S14's third custom dial, walked in the browser: the rod is in charge until the player says
+  // otherwise, one tap puts the deck's own 2.0 s on a track that did not exist a moment before, and
+  // a second tap hands the window back. The track appearing at all is half of what is being read —
+  // an absent preference has to stay absent, or six rods stop differing from each other.
+  const puffState = () =>
+    page.evaluate(() => {
+      const dial = document.querySelector('.sheet[data-open="true"] [data-setting="puff"]');
+      return {
+        pressed: dial?.getAttribute('aria-pressed') ?? 'missing',
+        shown: dial?.textContent?.replace(/\s+/g, '') ?? '',
+        track:
+          document.querySelector('.sheet[data-open="true"] [data-setting="puff-track"]') !== null,
+      };
+    });
+  const puffOwn = await puffState();
+  await page.locator('.sheet[data-open="true"] [data-setting="puff"]').tap();
+  await page.waitForTimeout(250);
+  const puffChosen = await puffState();
+  await page.locator('.sheet[data-open="true"] [data-setting="puff"]').tap();
+  await page.waitForTimeout(250);
+  const puffBack = await puffState();
+  check(
+    '单口时长 leaves the rod in charge until it is touched',
+    puffOwn.pressed === 'true' && !puffOwn.track && puffOwn.shown.includes('—'),
+    JSON.stringify(puffOwn),
+  );
+  check(
+    'one tap puts the deck’s own 2.0 s on a track that was not there',
+    puffChosen.pressed === 'false' && puffChosen.track && puffChosen.shown.includes('2.0'),
+    JSON.stringify(puffChosen),
+  );
+  check(
+    'the dial hands the rod its own window back',
+    puffBack.pressed === 'true' && !puffBack.track,
+    JSON.stringify(puffBack),
   );
   // §11: the interface follows the hand. A swipe down over nothing puts it away — the sheets,
   // the mark and the word — while the rod goes on burning behind them.

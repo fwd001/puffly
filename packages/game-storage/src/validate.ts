@@ -726,6 +726,9 @@ export function readSettings(
   const skin = optionalToken(record, 'skin', path, errors);
   // The player's own ceiling: a whole number of sticks, or nothing at all.
   const dailyLimit = optionalNumber(record, 'dailyLimitSticks', path, errors, 0, 999, true);
+  // S14's 单口时长. The bounds are the deck's own 吸入 segment (S7's 1.0 - 4.0 s), so a save that
+  // claims otherwise is named rather than believed, and an absent one keeps the rod's authored draw.
+  const puffDurationSec = optionalNumber(record, 'puffDurationSec', path, errors, 1, 4);
 
   if (
     volume === null ||
@@ -772,6 +775,7 @@ export function readSettings(
   if (language !== undefined) settings.language = language;
   if (skin !== undefined) settings.skin = skin;
   if (dailyLimit !== undefined) settings.dailyLimitSticks = dailyLimit;
+  if (puffDurationSec !== undefined) settings.puffDurationSec = puffDurationSec;
   return settings;
 }
 

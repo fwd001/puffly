@@ -281,7 +281,14 @@ describe('what a reader keeps (§64, §49)', () => {
   it("keeps the item in the player's hand and the words they asked for", () => {
     const errors: string[] = [];
     const kept = readSettings(
-      { ...makeSettings(), selection, language: 'zh-CN', skin: 'copper', dailyLimitSticks: 12 },
+      {
+        ...makeSettings(),
+        selection,
+        language: 'zh-CN',
+        skin: 'copper',
+        dailyLimitSticks: 12,
+        puffDurationSec: 2.5,
+      },
       'settings',
       errors,
     );
@@ -290,6 +297,7 @@ describe('what a reader keeps (§64, §49)', () => {
     expect(kept?.language).toBe('zh-CN');
     expect(kept?.skin).toBe('copper');
     expect(kept?.dailyLimitSticks).toBe(12);
+    expect(kept?.puffDurationSec).toBe(2.5);
   });
 
   it('leaves an untouched preference absent, so the shell still asks the device', () => {
@@ -299,6 +307,14 @@ describe('what a reader keeps (§64, §49)', () => {
     expect(plain && 'language' in plain).toBe(false);
     expect(plain && 'skin' in plain).toBe(false);
     expect(plain && 'selection' in plain).toBe(false);
+    expect(plain && 'puffDurationSec' in plain).toBe(false);
+  });
+
+  it('names a 单口时长 that is not the deck’s own 1 - 4 s window', () => {
+    const errors: string[] = [];
+    const lying = readSettings({ ...makeSettings(), puffDurationSec: 4.5 }, 'settings', errors);
+    expect(errors.join(' | ')).toContain('puffDurationSec');
+    expect(lying?.puffDurationSec).toBeUndefined();
   });
 
   it('reports a half-written selection instead of keeping the half it likes', () => {

@@ -110,6 +110,9 @@ export function cloneSettings(settings: Settings): Settings {
   if (typeof settings.dailyLimitSticks === 'number') {
     copy.dailyLimitSticks = settings.dailyLimitSticks;
   }
+  if (typeof settings.puffDurationSec === 'number') {
+    copy.puffDurationSec = settings.puffDurationSec;
+  }
   return copy;
 }
 

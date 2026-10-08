@@ -23,7 +23,11 @@ export function beginPuff(rt: EngineRuntime): void {
   puff.heldMs = 0;
   puff.intensity = clamp01(profile.intensityMin);
   rt.timers.puffMs = 0;
-  rt.timers.puffPlannedMs = rt.rng.range(profile.durationMin, profile.durationMax);
+  // The rod's own window is rolled every single time, whether or not the player overrode it: the
+  // number is spent either way, so a preference cannot shift the deterministic stream §71 pins.
+  const authored = rt.rng.range(profile.durationMin, profile.durationMax);
+  const own = rt.settings.puffDurationSec;
+  rt.timers.puffPlannedMs = own === undefined ? authored : Math.round(own * 1000);
   setState(rt, 'PUFFING');
 }
 

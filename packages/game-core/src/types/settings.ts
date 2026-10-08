@@ -40,6 +40,20 @@ export interface Settings {
    */
   customBackground: ScenePalette | null;
   /**
+   * S14's 三个自定义档之一 — 「单口时长」: how long one draw takes to fill, in seconds. The deck's
+   * own figure for the default kind is 2.0 s (S9's 单口吸入 column, which is the ISO 3308 machine
+   * draw), and every rod was authored around its own row of that same column.
+   *
+   * There is deliberately no default. A draw length nobody picked would flatten the difference
+   * between six rods that were authored to be drawn differently, which is the one content axis S22
+   * says keeps a month of play interesting. Absent means "ask the rod"; the row offers the deck's
+   * 1.0 - 4.0 s 吸入 window plus the way back to that.
+   *
+   * It shapes the fill of a draw, not the clock: the burn, the puff count, the temperature and the
+   * ash all come out of the same simulation whether the hand set this or not.
+   */
+  puffDurationSec?: number;
+  /**
    * §28: whether the object the scene is nudging also gets one plain word naming the gesture
    * ("tap", "hold", "flick", "press", "drop"). On by default — a word is cheaper than a
    * missed gesture — and the only text the game ever shows.
