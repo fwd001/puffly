@@ -64,6 +64,20 @@ export const swellRung = (intensity: number): number => {
 };
 
 /**
+ * The same four-step scale, read by the settings row instead of by the frame loop: how many bars the
+ * 震动波形 icon draws for a given 触觉 level. One scale on purpose — a private count in the sheet would
+ * drift the moment `SWELL_RUNGS` changes, and then the row would promise pulses the hand never gets.
+ */
+export const hapticRungs = (level: number): number => {
+  const l = Math.min(1, Math.max(0, Number.isFinite(level) ? level : 0));
+  return Math.round(l * SWELL_RUNGS);
+};
+
+/** The bars themselves: a rising waveform, one bar per rung. */
+export const hapticBars = (level: number): number[] =>
+  Array.from({ length: hapticRungs(level) }, (_, index) => 4 + index * 3);
+
+/**
  * One shape, one strength (0..1), and the one number that shape scales with: how full the draw is
  * for `swell`, how tall the ash column is for `grit`. `null` means send nothing.
  */

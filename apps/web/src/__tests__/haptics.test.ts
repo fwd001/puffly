@@ -11,7 +11,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SessionEventType } from '@puffly/game-core';
-import { SWELL_RUNGS, hapticPattern, shapeForEvent, swellRung } from '../haptics';
+import {
+  SWELL_RUNGS,
+  hapticBars,
+  hapticPattern,
+  hapticRungs,
+  shapeForEvent,
+  swellRung,
+} from '../haptics';
 import type { HapticShape } from '../haptics';
 import { COPY } from '../i18n';
 import { shellSource } from './sourceProbe';
@@ -168,6 +175,37 @@ describe('three beats, three shapes (S6)', () => {
     expect(row).toContain(':value="Math.round(settings.haptics * 100)"');
     expect(sheet).not.toContain('haptics: !settings.haptics');
     expect(sheet).toContain('data-hook="haptic-shapes"');
+  });
+
+  it('counts the rungs off the one scale the hand already reads', () => {
+    expect(hapticRungs(0)).toBe(0);
+    expect(hapticRungs(0.125)).toBe(1);
+    expect(hapticRungs(0.5)).toBe(2);
+    expect(hapticRungs(1)).toBe(SWELL_RUNGS);
+    // A broken or out-of-range value reads as off rather than as a full bar.
+    expect([hapticRungs(-2), hapticRungs(Number.NaN), hapticRungs(9)]).toEqual([0, 0, SWELL_RUNGS]);
+    const bars = hapticBars(1);
+    console.log(`WAVE rungs=${String(SWELL_RUNGS)} bars=${bars.join(',')} at level 1`);
+    expect(bars).toHaveLength(SWELL_RUNGS);
+    expect(bars).toEqual([...bars].sort((a, b) => a - b));
+    expect(hapticBars(0)).toEqual([]);
+  });
+
+  it('draws the waveform without asking for a word first', () => {
+    // 稿子 S6: 「滑块两侧只用图标……档位靠刻度点数量表达」. The icon is the carrier the third tier
+    // keeps, so it must not sit behind a `word(...) !== null` gate the way the row label does.
+    const sheet = readFileSync(new URL('../components/SettingsSheet.vue', import.meta.url), 'utf8');
+    const at = sheet.indexOf('class="wave-icon"');
+    expect(at, 'the 触觉 row lost its waveform icon').toBeGreaterThan(-1);
+    const tag = sheet.slice(sheet.lastIndexOf('<svg', at), sheet.indexOf('>', at));
+    expect(tag, 'a wordless tier would drop this icon').not.toMatch(/word\(/);
+    expect(tag).toContain('aria-hidden="true"');
+    const body = sheet.slice(at, sheet.indexOf('</svg>', at));
+    expect(body).toContain('vibrationBars');
+    // Off is drawn as a flat line, not as a gap: the row has to answer at level 0 too.
+    expect(body).toMatch(/vibrationBars\.length === 0/);
+    // And the count comes from the shared scale, not from arithmetic copied into the sheet.
+    expect(sheet).toContain('hapticBars(settings.value.haptics)');
   });
 });
 

@@ -1651,6 +1651,16 @@ try {
       blank: blank.length,
       lang: document.documentElement.lang,
       dir: document.documentElement.dir,
+      // S6's wordless carrier: the waveform icon and the bars it draws for the row's own level.
+      waves: sheet.querySelectorAll('.wave-icon').length,
+      bars: sheet.querySelectorAll('.wave-icon .bar').length,
+      level: Number(
+        document
+          .querySelector('.wave-icon')
+          ?.closest('.row')
+          ?.querySelector('.digits')
+          ?.textContent?.trim() ?? '-1',
+      ),
     };
   });
   check(
@@ -1659,7 +1669,11 @@ try {
       icons.subs === 0 &&
       icons.blank === 0 &&
       icons.named >= 8 &&
-      icons.controls === zhControls,
+      icons.controls === zhControls &&
+      // The 触觉 row is either absent (no `navigator.vibrate`) or wearing its icon; and the bar count
+      // is the level, read off the digits the same row shows.
+      icons.waves === (icons.level >= 0 ? 1 : 0) &&
+      icons.bars === Math.round((Math.max(0, icons.level) / 100) * 4),
     JSON.stringify(icons),
   );
   check(

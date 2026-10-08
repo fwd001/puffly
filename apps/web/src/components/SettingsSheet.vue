@@ -13,11 +13,19 @@ import type { ScenePalette } from '@puffly/game-core';
 import type { QualityMode } from '@puffly/game-core';
 import type { Puffly } from '../composables/usePuffly';
 import { coverageOf, LANGUAGES, type CopyKey } from '../i18n';
+import { hapticBars } from '../haptics';
 
 const props = defineProps<{ open: boolean; game: Puffly }>();
 const emit = defineEmits<{ close: [] }>();
 
 const settings = computed(() => props.game.settings.value);
+
+/**
+ * S6's 震动波形: the bars this row draws, one per rung of the player's own 触觉 level. The icon is the
+ * carrier a wordless tier can still read, so it is never gated on a word (§9.2, and 稿子 S6 那句
+ * 「滑块两侧只用图标……档位靠刻度点数量表达」).
+ */
+const vibrationBars = computed(() => hapticBars(settings.value.haptics));
 
 /**
  * The four layers of the player's own room. Seeded from the place they are standing in the moment
@@ -476,6 +484,21 @@ watch(
       <span v-if="word('settings.vibration') !== null" class="label">{{
         word('settings.vibration')
       }}</span>
+      <!-- The waveform is this row's own name: one bar per rung the hand will actually get, and a flat
+           line for off. It carries no word, so the third tier reads the row exactly as the first does. -->
+      <svg class="wave-icon" viewBox="0 0 26 14" aria-hidden="true" data-hook="haptic-wave">
+        <line v-if="vibrationBars.length === 0" class="flat" x1="1" y1="7" x2="25" y2="7" />
+        <rect
+          v-for="(bar, index) in vibrationBars"
+          :key="index"
+          class="bar"
+          :x="1 + index * 6"
+          :y="14 - bar"
+          width="4"
+          :height="bar"
+          rx="1.6"
+        />
+      </svg>
       <!-- S6's 触觉 is a number (the deck's own save schema writes 0.7), and `navigator.vibrate`
            has no amplitude — only durations — so this level is how long and how many pulses the hand
            gets. Zero is off, and off is the default: nobody asked for a motor by installing this. -->
@@ -645,6 +668,24 @@ watch(
   opacity: 0.7;
   min-width: 3ch;
   text-align: end;
+}
+
+/* The 震动波形 icon: this row's wordless name. The bars are the 档位, so a player who reads no words
+   still sees how many pulses the hand is going to get — and off is a flat line, not an empty gap. */
+.wave-icon {
+  width: 26px;
+  height: 14px;
+  flex: none;
+}
+
+.wave-icon .bar {
+  fill: var(--soft-white);
+}
+
+.wave-icon .flat {
+  stroke: color-mix(in oklab, var(--soft-white) 55%, transparent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
 }
 
 /* A control you have to guess at is the thing this sheet used to be. */
