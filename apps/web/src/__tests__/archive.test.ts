@@ -10,23 +10,131 @@ import { createDefaultLookup, DEFAULT_CONTENT, PACKS } from '@puffly/game-conten
 import { archiveFacts } from '../archiveModel';
 import { COPY, type CopyKey } from '../i18n';
 
-/** §dataHonesty: a range without its ≈ is a claim, not an estimate. */
-const APPROXIMATIONS: readonly CopyKey[] = ['archive.range'];
+/**
+ * §dataHonesty, judged by shape instead of by memory. 稿子 S13/S15 的末行写的是「估算值**统一**带
+ * 约等于」, and the version of this guard that existed until 2026-10-08 named two keys and two brands —
+ * which is 2 of the 18 figures the shipped content actually quotes. A rule that lives in a list of
+ * names is a rule for those names only: the tenth box added tomorrow would be checked by nobody.
+ */
+const APPROX = '≈';
+/** An estimate by the way it is written: a numeric range quoted from outside this game. */
+const RANGE_SHAPE = /\d\s*[–—-]\s*\d/;
+/**
+ * An estimate by the field it lives in: the two figures that are always someone else's survey.
+ * Only content fields are judged this way — the copy table has a *label* named `archive.daily` whose
+ * value is the words 「每日用量」, and a label is not a figure.
+ */
+const ESTIMATE_FIELDS = ['priceCny', 'daily'] as const;
 
-describe('the archive data rules (§10, §13)', () => {
-  it('every estimate in the copy table carries its ≈, in every language that says it', () => {
-    for (const [locale, table] of Object.entries(COPY)) {
-      for (const key of APPROXIMATIONS) {
-        const value = table?.[key];
-        if (value === undefined) continue;
-        expect(value, `${locale}:${key}`).toContain('≈');
-      }
-    }
-    // And the guard is not vacuous: the English and Chinese rows are both there to be read.
-    expect(COPY.en?.['archive.range']).toBeTypeOf('string');
-    expect(COPY['zh-CN']?.['archive.range']).toBeTypeOf('string');
+interface Figure {
+  readonly id: string;
+  /** The content field it came from, or null for a row of the copy table. */
+  readonly field: string | null;
+  readonly value: string;
+}
+
+/** Every figure that must carry the mark, found rather than remembered. */
+function estimatesNeedingTheMark(figures: Figure[]): string[] {
+  const isSurveyField = (field: string | null): boolean =>
+    field !== null && (ESTIMATE_FIELDS as readonly string[]).includes(field);
+  return figures
+    .filter(({ field, value }) => RANGE_SHAPE.test(value) || isSurveyField(field))
+    .filter(({ value }) => !value.includes(APPROX))
+    .map(({ id, value }) => `${id}=${value}`);
+}
+
+/** The shipped box data: one row per figure a card could show. */
+function boxFigures(): Figure[] {
+  return PACKS.flatMap((pack) =>
+    Object.entries(pack.archive ?? {})
+      .filter(([, value]) => typeof value === 'string')
+      .map(([field, value]) => ({ id: `${pack.id}.${field}`, field, value: String(value) })),
+  );
+}
+
+/** The copy table: one row per value in every language that says it. */
+function copyFigures(): Figure[] {
+  return Object.entries(COPY).flatMap(([locale, table]) =>
+    Object.entries(table ?? {}).map(([key, value]) => ({
+      id: `${locale}:${key}`,
+      field: null,
+      value: String(value),
+    })),
+  );
+}
+
+describe('the ≈ is worn by every estimate, not by the two anyone remembered', () => {
+  it('sweeps the copy table and the shipped box data, and finds the figures to judge', () => {
+    const figures = copyFigures().concat(boxFigures());
+    const ranged = figures.filter(({ value }) => RANGE_SHAPE.test(value));
+    const marked = ranged.filter(({ value }) => value.includes(APPROX)).length;
+    const surveyFields = figures.filter(
+      ({ field }) => field !== null && (ESTIMATE_FIELDS as readonly string[]).includes(field),
+    );
+    console.log(
+      `APPROX sweep: ${String(ranged.length)} range-shaped figures (${String(marked)} already ` +
+        `wearing ${APPROX}) across ${String(surveyFields.length)} survey fields, ` +
+        `${String(figures.length)} values looked at`,
+    );
+    // The denominators are printed so this cannot quietly shrink to nothing, and they are asserted so
+    // a new quote cannot be added without the mark.
+    expect(
+      ranged.length,
+      'nothing in this build quotes a range — the sweep is reading nothing',
+    ).toBeGreaterThan(10);
+    expect(surveyFields.length, 'no box carries a survey figure').toBeGreaterThan(10);
+    expect(estimatesNeedingTheMark(figures)).toEqual([]);
   });
 
+  it('reports the row it was given without its ≈ — the positive control', () => {
+    // The sweep would pass on an empty table, so the same function is run against hand-broken copies
+    // of the real shapes and must name exactly those rows.
+    expect(
+      estimatesNeedingTheMark([
+        { id: 'en:archive.range', field: null, value: '≈10–15 a day' },
+        { id: 'baisha-soft.priceCny', field: 'priceCny', value: '≈5–7' },
+      ]),
+    ).toEqual([]);
+    expect(
+      estimatesNeedingTheMark([
+        { id: 'en:archive.range', field: null, value: '10–15 a day' },
+        { id: 'baisha-soft.daily', field: 'daily', value: '3 支/日' },
+      ]),
+    ).toEqual(['en:archive.range=10–15 a day', 'baisha-soft.daily=3 支/日']);
+    // A year inside a sentence is not an estimate, and neither is a label that names a figure: the
+    // mark must not be smeared onto either.
+    expect(
+      estimatesNeedingTheMark([
+        { id: 'huanghelou-1916.history', field: 'history', value: '1950 年代上海卷烟厂的代表款' },
+        { id: 'zh-CN:archive.daily', field: null, value: '每日用量' },
+      ]),
+    ).toEqual([]);
+  });
+
+  it('keeps the mark off the figures this game measures itself', () => {
+    // 十一只的分钟、口数、芯温是**本作**的模拟值（卡片另有一行写明口径），所以给它们戴 ≈ 反而是
+    // 冒充外部调查 —— the mark means "quoted from someone's survey", and nobody surveyed these.
+    const lookup = createDefaultLookup();
+    let checked = 0;
+    for (const rod of DEFAULT_CONTENT.cigarettes) {
+      const facts = archiveFacts(lookup, rod.id);
+      if (!facts || facts.subject !== 'rod') continue;
+      for (const value of [
+        facts.minutes,
+        String(facts.puffs),
+        String(facts.tempLow),
+        String(facts.tempHigh),
+      ]) {
+        expect(value, `${rod.id} borrowed the survey mark`).not.toContain(APPROX);
+      }
+      checked += 1;
+    }
+    console.log(`APPROX rods measured without the mark: ${String(checked)}`);
+    expect(checked, 'the sweep never reached the rods').toBe(DEFAULT_CONTENT.cigarettes.length);
+  });
+});
+
+describe('the archive data rules (§10, §13)', () => {
   it('arrives from below, and stands still when the player asks it to (§ S19)', () => {
     // S19's 「右栏档案区从下方滑出」. A shape read, and only what one can buy: that the card declares a
     // rise and that the same rule is switched off under reduced motion. Whether 18px over 220ms
@@ -217,16 +325,17 @@ describe('a collected box opens its own archive (S18)', () => {
     expect(facts.occasion, 'the deck gives this brand an occasion').toBeTruthy();
     expect(facts.crowd, 'the deck gives this brand a crowd').toBeTruthy();
     expect(facts.gender, 'the deck gives this brand a gender line').toBeTruthy();
-    expect(facts.daily).toContain('≈');
+    // Presence only: the mark itself is the sweep's job, so one number has one owner.
+    expect(facts.daily, 'the deck gives this brand a daily figure').toBeTruthy();
   });
 
   it('invents nothing for a brand the deck says nothing about, and nothing for an empty slot', () => {
     const hetianxia = archiveFacts(content, 'hetianxia');
     expect(hetianxia?.subject).toBe('box');
     if (hetianxia?.subject !== 'box') return;
-    expect(hetianxia.price).toContain('≈');
     // The deck lists this brand's price and never writes its archive. A row invented to keep the
     // card full is the fabrication §10 rules out, so the card says less instead.
+    expect(hetianxia.price, 'this brand is one the deck gives a price for').toBeTruthy();
     expect(hetianxia.history, 'a sentence nobody published').toBeUndefined();
     expect(hetianxia.occasion).toBeUndefined();
     // A slot nobody named is a gap in the collection, not an entry with an empty name.
