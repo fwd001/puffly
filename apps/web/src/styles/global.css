@@ -483,6 +483,10 @@ html.scene3d-text .cat {
 html.scene3d-text .hint {
   -webkit-text-fill-color: transparent;
 }
+/* 无字层那张纸面塌陷图（S15）也进场景：描边是 svg，字墨那条够不着它。 */
+html.scene3d-text .hint svg {
+  visibility: hidden;
+}
 /* 胶囊下的三张示意图（力度条 / 波形 / 磕灰）不是 .pill 的孩子：它们在 .cta 里，
    用 visibility 而不是 opacity —— 场景那份要读 svg 自己的 0.8 透明度，opacity 遮罩会把读数变 0。 */
 html.scene3d-text .cta svg.art {

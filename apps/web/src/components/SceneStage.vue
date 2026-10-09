@@ -468,6 +468,21 @@ function onSceneReady(context: unknown): void {
   }
   pillInk.value = inkGroup;
   rigGroup.add(inkGroup);
+  const hintGroup = new THREE.Group();
+  for (let i = 0; i < HINT_INK_CAPACITY; i += 1) {
+    const hintMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const hintMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), hintMaterial);
+    hintMesh.frustumCulled = false;
+    hintMesh.visible = false;
+    hintGroup.add(hintMesh);
+    hintRigs.push({ mesh: hintMesh, material: hintMaterial, signature: '', skipped: false });
+  }
+  hintInk.value = hintGroup;
+  rigGroup.add(hintGroup);
 
   // The sheet's surface, and one rig per line of its text. The rigs carry the four clip planes
   // from the start, so a scrolled row is cut at the panel's edge the moment it is drawn.
@@ -1099,6 +1114,7 @@ function step(deltaMs: number): void {
   }
   placePill();
   placePillInk();
+  placeHintInk();
 
   const cloud = puffs.value;
   if (cloud === null) return;
@@ -1813,6 +1829,9 @@ interface InkRig {
 }
 const inkRigs: InkRig[] = [];
 const pillInk = shallowRef<THREE.Group | null>(null);
+const HINT_INK_CAPACITY = 4;
+const hintRigs: InkRig[] = [];
+const hintInk = shallowRef<THREE.Group | null>(null);
 /** Longest sample step, in element units — an 18-unit thread becomes 18 segments, a 1000-unit path 32. */
 const INK_STEPS = 32;
 
@@ -1917,13 +1936,17 @@ function inkSignature(element: SVGGeometryElement): string {
   return `${element.tagName}|${circle}|${outline}|${style.stroke}|${style.fill}|${style.strokeWidth}|${style.strokeDasharray}`;
 }
 
-function placePillInk(): void {
-  const group = pillInk.value;
-  if (group === null || inkRigs.length === 0) return;
-  const svg = document.querySelector<SVGSVGElement>('.cta svg.art');
+/** One SVG of line art, drawn in the scene — shared by the pill's diagrams and the hint's dimple. */
+function placeInk(
+  svg: SVGSVGElement | null,
+  group: THREE.Group | null,
+  rigs: InkRig[],
+  alphaHost: Element | null,
+): void {
+  if (group === null || rigs.length === 0) return;
   const ctm = svg?.getScreenCTM() ?? null;
   if (svg === null || ctm === null) {
-    for (const rig of inkRigs) rig.mesh.visible = false;
+    for (const rig of rigs) rig.mesh.visible = false;
     return;
   }
   const toCanvas = (x: number, y: number): readonly [number, number] => {
@@ -1942,11 +1965,12 @@ function placePillInk(): void {
   const unitY = at(0, 1);
   group.position.set(origin[0], origin[1], RUN_TEXT_Z);
   group.scale.set(unitX[0] - origin[0], unitY[1] - origin[1], 1);
-  const svgOpacity = Number.parseFloat(getComputedStyle(svg).opacity);
+  const host = alphaHost ?? svg;
+  const svgOpacity = Number.parseFloat(getComputedStyle(host).opacity);
   const svgAlpha = Number.isFinite(svgOpacity) ? svgOpacity : 1;
   const marks = [...svg.querySelectorAll<SVGGeometryElement>('path, line, polyline, circle')];
   marks.forEach((element, index) => {
-    const rig = inkRigs[index];
+    const rig = rigs[index];
     if (rig === undefined) return;
     const style = getComputedStyle(element);
     const signature = inkSignature(element);
@@ -1994,10 +2018,26 @@ function placePillInk(): void {
     }
     rig.mesh.visible = true;
   });
-  for (let index = marks.length; index < inkRigs.length; index += 1) {
-    const rig = inkRigs[index];
+  for (let index = marks.length; index < rigs.length; index += 1) {
+    const rig = rigs[index];
     if (rig !== undefined) rig.mesh.visible = false;
   }
+}
+
+function placePillInk(): void {
+  const svg = document.querySelector<SVGSVGElement>('.cta svg.art');
+  placeInk(svg, pillInk.value, inkRigs, svg);
+}
+
+/**
+ * S15's wordless tier: the paper-collapse diagram the hint strip carries when no language has a
+ * word for the gesture. The strip fades itself, so the ink's alpha rides the `hint` element rather
+ * than the svg's own (which is always 1).
+ */
+function placeHintInk(): void {
+  const hint = document.querySelector<HTMLElement>('.hint');
+  const svg = hint?.querySelector<SVGSVGElement>('svg') ?? null;
+  placeInk(svg, hintInk.value, hintRigs, hint);
 }
 </script>
 
