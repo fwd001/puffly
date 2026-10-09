@@ -355,7 +355,7 @@ tapping. Nothing anywhere awards a streak, because a streak is a punishment with
 | `npm test`                                              | 132 files / 1014 cases: the simulation and its state machine, replay determinism, statistics derived from the log, the boundaries above, and the two document guards — every `*.test.ts` cited here and in `docs/SPEC.md` must exist, and every `npm run …` must be a script the root package actually has |
 | `npm run typecheck`                                     | Every workspace, including the Vue shell                                                                                                                                                                                                                                                                   |
 | `npm run build` then `bash tests/smoke/served-build.sh` | The built app is servable from its subpath: entry script, manifest and service worker all answer                                                                                                                                                                                                           |
-| `node tests/smoke/touch-device.mjs <url>`               | **96 checks** in a real browser: a whole break performed with taps on an emulated phone and with a mouse in a desktop window, the chrome read against the state it claims, and a breath with light and dark inside it                                                                                      |
+| `node tests/smoke/touch-device.mjs <url>`               | **99 checks** (the suite prints its own total, so this is the last run here) in a real browser: a whole break performed with taps on an emulated phone and with a mouse in a desktop window, the chrome read against the state it claims, and a breath with light and dark inside it                       |
 | `node tests/smoke/readme-shots.mjs <url>`               | Not a check: it performs a break in the built artefact and rewrites the four pictures at the top of this file, then prints the machine values each frame was read at. What a frame should look like stays a human call                                                                                     |
 
 The six steps above are run as one gate before a commit lands, in this order — format, lint with
@@ -454,7 +454,7 @@ Honest gaps, so nobody rediscovers them as bugs:
   和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.
 - The device suite **does** run on this machine: it resolves Playwright from the npm cache and a
   browser binary through `PUFFLY_CHROME` (headless Brave here — there is no Chrome.app), and the run
-  that backs today's README reports `96/96 checks passed`. Two of its numbers were stale for a
+  that backs today's README reports `99/99 checks passed`. Two of its numbers were stale for a
   while and are not any more: the tap anchors are read from `.stage[data-aim]`, which is where the
   engine put them after the table of hand-copied unlifted coordinates was deleted, and the plume
   structure thresholds were re-measured against the picture the shared flow field and the smoke's own

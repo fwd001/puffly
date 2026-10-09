@@ -5538,7 +5538,36 @@ mean rise **0.3**（判据 > 1），而 movedRatio 9.2% 是过的；同一构建
 `96/96 checks passed`。红的是采样时刻落在烟还没亮进那条带里，不是烟变了（这一轮改的只有注释与文档）。
 README 现在把这件事写在它自己的那条判据旁边，免得下一个人把一次分叉读成一次回归。
 
-**没做，等拍板**：`docs/images/` 里另有六张（`desktop-idle` / `desktop-lit` / `phone-lit` /
-`phone-portrait` / `phone-landscape` / `phone-landscape-lit`）README 一张都没引用，也全是 09-30 的旧界面。
-删掉它们是能删的（`git rm` 一条命令，历史里回得来），但"要不要留一组没人读的旧图"是仓库主人的决定，
-不是工具的。
+**那六张旧图已经删了（同日他拍了板）**：`desktop-idle` / `desktop-lit` / `phone-lit` / `phone-portrait` /
+`phone-landscape` / `phone-landscape-lit`。删之前先证"没人读"：`git ls-files` 里图片一共 12 个，两个图标
+各有 5 与 7 处引用（而且被商标线那条判据钉着），README 只引用 `*-smoke` 三张加 `desktop-settings`；
+这六张在全仓 `*.md|html|ts|vue|json|yml` 里的唯一命中，就是上一段我自己写的这段账（其中
+`phone-landscape` 那条命中其实是 `phone-landscape-smoke` 的子串）。删完 docs/images 只剩四张，全是从
+构建产物重拍的新界面。
+
+### 移动端：被裁掉的内容，和那句"没法划"（2026-10-09）
+
+**先量再改**（探针在 /tmp，跑完即删）。393 手机上设置面板 `scrollWidth 416` 对 `clientWidth 393`
+⇒ 23 px 停在右边缘外面；面板自己是 `overflow-x: auto`，却写着 `touch-action: pan-y`（横向手指划不动是
+故意的：横划属于画面，不属于面板）。所以那 23 px **不是"一条能滚的带"，是一段到不了的内容** ——
+真手指拖 -120 px，`scrollLeft` 从 0 到 0。第二个形状在图鉴：房间名是
+`overflow: hidden` + `text-overflow: ellipsis`，21 个名字里 8 个被裁，最长少 57 px
+（"Station Smoking Booth"），而裁掉的词玩家没有任何办法读完。
+
+**我第一版猜错了**：以为是新导轨给每枚标记加了字、变高之后把面板底压住了 —— 量出来面板底在导轨顶
+**上方 10 px**（`overlapPx: -10`），竖向滚动也正常（`canScroll: true`）。猜错就不动它。
+
+机制在 CSS 里：`.row` 是不换行的 flex，而 `.label` 固定 88 px ⇒ 五个语言块（约 310 px）在 357 px 里
+放不下；`.rooms` 是 `auto-fill minmax(96px)` 的三列网格 ⇒ 名字必然超出一格。
+
+**修形状，不修症状**：`.row` 加 `flex-wrap: wrap`（滑块那几行有 `min-width: 0`，不会被顶成两行 ——
+改后在 393 上逐行数过：15 个带名字的控件行仍是 54 px 一行，只有「语言」长成 129 px 的两行，
+三个形状词的提示行 21 px；这是改后的一次清点，不是前后对照），`.room-name` 改成可换行
+（`white-space: normal; overflow-wrap: anywhere`）。**没有**把 `pan-y` 放开成能横划：那会改掉
+"横划属于画面"的手势模型，还会把到不了的内容藏得更深。
+
+**判据落在真机层**（只有真几何能判这件事）：`tests/smoke/touch-device.mjs` 三条新的 —— 设置面板与图鉴
+面板里"没有任何东西被裁、或停在手指够不到的地方"（面板自身 `scrollWidth <= clientWidth`，且逐元素扫描
+为空），加一条**正对照**：把房间名强行按回一行，同一条扫描必须当场看见（21 个名字、8 个被点名、
+最长 57 px），撤掉样式之后归零（`maxRestored: 0`）。改之前那两条判据各自红并打印了上面的数；
+改之后 `99/99`（96 → 99）。文档里三处引用这个数（README 两处、ARCHITECTURE 一处）一起跟上。

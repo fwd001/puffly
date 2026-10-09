@@ -947,6 +947,83 @@ const hintCentre = async (page) => {
       afterAlt.filter((row) => row.count > 0).length === 1,
     JSON.stringify(afterAlt),
   );
+  /**
+   * Nothing a phone player is shown may sit where a finger cannot reach it.
+   *
+   * A sheet pans vertically by finger, and its `touch-action: pan-y` refuses horizontal panning on
+   * purpose — a sideways drag belongs to the stage, not to the panel. So a row wider than its sheet
+   * is not a strip you can scroll: it is content parked out of reach. The same is true of a word
+   * ended with an ellipsis, which is a name the player has no way to finish reading. Both shapes
+   * were measured live on a 393 phone: the settings sheet stood 23px wider than its own box with
+   * `scrollLeft` stuck at 0, and eight room names lost 7-57px of themselves to `text-overflow`.
+   */
+  const unreachable = () =>
+    page.evaluate(() => {
+      const sheet = document.querySelector('.sheet[data-open="true"]');
+      if (sheet === null) return { error: 'no sheet open' };
+      const cut = [];
+      for (const el of sheet.querySelectorAll('*')) {
+        const over = el.scrollWidth - el.clientWidth;
+        if (over <= 1) continue;
+        const cs = getComputedStyle(el);
+        // A strip the finger is allowed to pan sideways is a legitimate design; say so and skip it.
+        if (cs.overflowX === 'auto' && /pan-x|auto/.test(cs.touchAction)) continue;
+        cut.push({
+          path: `${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`,
+          over,
+          ellipsis: cs.textOverflow === 'ellipsis',
+          text: (el.textContent ?? '').trim().slice(0, 16),
+        });
+      }
+      return {
+        sheetOver: sheet.scrollWidth - sheet.clientWidth,
+        count: cut.length,
+        cut: cut.slice(0, 5),
+      };
+    });
+
+  for (const which of ['settings', 'shelf']) {
+    await openSheet(page, which);
+    const read = await unreachable();
+    console.log(`REACH ${which} ${JSON.stringify(read)}`);
+    check(
+      `${which}: nothing on the sheet is cut short or parked where a finger cannot reach`,
+      read.sheetOver <= 1 && read.count === 0,
+      JSON.stringify(read),
+    );
+  }
+
+  // Positive control for the scan above: force a room name back onto one line and the same walk has
+  // to see it. A guard that cannot be reddened by the thing it guards is not a guard.
+  // The shelf is already open from the loop, and its handle is a toggle — pressing it again would
+  // close the very sheet this is about to measure.
+  if ((await page.locator('.sheet[data-open="true"]').count()) === 0)
+    await openSheet(page, 'shelf');
+  const control = await page.evaluate(() => {
+    const style = document.createElement('style');
+    style.textContent = '.room-name { white-space: nowrap !important; }';
+    document.head.append(style);
+    const sheet = document.querySelector('.sheet[data-open="true"]');
+    const names = [...sheet.querySelectorAll('.room-name')];
+    const over = names.map((n) => n.scrollWidth - n.clientWidth);
+    const flagged = over.filter((d) => d > 1).length;
+    style.remove();
+    const after = [...sheet.querySelectorAll('.room-name')].map(
+      (n) => n.scrollWidth - n.clientWidth,
+    );
+    return {
+      names: names.length,
+      flagged,
+      maxForced: Math.max(...over, 0),
+      maxRestored: Math.max(...after, 0),
+    };
+  });
+  check(
+    'the same scan sees a name forced onto one line, and lets go when the style is removed',
+    control.names > 0 && control.flagged > 0 && control.maxForced > 1 && control.maxRestored <= 1,
+    JSON.stringify(control),
+  );
+
   await openSheet(page, 'break');
   // §11: the interface follows the hand. A swipe down over nothing puts it away — the sheets,
   // the mark and the word — while the rod goes on burning behind them.

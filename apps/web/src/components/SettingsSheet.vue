@@ -635,6 +635,10 @@ watch(
 /* One row per decision: the word on the left, the control on the right of it. */
 .row {
   display: flex;
+  /* A row of choices that will not fit a phone has to flow onto a second line: a sheet pans
+     vertically by finger and refuses horizontal panning on purpose, so anything wider than the
+     sheet is content a player can never reach. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-height: var(--tap-target, 44px);

@@ -577,9 +577,11 @@ watch(
 }
 
 .room-name {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  /* Two lines of a real name beat one line of an ellipsis: at three cards across a phone the
+     longest room name needed 57px more than it had, and a cut-off name is one the player has no
+     way to finish reading. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-size: calc(15px * var(--text-scale));
 }
 
