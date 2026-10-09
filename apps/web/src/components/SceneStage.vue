@@ -15,7 +15,7 @@ import { TresCanvas } from '@tresjs/core';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { emberPresence } from '@puffly/game-core';
 import type { GameStateView } from '@puffly/game-core';
-import { clamp01 } from '@puffly/shared';
+import { clamp01, mixRgb } from '@puffly/shared';
 import {
   cherryHot,
   FIELD_SCALE,
@@ -44,6 +44,7 @@ import {
   roomBackdrop,
   rodBetweenInBox,
   softDisc,
+  solidDisc,
   stageUnitToWorld,
   stageWorldSize,
   toWorldSize,
@@ -222,6 +223,9 @@ const halo = shallowRef<THREE.Mesh | null>(null);
 let haloMaterial: THREE.MeshBasicMaterial | null = null;
 const spill = shallowRef<THREE.Mesh | null>(null);
 let spillMaterial: THREE.MeshBasicMaterial | null = null;
+/** Falling ash, one instance per fragment the core is carrying — a shape, hence `solidDisc`. */
+const ASH_CAPACITY = 64;
+const flakes = shallowRef<THREE.InstancedMesh | null>(null);
 
 function onSceneReady(context: unknown): void {
   probe.context = context;
@@ -272,6 +276,60 @@ function onSceneReady(context: unknown): void {
     blending: THREE.AdditiveBlending,
   });
   spill.value = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), spillMaterial);
+
+  const ashMesh = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+      map: solidDisc(32),
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+    ASH_CAPACITY,
+  );
+  ashMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  ashMesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(ASH_CAPACITY * 3), 3);
+  ashMesh.frustumCulled = false;
+  ashMesh.count = 0;
+  flakes.value = ashMesh;
+}
+
+/**
+ * Falling ash, straight off the core's own list.
+ *
+ * Each fragment carries its origin, its size, its `length` (a column piece is drawn as long as the
+ * sim says it is) and its rotation; the painted layer draws exactly this ellipse — `reach × size ×
+ * 0.55`, turned by `rotation` — so the 3D layer draws the same shape rather than an invented flake.
+ * The colour is the cigarette's own ash material, lifted 15% toward white, the way `drawFallingAsh`
+ * mixes it.
+ */
+function placeAsh(state: GameStateView | null): void {
+  const ashMesh = flakes.value;
+  if (ashMesh === null) return;
+  const falling = state?.cigarette.ash.falling ?? [];
+  const style = state?.style.cigarette.ash;
+  const unit = unitWorld.value;
+  let n = 0;
+  for (const fragment of falling) {
+    if (n >= ASH_CAPACITY) break;
+    const world = canvasToWorld(fragment.origin, box.value, aspect.value);
+    const size = fragment.size * unit;
+    const reach = fragment.length > 0 ? (fragment.length * unit) / 2 : size;
+    dummy.position.set(world[0], world[1], 0.01);
+    dummy.rotation.set(0, 0, fragment.rotation);
+    dummy.scale.set(reach * 2, size * 1.1, 1);
+    dummy.updateMatrix();
+    ashMesh.setMatrixAt(n, dummy.matrix);
+    if (style !== undefined) {
+      const rgb = mixRgb(style, [255, 255, 255], 0.15);
+      tint.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
+      ashMesh.setColorAt(n, tint.multiplyScalar(0.9));
+    }
+    n += 1;
+  }
+  ashMesh.count = n;
+  ashMesh.instanceMatrix.needsUpdate = true;
+  if (ashMesh.instanceColor !== null) ashMesh.instanceColor.needsUpdate = true;
 }
 
 /**
@@ -334,6 +392,7 @@ function step(deltaMs: number): void {
   pool.update(dt, state?.smoke.drift ?? { x: 0, y: 0 }, FIELD_SCALE, clockMs / 1000, null, 1, 0);
   probe.frames += 1;
   placeCherry(state);
+  placeAsh(state);
 
   const cloud = puffs.value;
   if (cloud === null) return;
@@ -481,6 +540,9 @@ function step(deltaMs: number): void {
     <!-- The cherry's own light: halo in the air, spill on the table edge. Both additive. -->
     <primitive v-if="halo !== null" :object="halo" />
     <primitive v-if="spill !== null" :object="spill" />
+
+    <!-- Falling ash: one ellipse per fragment the core is carrying. -->
+    <primitive v-if="flakes !== null" :object="flakes" />
   </TresCanvas>
 </template>
 
