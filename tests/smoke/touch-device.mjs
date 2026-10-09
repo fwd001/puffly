@@ -948,6 +948,114 @@ const hintCentre = async (page) => {
     JSON.stringify(afterAlt),
   );
   /**
+   * The shelf's four groups have to be one tap away on a phone, not two screens of scrolling away.
+   *
+   * The sheet has always contained 烟 / 盒 / 皮肤 / 配件 stacked vertically, and the machinery that
+   * lands on one of them exists — the desk column uses it. What a phone never got was an entry that
+   * names it: one button opens the sheet at the top, and a player who wants a skin scrolls past two
+   * screens of rods with nothing saying the list continues. So this measures the burial first, then
+   * asks for a jump and checks it actually landed.
+   */
+  await openSheet(page, 'shelf');
+  const buried = await page.evaluate(() => {
+    const sheet = document.querySelector('.sheet[data-open="true"]');
+    const skins = sheet?.querySelector('[data-group="skins"]');
+    if (!sheet || !skins) return { error: 'no sheet or no skins group' };
+    return {
+      jumps: sheet.querySelectorAll('[data-jump]').length,
+      sheetHeight: sheet.clientHeight,
+      skinsTop: Math.round(skins.getBoundingClientRect().top - sheet.getBoundingClientRect().top),
+    };
+  });
+  console.log(`JUMPS buried ${JSON.stringify(buried)}`);
+  check(
+    'the skins group is out of sight until something is tapped — so the jump below is not free',
+    buried.skinsTop > buried.sheetHeight,
+    JSON.stringify(buried),
+  );
+
+  const jumps = await page.evaluate(() => {
+    const sheet = document.querySelector('.sheet[data-open="true"]');
+    const chips = [...sheet.querySelectorAll('[data-jump]')];
+    const strip = chips[0]?.parentElement;
+    const cs = strip === undefined ? null : getComputedStyle(strip);
+    return {
+      ids: chips.map((c) => c.getAttribute('data-jump')),
+      tall: chips.map((c) => Math.round(c.getBoundingClientRect().height)),
+      words: chips.map((c) => (c.textContent ?? '').trim().length),
+      overflowX: cs?.overflowX ?? '',
+      touchAction: cs?.touchAction ?? '',
+    };
+  });
+  console.log(`JUMPS strip ${JSON.stringify(jumps)}`);
+  check(
+    'a phone gets one chip per group, each finger-sized and each named',
+    jumps.ids.join(',') === 'rods,packs,skins,kit' &&
+      jumps.tall.every((h) => h >= 44) &&
+      jumps.words.every((w) => w > 0),
+    JSON.stringify(jumps),
+  );
+  check(
+    'the strip that carries them is allowed to be panned sideways, so a long word is reachable',
+    jumps.overflowX === 'auto' && /pan-x|auto/.test(jumps.touchAction),
+    JSON.stringify(jumps),
+  );
+
+  const tapJump = (id) =>
+    page.evaluate((which) => {
+      const chip = document
+        .querySelector('.sheet[data-open="true"]')
+        ?.querySelector(`[data-jump="${which}"]`);
+      if (chip === null || chip === undefined) return false;
+      chip.click();
+      return true;
+    }, id);
+
+  /** Where a group sits relative to the bottom of the jump bar, in the sheet's own pixels. */
+  const gapOf = (group) =>
+    page.evaluate((which) => {
+      const sheet = document.querySelector('.sheet[data-open="true"]');
+      const bar = sheet?.querySelector('[data-jump]')?.parentElement;
+      const el = sheet?.querySelector(`[data-group="${which}"]`);
+      if (!sheet || !bar || !el) return null;
+      return Math.round(el.getBoundingClientRect().top - bar.getBoundingClientRect().bottom);
+    }, group);
+
+  const tappedSkins = await tapJump('skins');
+  await page.waitForTimeout(900);
+  const landed = {
+    tappedSkins,
+    open: await page.evaluate(
+      () => document.querySelector('.sheet[data-open="true"]')?.dataset.open === 'true',
+    ),
+    gap: await gapOf('skins'),
+    current: await page.evaluate(
+      () =>
+        document
+          .querySelector('.sheet[data-open="true"] [data-jump="skins"]')
+          ?.getAttribute('aria-current') ?? '',
+    ),
+  };
+  check(
+    'tapping 皮肤 lands that group at the top of the sheet and leaves the sheet open',
+    landed.tappedSkins &&
+      landed.open &&
+      landed.gap !== null &&
+      Math.abs(landed.gap) <= 8 &&
+      landed.current !== '',
+    JSON.stringify(landed),
+  );
+
+  const tappedKit = await tapJump('kit');
+  await page.waitForTimeout(900);
+  const moved = { tappedKit, skinsGap: await gapOf('skins') };
+  check(
+    'and it moves again when asked for something else — the jump is not stuck on one group',
+    moved.tappedKit && moved.skinsGap !== null && Math.abs(moved.skinsGap) > 8,
+    JSON.stringify(moved),
+  );
+
+  /**
    * Nothing a phone player is shown may sit where a finger cannot reach it.
    *
    * A sheet pans vertically by finger, and its `touch-action: pan-y` refuses horizontal panning on

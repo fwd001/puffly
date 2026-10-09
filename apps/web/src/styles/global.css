@@ -208,7 +208,11 @@ body {
   max-height: calc(76% - var(--sheet-lift));
   overflow-y: auto;
   z-index: 1;
-  padding: calc(16px * var(--text-scale)) calc(18px * var(--text-scale)) 20px;
+  /* Named once because the sticky jump bar inside a sheet has to pin above it: the browser
+     pins sticky children to the content edge, and the strip that leaves is where scrolled
+     content bleeds through right above the bar. */
+  --sheet-pad: calc(16px * var(--text-scale));
+  padding: var(--sheet-pad) calc(18px * var(--text-scale)) 20px;
   background: color-mix(in oklab, var(--deep-charcoal) 92%, black);
   border-top: 1px solid var(--chrome-line);
   border-radius: 22px 22px 0 0;

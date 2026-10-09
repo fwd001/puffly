@@ -27,6 +27,7 @@ import { byRung, cardLabel, rungCount, rungShown, rungShownFor } from '../scenes
 import { presetForSkin } from '../skinPreset';
 import type { SkinContent } from '@puffly/game-core';
 import { rodMinutes } from '../archiveModel';
+import { RAIL_ENTRIES } from '../rail';
 
 const props = defineProps<{
   open: boolean;
@@ -37,7 +38,18 @@ const props = defineProps<{
 
 /** The groups the sheet owns, and the only values `section` is allowed to name. */
 const SECTIONS = ['rods', 'packs', 'skins', 'kit'] as const;
-const emit = defineEmits<{ close: []; archive: [id: string] }>();
+/**
+ * The same four, with the same glyph and the same word the desk column already uses — so a phone
+ * never invents a fifth name for a shelf the desktop calls by four. One source, two densities.
+ */
+const JUMPS = RAIL_ENTRIES.filter(
+  (entry): entry is (typeof RAIL_ENTRIES)[number] & { section: string } =>
+    entry.sheet === 'shelf' && entry.section !== null,
+);
+const emit = defineEmits<{ close: []; archive: [id: string]; jump: [section: string] }>();
+
+/** Which group the player asked for; the ladder is what the sheet opens on, so it is the default. */
+const activeSection = computed(() => props.section ?? 'rods');
 
 const copy = computed(() => props.game.copy.value);
 const rods = DEFAULT_CONTENT.cigarettes;
@@ -190,7 +202,19 @@ watch(
       }
       // Rects, not `offsetTop`: the group may sit inside a positioned row, and both rects carry
       // the sheet's own slide-in transform, so the difference is right mid-animation.
-      const top = wanted.getBoundingClientRect().top - sheet.getBoundingClientRect().top;
+      //
+      // The jump bar is sticky, so the sheet's top edge is already spoken for and the group has to
+      // land under it. Not the bar's rect: before the scroll it is still in flow below the header,
+      // and asking it for an offset lands the group 60px short. Once pinned it keeps its own box
+      // plus the sheet's border — the bar is pinned above the sheet's padding strip on purpose, so
+      // that strip cannot show scrolled content bleeding through right above it.
+      // On a width with no bar (the desk column is that bar) nothing is subtracted.
+      const bar = sheet.querySelector<HTMLElement>('.jumps');
+      const stuck =
+        bar !== null && getComputedStyle(bar).display !== 'none'
+          ? bar.offsetHeight + Number.parseFloat(getComputedStyle(sheet).borderTopWidth)
+          : 0;
+      const top = wanted.getBoundingClientRect().top - sheet.getBoundingClientRect().top - stuck;
       sheet.scrollTo({ top: Math.max(0, sheet.scrollTop + top), behavior: 'smooth' });
     });
   },
@@ -223,6 +247,23 @@ watch(
         ×
       </button>
     </header>
+
+    <!-- A phone has no standing column to point at, so the shelf names what it contains. Same four
+         glyphs and words as the desk column, and the same single source for "which group was asked
+         for" — this row records the request, it does not invent a second idea of where you are. -->
+    <nav class="jumps" :aria-label="copy.say('a11y.shelfJumps')">
+      <button
+        v-for="entry in JUMPS"
+        :key="entry.id"
+        class="jump"
+        :data-jump="entry.section"
+        :aria-current="activeSection === entry.section ? 'true' : undefined"
+        @click="emit('jump', entry.section)"
+      >
+        <span class="glyph" aria-hidden="true">{{ entry.glyph }}</span>
+        <span v-if="copy.t(entry.key) !== null" class="word">{{ copy.t(entry.key) }}</span>
+      </button>
+    </nav>
 
     <div v-for="shelf in shelves" :key="shelf.kind" class="group" data-group="rods">
       <p v-if="copy.t('shelf.rods') !== null" class="kind">
@@ -401,6 +442,61 @@ watch(
 
 .digits {
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The desk column, in one line, for the width that has no column. Sticky so it stays answerable
+ * while the shelf scrolls, and pannable sideways on purpose: the sheet itself refuses horizontal
+ * panning (`pan-y`, because a sideways drag belongs to the stage), so a strip that may have to
+ * carry "the rest of the table" in English has to declare `pan-x` or the far end of it is a word
+ * no finger can reach.
+ */
+.jumps {
+  position: sticky;
+  top: calc(-1 * var(--sheet-pad));
+  z-index: 1;
+  display: none;
+  flex: none;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: calc(var(--sheet-pad) + 6px) 0 6px;
+  overflow-x: auto;
+  touch-action: pan-x;
+  background: inherit;
+  scrollbar-width: none;
+}
+
+@media (max-width: 859px) {
+  .jumps {
+    display: flex;
+  }
+}
+
+.jump {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: var(--tap-target, 44px);
+  min-height: var(--tap-target, 44px);
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--smoke-gray);
+  font-size: calc(15px * var(--text-scale));
+  cursor: pointer;
+}
+
+.jump[aria-current='true'] {
+  border-color: var(--ember-orange);
+  color: var(--soft-white);
+}
+
+.jump .glyph {
+  line-height: 1;
 }
 
 .close {

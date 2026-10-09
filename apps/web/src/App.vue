@@ -109,6 +109,16 @@ function openSheet(next: SheetName, nextSection: string | null = null): void {
 }
 
 /**
+ * Asking the shelf for another group is a selection, not a toggle: `openSheet` closes what is
+ * already open, so a player tapping the group they are already looking at would be thrown out of
+ * the sheet. One sheet, one requested group, no surprise exit.
+ */
+function jumpToSection(next: string): void {
+  sheet.value = 'shelf';
+  section.value = next;
+}
+
+/**
  * 点内容区域之外就收起. Captured on the stage, so a press that lands on the scene steps the panel
  * aside. The press is deliberately **not** swallowed: a scene press is also how the break is driven
  * (hold to draw, swipe down to fold the chrome, tap the lighter), and eating it turned this
@@ -207,6 +217,7 @@ function dismissOnScene(event: PointerEvent): void {
       :section="section"
       :game="game"
       @archive="archiveFacts = game.archiveOf($event)"
+      @jump="jumpToSection"
       @close="sheet = 'none'"
     />
     <SettingsSheet :open="sheet === 'settings'" :game="game" @close="sheet = 'none'" />
