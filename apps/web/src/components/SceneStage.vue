@@ -432,13 +432,18 @@ function onSceneReady(context: unknown): void {
   hudRig.value = buildRig();
   pillRig.value = buildRig();
 
-  pillMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
-  const card = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), pillMaterial);
-  card.frustumCulled = false;
-  card.visible = false;
-  card.position.z = -0.09;
-  pillCard.value = card;
-  rigGroup.add(card);
+  const buildCard = (z: number): CardRig => {
+    const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    mesh.frustumCulled = false;
+    mesh.visible = false;
+    mesh.position.z = z;
+    rigGroup.add(mesh);
+    return { mesh, material, signature: '' };
+  };
+  pillCardRig.value = buildCard(-0.09);
+  railRig.value = buildCard(-0.072);
+  tabRigs.value = [buildCard(-0.07), buildCard(-0.07), buildCard(-0.07), buildCard(-0.07)];
   pillGlowMaterial = new THREE.MeshBasicMaterial({
     map: roundedRect(128, 0.5),
     transparent: true,
@@ -716,7 +721,8 @@ const RUN_SELECTORS = [
 ];
 /** S11's desk row is five more runs, matched per element (they come and go with the width). */
 const DESK_RUNS = 5;
-const RUN_COUNT = RUN_SELECTORS.length + DESK_RUNS;
+const RAIL_RUNS = 8;
+const RUN_COUNT = RUN_SELECTORS.length + DESK_RUNS + RAIL_RUNS;
 const chrome = shallowRef<THREE.Group | null>(null);
 interface RingRig {
   track: THREE.Mesh;
@@ -727,11 +733,21 @@ interface RingRig {
 }
 const hudRig = shallowRef<RingRig | null>(null);
 const pillRig = shallowRef<RingRig | null>(null);
-const pillCard = shallowRef<THREE.Mesh | null>(null);
-let pillMaterial: THREE.MeshBasicMaterial | null = null;
+/**
+ * A card: the same machinery the pill proved — a stadium quad whose paint is whatever the element's
+ * own computed style says (a three-stop gradient, or a flat fill), rebuilt only when the state's
+ * paint changes. The rail and its four tabs are four more of these.
+ */
+interface CardRig {
+  mesh: THREE.Mesh;
+  material: THREE.MeshBasicMaterial;
+  signature: string;
+}
+const pillCardRig = shallowRef<CardRig | null>(null);
+const railRig = shallowRef<CardRig | null>(null);
+const tabRigs = shallowRef<CardRig[]>([]);
 const pillGlow = shallowRef<THREE.Mesh | null>(null);
 let pillGlowMaterial: THREE.MeshBasicMaterial | null = null;
-let pillSignature = '';
 
 async function loadAtlas(): Promise<void> {
   try {
@@ -801,11 +817,18 @@ function placeText(): void {
   const group = textRuns.value;
   if (group === null || atlas === null || atlasTexture === null) return;
   const desk = document.querySelectorAll<HTMLElement>('.hud .desk .read');
+  const railGlyphs = document.querySelectorAll<HTMLElement>('.rail .tab .glyph');
+  const railWords = document.querySelectorAll<HTMLElement>('.rail .tab .word');
   runMeshes.forEach((mesh, index) => {
-    const node =
-      index < RUN_SELECTORS.length
-        ? document.querySelector<HTMLElement>(RUN_SELECTORS[index] ?? '')
-        : (desk[index - RUN_SELECTORS.length] ?? null);
+    let node: HTMLElement | null = null;
+    if (index < RUN_SELECTORS.length) {
+      node = document.querySelector<HTMLElement>(RUN_SELECTORS[index] ?? '');
+    } else if (index < RUN_SELECTORS.length + DESK_RUNS) {
+      node = desk[index - RUN_SELECTORS.length] ?? null;
+    } else {
+      const slot = index - RUN_SELECTORS.length - DESK_RUNS;
+      node = slot % 2 === 0 ? (railGlyphs[slot / 2] ?? null) : (railWords[(slot - 1) / 2] ?? null);
+    }
     const material = runMaterials[index];
     if (node === null || material === undefined) {
       mesh.visible = false;
@@ -945,6 +968,7 @@ function step(deltaMs: number): void {
   placeAsh(state);
   applyBackdrop(state);
   placeText();
+  placeRail();
   const hudRing = hudRig.value;
   if (hudRing !== null) {
     placeRingRig(hudRing, document.querySelector<SVGSVGElement>('.hud .ring svg'), -0.106, -0.105);
@@ -1086,34 +1110,29 @@ function placeRingRig(rig: RingRig, svg: SVGSVGElement | null, zTrack: number, z
  * gradient runs left-to-right here while the CSS tilts it 10°: that tilt is the one approximation
  * in this file, and it is one line to fix when the pill's own art pass happens.
  */
-function placePill(): void {
-  const card = pillCard.value;
-  const ring = pillRig.value;
-  const pill = document.querySelector<HTMLElement>('.pill');
-  if (card === null || pillMaterial === null) return;
-  if (pill === null) {
+function fillCard(rig: CardRig, element: HTMLElement | null, shrink: number): void {
+  const { mesh: card, material } = rig;
+  if (element === null) {
     card.visible = false;
     return;
   }
-  const rect = pill.getBoundingClientRect();
+  const rect = element.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) {
     card.visible = false;
     return;
   }
-  const style = getComputedStyle(pill);
-  const held = pill.closest('.cta')?.getAttribute('data-held') === 'true';
+  const style = getComputedStyle(element);
   const gradient = style.backgroundImage.includes('gradient');
-  const signature = `${rect.left.toFixed(1)}|${rect.top.toFixed(1)}|${rect.width.toFixed(1)}|${rect.height.toFixed(1)}|${held}|${style.backgroundImage}|${style.backgroundColor}`;
-  if (signature !== pillSignature) {
-    pillSignature = signature;
+  const signature = `${rect.left.toFixed(1)}|${rect.top.toFixed(1)}|${rect.width.toFixed(1)}|${rect.height.toFixed(1)}|${shrink}|${style.backgroundImage}|${style.backgroundColor}|${style.borderColor}`;
+  if (signature !== rig.signature) {
+    rig.signature = signature;
     const whole = rectWorld({
       x: rect.left / Math.max(1, viewportWidthPx.value),
       y: rect.top / Math.max(1, viewportHeightPx.value),
       w: rect.width / Math.max(1, viewportWidthPx.value),
       h: rect.height / Math.max(1, viewportHeightPx.value),
     });
-    const shrink = held ? 0.96 : 1;
-    card.position.set(whole.centre[0], whole.centre[1], -0.09);
+    card.position.set(whole.centre[0], whole.centre[1], card.position.z);
     const geometry = new THREE.BufferGeometry();
     const stops = [
       ...style.backgroundImage.matchAll(
@@ -1125,12 +1144,11 @@ function placePill(): void {
         at: match[1] === undefined ? null : Number.parseFloat(match[1]) / 100,
       }))
       .filter((stop) => stop.colour !== null);
-    const scale: [number, number] = [whole.width * shrink, whole.height * shrink];
+    const positions: number[] = [];
+    const colours: number[] = [];
+    const uvs: number[] = [];
     if (gradient && stops.length >= 2) {
       // A column per stop reproduces the painter's linear stops exactly along the card's length.
-      const positions: number[] = [];
-      const colours: number[] = [];
-      const uvs: number[] = [];
       stops.forEach((stop, index) => {
         const at = stop.at ?? index / (stops.length - 1);
         const x = at - 0.5;
@@ -1144,47 +1162,63 @@ function placePill(): void {
           uvs.push(at, y + 0.5);
         }
       });
-      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
-      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       const index: number[] = [];
       for (let i = 0; i < stops.length - 1; i += 1) {
         // Counter-clockwise seen from the camera, or the card faces away and is culled — the same
-        // trap the text quads fell into, and the one that hid this card behind its own glow.
+        // trap the text quads fell into, and the one that hid the pill behind its own glow.
         index.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3);
       }
       geometry.setIndex(index);
       // Vertex colours are what carry the stops; without this the card paints a flat white.
-      pillMaterial.vertexColors = true;
-      pillMaterial.color.set('#ffffff');
-      pillMaterial.opacity = held ? 0.92 : 1;
+      material.vertexColors = true;
+      material.color.set('#ffffff');
     } else {
       const flat = parseColour(style.backgroundColor);
-      geometry.setAttribute(
-        'position',
-        new THREE.Float32BufferAttribute(
-          [-0.5, -0.5, 0, 0.5, -0.5, 0, -0.5, 0.5, 0, 0.5, 0.5, 0],
-          3,
-        ),
-      );
-      geometry.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 1, 1], 2));
+      positions.push(-0.5, -0.5, 0, 0.5, -0.5, 0, -0.5, 0.5, 0, 0.5, 0.5, 0);
+      uvs.push(0, 0, 1, 0, 0, 1, 1, 1);
       geometry.setIndex([0, 1, 2, 2, 1, 3]);
-      pillMaterial.vertexColors = false;
-      if (flat !== null) pillMaterial.color.copy(flat.colour);
-      pillMaterial.opacity = flat?.alpha ?? 1;
+      material.vertexColors = false;
+      if (flat !== null) material.color.copy(flat.colour);
+      // A transparent flat fill is a card that is not there — the quiet rail tabs are exactly that.
+      material.opacity = flat?.alpha ?? 0;
+    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    if (colours.length > 0) {
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
     }
     card.geometry.dispose();
     card.geometry = geometry;
-    card.scale.set(scale[0], scale[1], 1);
-    pillMaterial.map = roundedRect(128, 0.5);
-    pillMaterial.needsUpdate = true;
+    card.scale.set(
+      (rect.width / Math.max(1, viewportWidthPx.value)) *
+        (frame.value.width / Math.max(0.0001, box.value.width)) *
+        shrink,
+      (rect.height / Math.max(1, viewportHeightPx.value)) *
+        (frame.value.height / Math.max(0.0001, box.value.height)) *
+        shrink,
+      1,
+    );
+    material.map = roundedRect(128, 0.5);
+    material.opacity *= gradient ? 1 : 1;
+    material.needsUpdate = true;
   }
   card.visible = true;
+}
+
+/** The pill: its card, its ring and its glow. */
+function placePill(): void {
+  const rig = pillCardRig.value;
+  const ring = pillRig.value;
+  const pill = document.querySelector<HTMLElement>('.pill');
+  if (rig === null) return;
+  const held = pill?.closest('.cta')?.getAttribute('data-held') === 'true';
+  fillCard(rig, pill, held === true ? 0.96 : 1);
   if (ring !== null) {
-    placeRingRig(ring, pill.querySelector('svg'), -0.086, -0.085);
+    placeRingRig(ring, pill?.querySelector('svg') ?? null, -0.086, -0.085);
   }
   const glow = pillGlow.value;
-  if (glow !== null && pillGlowMaterial !== null) {
+  if (glow !== null && pillGlowMaterial !== null && pill !== null) {
+    const rect = pill.getBoundingClientRect();
     const glowWorld = rectWorld({
       x: rect.left / Math.max(1, viewportWidthPx.value),
       y: (rect.top + 10) / Math.max(1, viewportHeightPx.value),
@@ -1198,8 +1232,25 @@ function placePill(): void {
       getComputedStyle(document.documentElement).getPropertyValue('--ember-orange').trim() ||
         '#e2604a',
     );
-    pillGlowMaterial.opacity = held ? 0.35 : 0.22;
+    pillGlowMaterial.opacity = held === true ? 0.35 : 0.22;
   }
+}
+
+/**
+ * The rail: its container card and the four tab cards. The container is a flat 72% charcoal; the
+ * lit tab is the only filled one (the ember gradient), and the rest come back as transparent
+ * fills — a card with no paint is a card that is not there, which is what "not selected" looks
+ * like when the SVG/text have already moved into the scene.
+ */
+function placeRail(): void {
+  const container = railRig.value;
+  if (container === null) return;
+  fillCard(container, document.querySelector<HTMLElement>('.rail'), 1);
+  const rigs = tabRigs.value;
+  const tabs = document.querySelectorAll<HTMLElement>('.rail .tab');
+  rigs.forEach((rig, index) => {
+    fillCard(rig, tabs[index] ?? null, 1);
+  });
 }
 </script>
 

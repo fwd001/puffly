@@ -36,7 +36,7 @@ const READOUT = '0123456789%./:×≈°';
  * over-limit diamond and the pill's strength tick. Shapes, not words, and just as absent from the
  * copy table as `100%` is.
  */
-const MARKS = '△○≡◇⌁';
+const MARKS = '△○≡◇⌁☼';
 
 function fontCandidates() {
   const candidates = [];

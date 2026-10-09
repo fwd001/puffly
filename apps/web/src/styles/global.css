@@ -471,3 +471,7 @@ html.scene3d-text .hud .desk .read {
 html.scene3d-text .pill {
   opacity: 0;
 }
+/* 底栏的墨也进场景了：容器、四个格子（点亮那格是渐变）与格里的记号/字。DOM 留下手点。 */
+html.scene3d-text .rail {
+  opacity: 0;
+}
