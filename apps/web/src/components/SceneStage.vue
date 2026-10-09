@@ -36,6 +36,7 @@ import {
   LID_THROW_DEG,
   sparkStreak,
   cartoonScale,
+  dustMotes,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -281,6 +282,9 @@ const flakes = shallowRef<THREE.InstancedMesh | null>(null);
  *  the smoke pool, and this layer stops drawing them as puffs. */
 const SPARK_CAPACITY = 24;
 const sparksMesh = shallowRef<THREE.InstancedMesh | null>(null);
+/** The room's dust: the always-on half of the air, straight from `dustMotes`. */
+const DUST_CAPACITY = 32;
+const dustMesh = shallowRef<THREE.InstancedMesh | null>(null);
 /** The lighter's flame: its teardrop and the blue throat under it, both additive. */
 const flameBody = shallowRef<THREE.Mesh | null>(null);
 const flameThroat = shallowRef<THREE.Mesh | null>(null);
@@ -548,6 +552,25 @@ function onSceneReady(context: unknown): void {
   sparkCloud.name = 'sparks';
   rigGroup.add(sparkCloud);
   sparksMesh.value = sparkCloud;
+  const dustCloud = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+      map: softDisc(32),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+    DUST_CAPACITY,
+  );
+  dustCloud.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  dustCloud.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(DUST_CAPACITY * 3),
+    3,
+  );
+  dustCloud.frustumCulled = false;
+  dustCloud.name = 'dust';
+  rigGroup.add(dustCloud);
+  dustMesh.value = dustCloud;
   flameThroatMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(64),
     transparent: true,
@@ -1080,6 +1103,35 @@ function placeText(): void {
   });
 }
 
+/** The room's dust, from the painted layer's own `dustMotes` — always on, additive, and faint. */
+function placeDust(state: GameStateView | null): void {
+  const cloud = dustMesh.value;
+  if (cloud === null) return;
+  if (state == null) {
+    cloud.count = 0;
+    return;
+  }
+  const motes = dustMotes(state, state.nowMs / 1000, props.game.rendererLook().reducedMotion);
+  let n = 0;
+  for (const mote of motes) {
+    if (n >= DUST_CAPACITY) break;
+    const world = canvasToWorld({ x: mote.x, y: mote.y }, box.value, aspect.value);
+    const radius = mote.radius * unitWorld.value;
+    if (radius <= pxToWorld(0.3)) continue;
+    dummy.position.set(world[0], world[1], -0.6);
+    dummy.rotation.set(0, 0, 0);
+    dummy.scale.set(radius * 2, radius * 2, 1);
+    dummy.updateMatrix();
+    cloud.setMatrixAt(n, dummy.matrix);
+    tint.setRGB(236 / 255, 226 / 255, 208 / 255, THREE.SRGBColorSpace);
+    cloud.setColorAt(n, tint.multiplyScalar(mote.alpha));
+    n += 1;
+  }
+  cloud.count = n;
+  cloud.instanceMatrix.needsUpdate = true;
+  if (cloud.instanceColor !== null) cloud.instanceColor.needsUpdate = true;
+}
+
 /**
  * S2's ignition picture: the lighter's flame, from the same numbers the painted layer draws it
  * with (`flameMetrics`), the same two quadratics, the same three gradient stops — the gradient's
@@ -1288,6 +1340,7 @@ function step(deltaMs: number): void {
   placeCherry(state);
   placeAsh(state);
   placeFlame(state);
+  placeDust(state);
   const lid = lighterLid.value;
   if (lid !== null) {
     lid.rotation.x = -clamp01(state?.lighter.lid ?? 0) * ((LID_THROW_DEG * Math.PI) / 180);

@@ -132,40 +132,55 @@ export function drawRain(
 }
 
 /** Dust in the light: the cheapest possible way to make still air look like a room. */
+/**
+ * One frame of the room's dust, in stage fractions and stage-unit radii — the one copy both
+ * painters read. Always on: the room's own light is what it hangs in, and a talk of weather does
+ * not switch it off. The visible half of `smoke.turbulence` — the field is a slow weather (guarded
+ * in §22), so swinging the motes wider with it cannot shiver, which is what dust actually does
+ * when the air starts turning.
+ */
+export function dustMotes(
+  state: GameStateView,
+  seconds: number,
+  reducedMotion: boolean,
+): Array<{ x: number; y: number; radius: number; alpha: number }> {
+  const { motes } = geometryFor(state.environment.id, state.world.weather);
+  const light = 0.25 + state.world.light.ambient * 0.75;
+  const speed = reducedMotion ? 0 : 1;
+  const churn = 1 + clamp01(state.smoke.turbulence) * 0.6;
+  const out: Array<{ x: number; y: number; radius: number; alpha: number }> = [];
+  for (const mote of motes) {
+    const wobble = fbm2(seconds * 0.08 * speed + mote.seed, mote.drift * 10, 31);
+    const x = (mote.x + wobble * 0.05 * churn + seconds * 0.004 * speed * state.world.wind) % 1;
+    const y = mote.y + Math.sin(seconds * 0.21 * speed + mote.seed) * 0.012 * churn;
+    const radius = mote.size * (1 + Math.abs(wobble) * 0.6);
+    const alpha = clamp01(0.05 + light * 0.12 + wobble * 0.05);
+    if (alpha <= 0.01) continue;
+    out.push({ x, y, radius, alpha });
+  }
+  return out;
+}
+
 export function drawDust(
   ctx: CanvasRenderingContext2D,
   state: GameStateView,
   viewport: Viewport,
   reducedMotion: boolean,
 ): void {
-  const { motes } = geometryFor(state.environment.id, state.world.weather);
-  const { stage } = viewport;
-  const seconds = state.nowMs / 1000;
-  const light = 0.25 + state.world.light.ambient * 0.75;
-  const speed = reducedMotion ? 0 : 1;
-  // Dust is the visible half of `smoke.turbulence`. The field is a slow weather (its per-frame
-  // change is guarded in §22), so swinging the motes wider cannot shiver — and it is what dust
-  // actually does when the air starts turning. Without this the swirl event is a sound with no
-  // picture, which is the one thing §26 will not accept.
-  const churn = 1 + clamp01(state.smoke.turbulence) * 0.6;
-
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  for (const mote of motes) {
-    const wobble = fbm2(seconds * 0.08 * speed + mote.seed, mote.drift * 10, 31);
-    const x = (mote.x + wobble * 0.05 * churn + seconds * 0.004 * speed * state.world.wind) % 1;
-    const y = mote.y + Math.sin(seconds * 0.21 * speed + mote.seed) * 0.012 * churn;
-    const at = viewport.px({ x, y });
-    const radius = viewport.len(mote.size) * (1 + Math.abs(wobble) * 0.6);
-    const alpha = clamp01(0.05 + light * 0.12 + wobble * 0.05);
-    if (alpha <= 0.01 || radius <= 0.3) continue;
-    ctx.fillStyle = rgbToCss([236, 226, 208], alpha);
+  for (const mote of dustMotes(state, state.nowMs / 1000, reducedMotion)) {
+    const at = viewport.px({ x: mote.x, y: mote.y });
+    const radius = viewport.len(mote.radius);
+    // The one filter that is a viewport's, not the room's: a mote under a third of a pixel is
+    // nothing to paint.
+    if (radius <= 0.3) continue;
+    ctx.fillStyle = rgbToCss([236, 226, 208], mote.alpha);
     ctx.beginPath();
     ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
-  void stage;
 }
 
 export function clearWeatherCache(): void {

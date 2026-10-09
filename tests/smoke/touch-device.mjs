@@ -2455,6 +2455,22 @@ try {
     card.name >= 170,
     `name max ${String(card.name)}`,
   );
+  // The room's dust is always on — the painted layer's 26 motes per venue, through the same
+  // `dustMotes`, so a talk of weather never switches it off.
+  const dustCount = await page.evaluate(() => {
+    const ctx = window.__pufflyScene.context;
+    const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+    let dust = -1;
+    scene.traverse((o) => {
+      if (o.name === 'dust') dust = o.count;
+    });
+    return dust;
+  });
+  check(
+    "3D: the room's dust motes are drawn (the always-on half of the air)",
+    dustCount > 0,
+    `dust ${String(dustCount)}`,
+  );
   // S2's ignition: the flame on the lighter, from the same metrics the painted layer draws it
   // with (`flameMetrics`). Read as a state pair rather than pixels — the flame's screen size and
   // place move with the sim's flicker, and a fixed band once read the *hint word* instead — while

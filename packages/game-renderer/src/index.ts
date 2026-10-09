@@ -73,7 +73,7 @@ export {
 } from './props';
 export { drawBackground } from './background';
 export { drawEffects, EffectList, type EffectKind, type SceneEffect } from './effects';
-export { clearWeatherCache, drawDust, drawRain } from './weather';
+export { clearWeatherCache, drawDust, drawRain, dustMotes } from './weather';
 export {
   drawAffordanceHint,
   DIP_SHARE,
