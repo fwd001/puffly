@@ -70,8 +70,11 @@ describe('the 写实度 row is a control and not a decoration (S6)', () => {
     // go through the same object, which is why a fifth field used to be applied by the loop and
     // forgotten by the resize.
     const settings = shellSource();
-    expect(settings).toContain(
-      "'reducedMotion' | 'quality' | 'contrast' | 'skin' | 'customBackground' | 'realism'",
+    // Prettier reflows a union across lines the moment it outgrows one, so the comparison strips
+    // whitespace: this guard is about the wiring carrying these names, not about the wrap.
+    const compact = settings.replace(/\s+/g, '');
+    expect(compact).toContain(
+      "'reducedMotion'|'quality'|'contrast'|'skin'|'customBackground'|'realism'|'visualCues'",
     );
     expect(settings).toContain('realism: settings.value.realism,');
   });

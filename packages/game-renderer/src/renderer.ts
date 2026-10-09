@@ -395,7 +395,21 @@ function accentFor(burst: Burst, atMs: number): SceneEffect | null {
   }
 }
 
-function effectFor(burst: Burst, atMs: number, visualCues: boolean): SceneEffect | null {
+/** §60's feedback for the most repeated gesture: the ring the table gets when the rod leaves it. */
+export function pickUpRing(at: { x: number; y: number }, atMs: number): SceneEffect {
+  return {
+    kind: 'ring',
+    x: at.x,
+    y: at.y,
+    bornMs: atMs,
+    ttlMs: 360,
+    strength: 0.45,
+    reach: 0.075,
+    tint: [255, 214, 150],
+  };
+}
+
+export function effectFor(burst: Burst, atMs: number, visualCues: boolean): SceneEffect | null {
   const effect = accentFor(burst, atMs);
   if (effect === null || !visualCues) return effect;
   // The same accent, not a new language: bigger and a beat longer, so the eye is where the
@@ -795,17 +809,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
           impact = 1;
         }
         if (event.to === 'PICKED_UP' && lastView && !settings.reducedMotion) {
-          const at = lastView.anchors.body;
-          effects.push({
-            kind: 'ring',
-            x: at.x,
-            y: at.y,
-            bornMs: clockMs,
-            ttlMs: 360,
-            strength: 0.45,
-            reach: 0.075,
-            tint: [255, 214, 150],
-          });
+          effects.push(pickUpRing(lastView.anchors.body, clockMs));
         }
         return;
       }

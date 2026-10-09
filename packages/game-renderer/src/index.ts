@@ -37,6 +37,8 @@ export {
 } from './background';
 export {
   createCanvasRenderer,
+  effectFor,
+  pickUpRing,
   type CanvasRendererOptions,
   type PufflyRenderer,
   type RendererSettings,

@@ -2497,6 +2497,26 @@ try {
   // the pixel evidence lives in the probe notes: 223 in the flame's band, 41 with the mesh
   // hidden. The flame mesh is the only one whose texture is 2 px wide. |control|: hiding that
   // mesh makes `lit` false and reddens this.
+  // §60's pick-up ring (S2): the painted layer's own `pickUpRing` pushed into the same list the
+  // scene reads — a 360 ms sim-time ring where the rod left the table. The watcher runs *while*
+  // the pick clicks happen below, so a short-lived effect cannot be missed by late sampling.
+  // |control|: skipping the push in `onEvent` leaves the pool dark and reddens this.
+  const ringSeen = page
+    .waitForFunction(
+      () => {
+        const ctx = window.__pufflyScene.context;
+        const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+        let seen = false;
+        scene.traverse((o) => {
+          if (o.name === 'effect-ring' && o.visible) seen = true;
+        });
+        return seen;
+      },
+      null,
+      { timeout: 9000, polling: 60 },
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(() => null);
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const affordance = await page.evaluate(
       () => document.querySelector('.stage')?.dataset.affordance ?? '',
@@ -2505,6 +2525,15 @@ try {
     await page.locator('.pill').click();
     await page.waitForTimeout(650);
   }
+  // Read it here, before the strike: only the pick-up transition can have emitted a ring yet, so a
+  // burst's accent can no longer stand in for it — the first attempt measured exactly that hole
+  // (muting the push still read green, because the strike's own accents arrived inside the window).
+  const ringHit = await ringSeen;
+  check(
+    '3D: picking the rod up gets the table\u2019s answer \u2014 the \u00a760 ring (S2)',
+    ringHit === true,
+    `ring seen ${String(ringHit)}`,
+  );
   const flameRead = () =>
     page.evaluate(() => {
       const ctx = window.__pufflyScene.context;

@@ -258,7 +258,13 @@ export interface Puffly {
    */
   rendererLook(): Pick<
     RendererSettings,
-    'reducedMotion' | 'quality' | 'contrast' | 'skin' | 'customBackground' | 'realism'
+    | 'reducedMotion'
+    | 'quality'
+    | 'contrast'
+    | 'skin'
+    | 'customBackground'
+    | 'realism'
+    | 'visualCues'
   >;
   /** Subscribe to the engine's own events; returns an unsubscribe. */
   onEvent(listener: (event: EngineEvent) => void): () => void;
@@ -418,7 +424,13 @@ export function createPuffly(): Puffly {
     quality: QualityMode = effectiveQuality(),
   ): Pick<
     RendererSettings,
-    'reducedMotion' | 'quality' | 'contrast' | 'skin' | 'customBackground' | 'realism'
+    | 'reducedMotion'
+    | 'quality'
+    | 'contrast'
+    | 'skin'
+    | 'customBackground'
+    | 'realism'
+    | 'visualCues'
   > => ({
     reducedMotion: settings.value.reducedMotion,
     quality,
@@ -426,6 +438,9 @@ export function createPuffly(): Puffly {
     realism: settings.value.realism,
     skin: skinPalette(),
     customBackground: settings.value.customBackground,
+    // The same flag the renderer is handed on the summary beat — one value, or the 3D layer's
+    // accents would answer a different question than the canvas's.
+    visualCues: cuesAreVisual,
   });
 
   const applyEffectiveQuality = (): void => {

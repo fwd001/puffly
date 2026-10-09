@@ -47,6 +47,9 @@ import {
   CHAR_GRAIN_SEED,
   paperGive,
   DIP_SHARE,
+  EffectList,
+  effectFor,
+  pickUpRing,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -121,8 +124,24 @@ onMounted(() => window.addEventListener('resize', onResize));
  * source. Seeded jitter for the scene's own use stays; the bursts bring their own.
  */
 const stopEvents = props.game.onEvent((event) => {
+  // The same two accents the painted layer's `handleEvent` pushes (§60's feedback): the ring the
+  // table gets when the rod leaves it, and whatever `effectFor` makes of a burst — one list, one
+  // recipe, read by both painters.
+  if (event.kind === 'transition') {
+    if (
+      event.to === 'PICKED_UP' &&
+      props.state != null &&
+      !props.game.rendererLook().reducedMotion
+    ) {
+      effectList.push(pickUpRing(props.state.anchors.body, clockMs));
+    }
+    return;
+  }
   if (event.kind !== 'burst') return;
   intakeBurst(event.burst, pool, plumeIntakeOptions(props.game.rendererLook()));
+  const look = props.game.rendererLook();
+  const effect = effectFor(event.burst, clockMs, look.visualCues);
+  if (effect !== null && !look.reducedMotion) effectList.push(effect);
 });
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize);
@@ -314,6 +333,11 @@ let charHotMaterial: THREE.MeshBasicMaterial | null = null;
 let charSignature = '';
 /** The painted layer's own grain count: `max(9, min(38, round((thickness / size) * 5)))`. */
 const CHAR_GRAIN_CAPACITY = 38;
+/** §60's accents, from the same list the painted layer keeps (`EffectList`, max 12 internally). */
+const effectList = new EffectList();
+const effectRingPool: THREE.Mesh[] = [];
+const effectFlashPool: THREE.Mesh[] = [];
+const effectRingSignatures: string[] = [];
 /** The rod's own tube, so its rings can be pinched by the painter's `paperGive` while drawing. */
 const rodMesh = shallowRef<THREE.Mesh | null>(null);
 let rodBase: Float32Array | null = null;
@@ -706,6 +730,38 @@ function onSceneReady(context: unknown): void {
   charGrainCloud.position.set(0, 0, 0.0188);
   rigGroup.add(charGrainCloud);
   charGrains.value = charGrainCloud;
+  // The effects pool: twelve of each shape (the list's own ceiling), additive like the canvas's
+  // `lighter` composite. Rings rebuild their geometry per radius signature; flashes are soft
+  // discs scaled per frame.
+  for (let i = 0; i < 12; i += 1) {
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    const ring = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), ringMaterial);
+    ring.name = 'effect-ring';
+    ring.frustumCulled = false;
+    ring.visible = false;
+    ring.position.set(0, 0, 0.033);
+    rigGroup.add(ring);
+    effectRingPool.push(ring);
+    effectRingSignatures.push('');
+    const flashMaterial = new THREE.MeshBasicMaterial({
+      map: softDisc(64),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const flash = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), flashMaterial);
+    flash.name = 'effect-flash';
+    flash.frustumCulled = false;
+    flash.visible = false;
+    flash.position.set(0, 0, 0.0325);
+    rigGroup.add(flash);
+    effectFlashPool.push(flash);
+  }
   flameThroatMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(64),
     transparent: true,
@@ -1803,6 +1859,81 @@ function placeChar(state: GameStateView | null): void {
 }
 
 /**
+ * §60's accents, from the same `EffectList` the painted layer fills: rings (the ripple with its
+ * 0.34 squash — a mark on a surface, not in the air) as stroked circles, flashes as soft discs.
+ * Radii and stroke widths ride `unitWorld` exactly as the painter's `toLen` did, alpha is the
+ * painter's own `strength · (1 − age)²`, and everything blends additively.
+ */
+function placeEffects(): void {
+  const active = effectList.active(clockMs);
+  let rings = 0;
+  let flashes = 0;
+  for (const effect of active) {
+    const age = Math.min(1, (clockMs - effect.bornMs) / effect.ttlMs);
+    const eased = 1 - (1 - age) * (1 - age);
+    const alpha = effect.strength * (1 - age) * (1 - age);
+    if (alpha <= 0.004) continue;
+    const world = canvasToWorld({ x: effect.x, y: effect.y }, box.value, aspect.value);
+    if (effect.kind === 'flash') {
+      const mesh = effectFlashPool[flashes];
+      if (mesh === undefined) continue;
+      const material = mesh.material as THREE.MeshBasicMaterial;
+      const radius = (0.05 + eased * effect.reach) * unitWorld.value;
+      mesh.position.set(world[0], world[1], 0.0325);
+      mesh.scale.set(radius * 2, radius * 2, 1);
+      material.color.setRGB(
+        effect.tint[0] / 255,
+        effect.tint[1] / 255,
+        effect.tint[2] / 255,
+        THREE.SRGBColorSpace,
+      );
+      material.opacity = alpha;
+      mesh.visible = true;
+      flashes += 1;
+      continue;
+    }
+    const mesh = effectRingPool[rings];
+    if (mesh === undefined) continue;
+    const radius = (0.012 + eased * effect.reach) * unitWorld.value;
+    const halfWidth = Math.max(
+      unitWorld.value * 0.0005,
+      unitWorld.value * 0.002 * (1 - eased * 0.6),
+    );
+    const signature = `${(radius - halfWidth).toFixed(4)}|${(radius + halfWidth).toFixed(4)}`;
+    if (signature !== effectRingSignatures[rings]) {
+      effectRingSignatures[rings] = signature;
+      mesh.geometry.dispose();
+      mesh.geometry = new THREE.RingGeometry(
+        Math.max(0.0001, radius - halfWidth),
+        radius + halfWidth,
+        48,
+        1,
+      );
+    }
+    const material = mesh.material as THREE.MeshBasicMaterial;
+    mesh.position.set(world[0], world[1], 0.033);
+    mesh.scale.set(1, effect.kind === 'ripple' ? 0.34 : 1, 1);
+    material.color.setRGB(
+      effect.tint[0] / 255,
+      effect.tint[1] / 255,
+      effect.tint[2] / 255,
+      THREE.SRGBColorSpace,
+    );
+    material.opacity = alpha;
+    mesh.visible = true;
+    rings += 1;
+  }
+  for (let i = rings; i < effectRingPool.length; i += 1) {
+    const mesh = effectRingPool[i];
+    if (mesh !== undefined) mesh.visible = false;
+  }
+  for (let i = flashes; i < effectFlashPool.length; i += 1) {
+    const mesh = effectFlashPool[i];
+    if (mesh !== undefined) mesh.visible = false;
+  }
+}
+
+/**
  * The cherry, as the light source §17 calls it: a halo in the air and a spill where its light lands
  * on the table edge. Both are additive quads fed by the core's own `emberPresence` and `emberHeat`
  * through `cherryHot` — the same numbers, the same colour band the painted layer draws with — so
@@ -1891,6 +2022,7 @@ function step(deltaMs: number): void {
   placeRod(state);
   placeColumn(state);
   placeChar(state);
+  placeEffects();
   placeFlame(state);
   placeDust(state);
   placeRain(state);
