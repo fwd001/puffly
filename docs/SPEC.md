@@ -5500,3 +5500,35 @@ README > 2 —— 共用一个阈值会让小的那一份静默失去意义，�
 lock 里改的是根与九个工作区那 10 行；`yocto-queue@0.1.0` 是依赖，没碰）。仓库与 Pages 换到
 `wenzo001`：新地址实测 200、旧 Pages 地址 404（旧仓库路径还在 301 重定向，但分享用新地址），
 README 顶部与"Shipping"那张表三处一起改口。
+
+**四张演示图重拍，手顺留在仓里**：README 顶部那四张是 2026-09-30 的界面 —— 三个没有字的导轨点、没有环、
+没有那颗胶囊、烟是一团雾；配文却写着「the column takes shape」和「a word per row」，图里两样都没有。
+截图不能被判据，所以答案不是更严的测试，而是把"从构建产物重拍这四张"变成仓里的一条命令：
+`tests/smoke/readme-shots.mjs`。它不判据 —— 它把一次真呼吸演到底（拿起来、点着、从胶囊上吸七口），
+每一口按那行自己的秒数等（不是墙钟），再拍照，并把每帧读到的机器值打出来。四张实测：
+
+```
+SHOT {"name":"phone-smoke","lit":"puff","ring":"77","alt":"95%","force":true}
+SHOT {"name":"desktop-smoke","lit":"puff","ring":"73","alt":"95%","force":true}
+SHOT {"name":"phone-landscape-smoke","lit":"puff","ring":"78","alt":"96%","force":true}
+SHOT {"name":"desktop-settings","lit":"not attempted","ring":"1","alt":"100%","force":false}
+```
+
+**这条命令的第一版是坏的，坏法值得记**：我把 `lit` 初始化成 `'not attempted'`，而点火的循环条件是
+`lit === ''` ⇒ 那个循环一次都没跑，脚本对着**一张没点着的桌子**"吸"了七口，每口都在等一个永远不会
+出现的秒数（25 s × 7）。修好之后它多了一条"四次都没点着就点名失败"：一个工具拍出好看的空画面，比没有
+这个工具更糟。复跑（先 `PUBLIC_BASE=/puffly/ npm run build`，再 `npm run preview`）：
+`node tests/smoke/readme-shots.mjs http://localhost:4173/puffly/ docs/images`。
+四张从 19–29 KB 变成 58–65 KB —— 界面多了字与读数，压不回原来的体积。
+
+**这一轮的两条红是机器的账，不是产品的账**：整轮 `npm test` 在 loadavg 11.6 / 16.2 下报了
+两条 `Test timed out`（`packages/game-renderer/src/__tests__/plume-lift.test.ts` 那条 20 s 上限、
+`packages/game-renderer/src/__tests__/place-features.test.ts` 那条 30 s 上限），断言一个字没红。
+同一台机器、load 仍是 13，把这两个文件单独跑：8.5 s 与 10.2 s，8 条全绿。复跑口径：
+`npx vitest run packages/game-renderer/src/__tests__/plume-lift.test.ts packages/game-renderer/src/__tests__/place-features.test.ts`。
+两条上限各自的注释里已经写着测量数，这一轮没有动任何断言，也没有为了绿灯去放宽判据。
+
+**没做，等拍板**：`docs/images/` 里另有六张（`desktop-idle` / `desktop-lit` / `phone-lit` /
+`phone-portrait` / `phone-landscape` / `phone-landscape-lit`）README 一张都没引用，也全是 09-30 的旧界面。
+删掉它们是能删的（`git rm` 一条命令，历史里回得来），但"要不要留一组没人读的旧图"是仓库主人的决定，
+不是工具的。

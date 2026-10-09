@@ -6,12 +6,17 @@ A wordless, offline-first smoke-break game. A table, a lighter, a tray, a rod of
 never tobacco. Tap it, light it, draw, and watch the smoke take the shape that particular cigarette
 makes. Nothing to read, nothing to sign up for, nothing leaves the device.
 
-| Phone, 393×852                                                                   | Desktop, 1280×800                                                  |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| ![Smoke on a phone](docs/images/phone-smoke.jpg)                                 | ![The scene on a desktop](docs/images/desktop-smoke.jpg)           |
-| Three draws in: the column takes shape, and the cherry lights the air around it. | The same break on a wide stage, where the props spread apart.      |
-| ![Landscape phone](docs/images/phone-landscape-smoke.jpg)                        | ![Settings](docs/images/desktop-settings.jpg)                      |
-| 844×390: the props spread apart instead of crowding everything into a column.    | A word per row, and a control beside it. Nothing here is required. |
+| Phone, 393×852                                                                                                                                                           | Desktop, 1280×800                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Smoke on a phone](docs/images/phone-smoke.jpg)                                                                                                                         | ![The scene on a desktop](docs/images/desktop-smoke.jpg)                                                                                                 |
+| Mid-break: the ring is reading the strength of the breath that just left, the row counts the draws and what is left of the rod, and the plume is a line rather than fog. | The same break on a wide stage, where the props spread apart, the row stands as five figures at once, and the desk column holds the rest of the product. |
+| ![Landscape phone](docs/images/phone-landscape-smoke.jpg)                                                                                                                | ![Settings](docs/images/desktop-settings.jpg)                                                                                                            |
+| 844×390: the props spread apart instead of crowding everything into a column, and the table lifts clear of the chrome.                                                   | A word per row, and a control beside it. Nothing here is required.                                                                                       |
+
+All four are regenerated from the built artefact by `node tests/smoke/readme-shots.mjs <url>`: it
+performs a real break — picks the rod up, lights it, takes seven breaths off the pill — and
+photographs what the shipped chrome prints while it does. When the interface changes, the pictures
+are one command behind it rather than a stale claim about it.
 
 **Play it now: <https://wenzo001.github.io/puffly/>** — the same build `main` publishes on every
 push, installable to a phone home screen and usable offline afterwards.
@@ -349,6 +354,7 @@ tapping. Nothing anywhere awards a streak, because a streak is a punishment with
 | `npm run typecheck`                                     | Every workspace, including the Vue shell                                                                                                                                                                                                                                                                   |
 | `npm run build` then `bash tests/smoke/served-build.sh` | The built app is servable from its subpath: entry script, manifest and service worker all answer                                                                                                                                                                                                           |
 | `node tests/smoke/touch-device.mjs <url>`               | **96 checks** in a real browser: a whole break performed with taps on an emulated phone and with a mouse in a desktop window, the chrome read against the state it claims, and a breath with light and dark inside it                                                                                      |
+| `node tests/smoke/readme-shots.mjs <url>`               | Not a check: it performs a break in the built artefact and rewrites the four pictures at the top of this file, then prints the machine values each frame was read at. What a frame should look like stays a human call                                                                                     |
 
 The six steps above are run as one gate before a commit lands, in this order — format, lint with
 `--max-warnings 0`, typecheck, `npm test`, the subpath build (`PUBLIC_BASE=/puffly/`), the served
