@@ -251,6 +251,17 @@ export interface Puffly {
    * forbids, so this is a handle on the real thing, not a picture of it.
    */
   gesture(kind: 'hold' | 'tap' | 'release'): void;
+  /**
+   * What the renderer is being told about looks — reduced motion, quality, contrast, realism, the
+   * skin's palette. The 3D stage consumes the same bursts with the same look, so it reads this
+   * rather than assembling a second set of the same six fields.
+   */
+  rendererLook(): Pick<
+    RendererSettings,
+    'reducedMotion' | 'quality' | 'contrast' | 'skin' | 'customBackground' | 'realism'
+  >;
+  /** Subscribe to the engine's own events; returns an unsubscribe. */
+  onEvent(listener: (event: EngineEvent) => void): () => void;
   setSettings(patch: Partial<Settings>): void;
   /**
    * The four colours the room is painted with right now, or `null` before the first frame exists.
@@ -565,8 +576,22 @@ export function createPuffly(): Puffly {
     refreshSummary();
   };
 
+  /**
+   * Everyone else who wants the engine's events.
+   *
+   * The 3D stage consumes the same bursts the 2D renderer does — same `intakeBurst`, same pool,
+   * same look — and this is how it hears about them. One stream, two renderers, no second copy of
+   * what a burst is.
+   */
+  const eventListeners = new Set<(event: EngineEvent) => void>();
+  function onEvent(listener: (event: EngineEvent) => void): () => void {
+    eventListeners.add(listener);
+    return () => eventListeners.delete(listener);
+  }
+
   const handleEngineEvent = (event: EngineEvent): void => {
     renderer?.handleEvent(event);
+    for (const listener of eventListeners) listener(event);
     const state = engine?.getState();
     if (audio && state) audio.handle(event, state);
     if (event.kind !== 'session' || !engine || !state) return;
@@ -906,6 +931,8 @@ export function createPuffly(): Puffly {
     storageDegraded,
     canVibrate,
     attach,
+    onEvent,
+    rendererLook: () => rendererSettings(),
     sceneColours: (): ScenePalette | null => {
       const state = engine?.getState();
       if (!state) return null;

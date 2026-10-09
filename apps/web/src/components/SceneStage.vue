@@ -14,22 +14,20 @@
 import { TresCanvas } from '@tresjs/core';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { GameStateView } from '@puffly/game-core';
-import { FIELD_SCALE, ParticlePool } from '@puffly/game-renderer';
+import { FIELD_SCALE, intakeBurst, ParticlePool, plumeIntakeOptions } from '@puffly/game-renderer';
+import type { Puffly } from '../composables/usePuffly';
 import {
   ashtrayRadiusWorld,
   canvasToWorld,
   createPufflyRenderer,
-  isAlight,
   LIGHTER_SIZE,
   PACK_SIZE,
   parseAim,
   parsePropScale,
   parseStageBox,
-  plumeSpawn,
   puffDiameterWorld,
   rodBetweenInBox,
   softDisc,
-  stageToWorld,
   stageUnitToWorld,
   stageWorldSize,
   toWorldSize,
@@ -45,6 +43,7 @@ const props = defineProps<{
   stageBox: string;
   propScale: string;
   state: GameStateView | null;
+  game: Puffly;
 }>();
 
 const params = new URLSearchParams(window.location.search);
@@ -104,7 +103,19 @@ watch(puffPx, (next) => {
   material.size = next;
 });
 onMounted(() => window.addEventListener('resize', onResize));
-onBeforeUnmount(() => window.removeEventListener('resize', onResize));
+/**
+ * The plume is not this file's recipe: it takes the engine's own bursts in with the same
+ * `intakeBurst` and the same look the 2D renderer uses, so both layers draw one plume from one
+ * source. Seeded jitter for the scene's own use stays; the bursts bring their own.
+ */
+const stopEvents = props.game.onEvent((event) => {
+  if (event.kind !== 'burst') return;
+  intakeBurst(event.burst, pool, plumeIntakeOptions(props.game.rendererLook()));
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onResize);
+  stopEvents();
+});
 
 /** Until the shell publishes a box, treat the canvas as the stage — never crash, never assume more. */
 const FALLBACK_BOX: StageBox = { x: 0, y: 0, width: 1, height: 1 };
@@ -151,26 +162,6 @@ const tableY = computed(() => -WORLD_HEIGHT * 0.42);
 const CAPACITY = 900;
 const pool = new ParticlePool(CAPACITY);
 
-/** A small seeded generator: the scene's own jitter, so nothing here reads Math.random. */
-let seed = 0x9e3779b9;
-const spread = (): number => {
-  seed = (seed + 0x6d2b79f5) | 0;
-  let t = seed;
-  t = Math.imul(t ^ (t >>> 15), t | 1);
-  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
-
-/**
- * Each puff is a soft disc, not a point.
- *
- * Points were tried first and measured: `PointsMaterial.size` written as a child prop changed the
- * picture not at all, and even as a real object the plume came out as a ten-pixel speck — a puff is
- * a stack of soft discs, and this renderer's points path was not going to draw them. An
- * `InstancedMesh` of quads is what every engine uses for this, gives each puff its own size through
- * its instance matrix, and takes the falloff from a generated texture (`softDisc`) instead of a
- * canvas.
- */
 const puffs = new THREE.InstancedMesh(
   new THREE.PlaneGeometry(1, 1),
   new THREE.MeshBasicMaterial({
@@ -188,13 +179,6 @@ const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
 
 let clockMs = 0;
-let carry = 0;
-
-/** Where the cherry is, in world units, from the core's own anchor. */
-function emberWorld(): readonly [number, number, number] {
-  const anchor = props.state?.anchors.ember;
-  return anchor === undefined ? [0, 0, 0] : stageToWorld(anchor, frame.value);
-}
 
 function step(deltaMs: number): void {
   const state = props.state;
@@ -203,19 +187,6 @@ function step(deltaMs: number): void {
   // Sparks belong to the lighter's burst, which this layer does not draw yet; a null floor means the
   // pool simply does not do its bounce pass.
   pool.update(dt, state?.smoke.drift ?? { x: 0, y: 0 }, FIELD_SCALE, clockMs / 1000, null, 1, 0);
-
-  if (state !== null && isAlight(state)) {
-    carry += state.smoke.emissionRate * (dt / 1000);
-    let guard = 0;
-    while (carry >= 1 && guard < 16) {
-      carry -= 1;
-      guard += 1;
-      const ember = emberWorld();
-      pool.spawn(plumeSpawn(state, { x: ember[0], y: ember[1], z: 0 }, spread));
-    }
-  } else {
-    carry = 0;
-  }
 
   const size = frame.value;
   let n = 0;

@@ -166,6 +166,7 @@ function dismissOnScene(event: PointerEvent): void {
       :stage-box="summary.stageBox"
       :prop-scale="summary.propScale"
       :state="summary.state"
+      :game="game"
     />
 
     <p

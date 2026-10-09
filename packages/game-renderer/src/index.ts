@@ -6,7 +6,7 @@
  * touching a line of game logic (§79, §86).
  */
 
-export { MAX_SMOKE_RADIUS_PX, PUFF_SPREAD } from './renderer';
+export { MAX_SMOKE_RADIUS_PX, PUFF_SPREAD, plumeIntakeOptions, cartoonScale } from './renderer';
 export {
   createCanvasRenderer,
   type CanvasRendererOptions,

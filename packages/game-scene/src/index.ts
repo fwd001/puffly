@@ -11,7 +11,7 @@ export {
   toWorldSize,
 } from './props';
 export { softDisc } from './sprite';
-export { PLUME_DRAG, puffDiameterWorld, isAlight, plumeSpawn, type PlumePlace } from './plume';
+export { puffDiameterWorld } from './plume';
 export { createPufflyRenderer, type RendererChoice } from './renderer';
 export {
   AIM_KEYS,

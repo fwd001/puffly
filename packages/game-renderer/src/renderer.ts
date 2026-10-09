@@ -21,7 +21,7 @@ import type {
   ScenePalette,
   SkinPalette,
 } from '@puffly/game-core';
-import { FIELD_SCALE, budgetFor, intakeBurst } from './intake';
+import { FIELD_SCALE, budgetFor, intakeBurst, type IntakeOptions } from './intake';
 import { ParticlePool, type Particle } from './particles';
 import { drawAffordanceHint, drawAshtray, drawCigarette, drawLighter, drawPack } from './props';
 import { drawBackground } from './background';
@@ -193,7 +193,23 @@ export function applyBackground(
   };
 }
 
-function densityScaleFor(settings: RendererSettings): number {
+/**
+ * The options a burst is taken in with — the plume's density, tint and lift, from the settings.
+ *
+ * Exported because the 3D layer consumes the *same* bursts through the same `intakeBurst`, and two
+ * call sites spelling the same three fields out is how a look drifts apart. One writer, two readers.
+ */
+export function plumeIntakeOptions(
+  settings: Pick<RendererSettings, 'reducedMotion' | 'quality' | 'skin' | 'realism'>,
+): IntakeOptions {
+  return {
+    densityScale: densityScaleFor(settings),
+    plumeTint: settings.skin?.smoke,
+    plumeLift: 1 + EXHALE_LIFT * cartoonScale(settings.realism),
+  };
+}
+
+function densityScaleFor(settings: Pick<RendererSettings, 'reducedMotion' | 'quality'>): number {
   if (settings.reducedMotion) return 0.28;
   switch (settings.quality) {
     case 'light':
@@ -719,11 +735,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       if (event.kind !== 'burst') return;
       // The lift is read from the dial at the moment the air is born, so a plume already in the air
       // keeps the brightness it was breathed with rather than changing colour when the row is moved.
-      intakeBurst(event.burst, pool, {
-        densityScale: densityScaleFor(settings),
-        plumeTint: settings.skin?.smoke,
-        plumeLift: 1 + EXHALE_LIFT * cartoonScale(settings.realism),
-      });
+      intakeBurst(event.burst, pool, plumeIntakeOptions(settings));
       const effect = effectFor(event.burst, clockMs, settings.visualCues);
       if (effect && !settings.reducedMotion) effects.push(effect);
     },
