@@ -31,15 +31,17 @@ Canvas 2D 的绘制路径；逻辑层（模拟、内容、声音、存档、统�
 | 核心对渲染层的缝 | `GameStateView = DeepReadonly<GameState>` + `setStageAspect(aspect, stageHeightPx)` —— **核心一行不用改** | `packages/game-core/src/engine.ts` |
 | 文案表规模 | 448 条字符串，去重后 **314 个不同汉字** + 45 个西文/数字字符，最长一条 67 字 | 对 `apps/web/src/i18n/copy.ts` 的字符串字面量做字符集统计 |
 | 包体基线 | 整站 dist 440 KB，入口 JS **120 KB（gzip）** | `du -sh apps/web/dist`；`gzip -c` 入口文件 |
-| 本机 WebGPU | **没有**：Brave 有头/无头/带 `--enable-unsafe-webgpu` 三种都 `navigator.gpu === undefined`；Playwright 自带 Chromium/WebKit 未安装 | 三段 Playwright 探针 |
+| 本机 WebGPU | **有**：真实页面（http://127.0.0.1，`isSecureContext: true`）上 `navigator.gpu` 在、`requestAdapter()` 返回适配器；TresJS + `three/webgpu` 以 **WebGPU 后端**跑出 153 帧、零报错。⚠️ 先前那三次探针量的是 `about:blank`（`isSecureContext: false`），`navigator.gpu` 在那里本就不存在 —— 探针的毛病，不是机器的能力 | Playwright 在 `about:blank` 与真实页面上做 A/B |
 | 验收基线 | 现有 24 屏对账 **24 行全"落"**（S10 不适用；S12 桌面挂件已拍板不做） | `docs/SPEC.md`「稿子 24 屏逐屏对账」 |
 
-两条由此直接得出的结论：
+三条由此直接得出的结论：
 
-1. **回退路不是备选项，是本机唯一可验路径**。真机门禁在这台机器上只能证明 WebGL2 那条；WebGPU 那条
-   要么由人在别的浏览器上验，要么先装一份自带 WebGPU 的浏览器（见 §11）。
-2. **中文字形集小到可以按需烘**：314 个字形的 MSDF 图集放得进 512²，不需要任何中文字库文件；
-   "纯图标档"就是那批字根本不生成。
+1. **两条后端本机都能验**：WebGPU 走 localhost/https（安全上下文），WebGL2 用强制回退跑。先前
+   「本机只能验回退路」已作废 —— 那是探针跑去 `about:blank` 量出来的假结论。
+2. **最小场景就 421 KB（gzip）**：一个立方体 + 400 个点的 TresJS + `three/webgpu` 产物 1.52 MB /
+   gzip 421 KB，而现在整个入口是 120 KB —— §8 那条「入口 gzip ≤ 400 KB」作废，改成实测口径。
+3. **中文字形集小到可以按需烘**：314 个字形的 MSDF 图集放得进 512²，不需要任何中文字库文件；
+   纯图标档就是那批字根本不生成。
 
 ## 3. 架构与包边界
 
@@ -111,7 +113,9 @@ packages/game-core / game-content / game-audio / game-storage / game-statistics 
 
 **门禁（六步）保留**，另加两条：
 
-- **包体上限**：入口 gzip ≤ 400 KB（今天 120 KB，three+tres 预计 +150–180 KB），超了要红；
+- **包体上限（按实测，不按估计）**：最小 TresJS + `three/webgpu` 场景 = 1.52 MB / **gzip 421 KB**，
+  而今天整个入口 = 120 KB（读数来自临时工程 `/tmp/puffly-spike`）。预算写成「首屏可交互资源
+  ≤ 700 KB gzip，且场景块单独切出来懒加载」，超了要红；
 - **两条后端**：真机套件跑两遍（本机只能跑 WebGL2；WebGPU 那遍见 §11）。
 
 ## 9. 24 屏追平清单
@@ -151,8 +155,9 @@ S12 已拍板不做）。重写的验收动作是：**用同一把尺子、在 3
 
 ## 10. 风险与不做
 
-- **本机没有 WebGPU**（有头/无头/带标志位都验过）⇒ 本机门禁只能证明回退路；WebGPU 那条
-  要么人工验，要么装一份自带 WebGPU 的浏览器（§11）。
+- ~~本机没有 WebGPU~~ **已更正**：本机有（真实页面 + 安全上下文即可），两条后端都能跑。留下的纪律：
+  任何「这台机器能不能」的探针都要跑在**真实页面**上，别在 `about:blank` 上量 —— `isSecureContext`
+  为假时 `navigator.gpu` 本就不存在，今天已经骗过我一次。
 - **包体与首帧**：three+tres 比现在重，PWA 预缓存清单要重配；首帧要有加载态。
 - **中文字形图集**：314 字形是今天文案表的大小；文案表增长要重烘（构建期，写进流程）。
 - **RTL**：稿子要求"燃烧方向不跟着阿拉伯语翻"，镜像在 3D 里要自己实现，别指望 CSS 逻辑属性。
@@ -160,7 +165,8 @@ S12 已拍板不做）。重写的验收动作是：**用同一把尺子、在 3
 
 ## 11. 待决定
 
-1. **要不要装 Playwright 自带的 Chromium**（约 150 MB，进本机缓存）：装了 WebGPU 那条也能进本机门禁；
-   不装就写"WebGPU 只能人工验"。
+1. **要不要装 Playwright 自带的 Chromium**（约 150 MB，进本机缓存）：现在**不是能力问题**（本机 Brave
+   两条后端都能跑，见 §2/§10），只关系「CI 里要不要也带一份浏览器」；不装就继续用 `PUFFLY_CHROME`
+   指本机 Brave。
 2. **随渲染器一起失效的那 19 个读像素套件**：建议直接删（逻辑层与那 13 个纯套件都不动，判据按 §8 的三层重建）；
    如果你想留档，我会换成不进 CI 的归档形式，而不是留一堆红的。
