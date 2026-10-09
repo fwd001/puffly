@@ -474,6 +474,12 @@ async function openSheet(page, id, mouse = false) {
   const handle = page.locator(selector);
   if (mouse) await handle.click();
   else await handle.tap();
+  // Wait for the sheet itself, then the settle beat: a fixed 460 ms once raced a slow frame twice
+  // in one day (2026-10-09), and the read that lost left an uncaught TypeError which aborted every
+  // check after it. A miss here does not throw — the check that follows reports it as a red.
+  await page
+    .waitForSelector('.sheet[data-open="true"]', { state: 'attached', timeout: 4000 })
+    .catch(() => {});
   await page.waitForTimeout(460);
 }
 
@@ -976,7 +982,7 @@ const hintCentre = async (page) => {
 
   const jumps = await page.evaluate(() => {
     const sheet = document.querySelector('.sheet[data-open="true"]');
-    const chips = [...sheet.querySelectorAll('[data-jump]')];
+    const chips = sheet === null ? [] : [...sheet.querySelectorAll('[data-jump]')];
     const strip = chips[0]?.parentElement;
     const cs = strip === undefined ? null : getComputedStyle(strip);
     return {
@@ -1603,6 +1609,20 @@ try {
   await page.waitForTimeout(420);
   const cabinet = await page.evaluate(() => {
     const sheet = document.querySelector('.sheet[data-open="true"]');
+    // Null-safe on purpose: a sheet that never opened must read as a red check, not crash the run.
+    if (sheet === null) {
+      return {
+        sheet: 'none',
+        count: '',
+        tiles: 0,
+        kinds: [],
+        rodGroups: 0,
+        locked: 0,
+        roomLook: null,
+        hint: '',
+        lengths: [],
+      };
+    }
     const tiles = [...sheet.querySelectorAll('.tile')];
     return {
       sheet: sheet?.dataset.sheet ?? 'none',
