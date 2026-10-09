@@ -396,7 +396,7 @@ function onSceneReady(context: unknown): void {
   // The text runs the DOM's own words mirror into. Their geometry is filled per change, not per
   // frame — a run changes when a figure changes, which is nothing like 60 times a second.
   const words = new THREE.Group();
-  for (let i = 0; i < RUN_SELECTORS.length; i += 1) {
+  for (let i = 0; i < RUN_COUNT; i += 1) {
     const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
     const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
     mesh.frustumCulled = false;
@@ -623,6 +623,9 @@ const RUN_SELECTORS = [
   '.hud > span.num.alt',
   '.hud .ring .digits, .hud .ring .mark',
 ];
+/** S11's desk row is five more runs, matched per element (they come and go with the width). */
+const DESK_RUNS = 5;
+const RUN_COUNT = RUN_SELECTORS.length + DESK_RUNS;
 const ringTrack = shallowRef<THREE.Mesh | null>(null);
 const ringArc = shallowRef<THREE.Mesh | null>(null);
 let ringTrackMaterial: THREE.MeshBasicMaterial | null = null;
@@ -696,8 +699,12 @@ function fillRunGeometry(mesh: THREE.Mesh, text: string, em: number): void {
 function placeText(): void {
   const group = textRuns.value;
   if (group === null || atlas === null || atlasTexture === null) return;
+  const desk = document.querySelectorAll<HTMLElement>('.hud .desk .read');
   runMeshes.forEach((mesh, index) => {
-    const node = document.querySelector<HTMLElement>(RUN_SELECTORS[index] ?? '');
+    const node =
+      index < RUN_SELECTORS.length
+        ? document.querySelector<HTMLElement>(RUN_SELECTORS[index] ?? '')
+        : (desk[index - RUN_SELECTORS.length] ?? null);
     const material = runMaterials[index];
     if (node === null || material === undefined) {
       mesh.visible = false;

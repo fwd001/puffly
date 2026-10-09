@@ -462,3 +462,6 @@ html.scene3d-text .hud .ring .mark {
 html.scene3d-text .hud .ring svg {
   visibility: hidden;
 }
+html.scene3d-text .hud .desk .read {
+  -webkit-text-fill-color: transparent;
+}
