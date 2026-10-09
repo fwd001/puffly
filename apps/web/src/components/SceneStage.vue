@@ -13,8 +13,11 @@
  */
 import { TresCanvas } from '@tresjs/core';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
+import { emberPresence } from '@puffly/game-core';
 import type { GameStateView } from '@puffly/game-core';
+import { clamp01 } from '@puffly/shared';
 import {
+  cherryHot,
   FIELD_SCALE,
   intakeBurst,
   ParticlePool,
@@ -215,6 +218,10 @@ const tint = new THREE.Color();
 const vignette = shallowRef<THREE.Mesh | null>(null);
 let vignetteMaterial: THREE.MeshBasicMaterial | null = null;
 const puffs = shallowRef<THREE.InstancedMesh | null>(null);
+const halo = shallowRef<THREE.Mesh | null>(null);
+let haloMaterial: THREE.MeshBasicMaterial | null = null;
+const spill = shallowRef<THREE.Mesh | null>(null);
+let spillMaterial: THREE.MeshBasicMaterial | null = null;
 
 function onSceneReady(context: unknown): void {
   probe.context = context;
@@ -249,6 +256,68 @@ function onSceneReady(context: unknown): void {
   cloud.frustumCulled = false;
   cloud.count = 0;
   puffs.value = cloud;
+
+  const glow = softDisc(64);
+  haloMaterial = new THREE.MeshBasicMaterial({
+    map: glow,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  halo.value = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), haloMaterial);
+  spillMaterial = new THREE.MeshBasicMaterial({
+    map: glow,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  spill.value = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), spillMaterial);
+}
+
+/**
+ * The cherry, as the light source §17 calls it: a halo in the air and a spill where its light lands
+ * on the table edge. Both are additive quads fed by the core's own `emberPresence` and `emberHeat`
+ * through `cherryHot` — the same numbers, the same colour band the painted layer draws with — so
+ * the light can never read hotter than the thing it comes from. When the cherry goes dark both go
+ * out, because the whole point of drawing it is that the picture has one warm anchor.
+ */
+function placeCherry(state: GameStateView | null): void {
+  const haloMesh = halo.value;
+  const spillMesh = spill.value;
+  if (haloMesh === null || spillMesh === null) return;
+  const ember = state?.cigarette.ember;
+  const at = points.value.ember;
+  const showing =
+    state !== null && ember !== undefined && at !== undefined && state.cigarette.pose.visible;
+  const total = showing && ember !== undefined ? emberPresence(ember) : 0;
+  const lit = showing && total > 0.02;
+  haloMesh.visible = lit;
+  spillMesh.visible = lit;
+  if (!lit || ember === undefined || at === undefined || state === null) return;
+
+  const world = canvasToWorld(at, box.value, aspect.value);
+  const unit = unitWorld.value;
+  const hot = cherryHot(ember.temperature);
+  const setHot = (material: THREE.MeshBasicMaterial | null): void => {
+    material?.color.setRGB(hot[0] / 255, hot[1] / 255, hot[2] / 255, THREE.SRGBColorSpace);
+  };
+  setHot(haloMaterial);
+
+  // The halo's size is the core's own glow radius, widened by its flare (`drawCherryLight`).
+  const haloRadius = ember.glowRadius * (1.9 + ember.flare * 1.4) * unit;
+  haloMesh.position.set(world[0], world[1], 0.03);
+  haloMesh.scale.set(haloRadius * 2, haloRadius * 2, 1);
+  if (haloMaterial !== null) haloMaterial.opacity = clamp01(0.16 * total);
+
+  // The spill sits on the table edge, below the ember by the state's own layout.
+  const edgeCanvasY = box.value.y + box.value.height * state.stage.layout.tableEdgeY;
+  const edge = canvasToWorld({ x: at.x, y: edgeCanvasY }, box.value, aspect.value);
+  const distance = state.stage.layout.tableEdgeY - (at.y - box.value.y) / box.value.height;
+  const spillRadius = 0.34 * (0.6 + total * 0.6) * unit;
+  spillMesh.position.set(edge[0], edge[1], -0.35);
+  spillMesh.scale.set(spillRadius * 2, spillRadius * 2 * 0.24, 1);
+  setHot(spillMaterial);
+  if (spillMaterial !== null) spillMaterial.opacity = clamp01(0.11 * total * (1 - distance));
 }
 watch(vignetteAlphaNow, (next) => {
   if (vignetteMaterial !== null) vignetteMaterial.opacity = next;
@@ -264,6 +333,7 @@ function step(deltaMs: number): void {
   // pool simply does not do its bounce pass.
   pool.update(dt, state?.smoke.drift ?? { x: 0, y: 0 }, FIELD_SCALE, clockMs / 1000, null, 1, 0);
   probe.frames += 1;
+  placeCherry(state);
 
   const cloud = puffs.value;
   if (cloud === null) return;
@@ -407,6 +477,10 @@ function step(deltaMs: number): void {
       `smoke.emissionRate`, not this file's opinion.
     -->
     <primitive v-if="puffs !== null" :object="puffs" />
+
+    <!-- The cherry's own light: halo in the air, spill on the table edge. Both additive. -->
+    <primitive v-if="halo !== null" :object="halo" />
+    <primitive v-if="spill !== null" :object="spill" />
   </TresCanvas>
 </template>
 

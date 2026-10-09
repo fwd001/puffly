@@ -112,6 +112,15 @@ export function puffTint(rgb: Rgb, heat: number, visibility: number): Rgb {
 }
 
 /**
+ * The cherry's colour band, deep ember orange to near white, by the core's own temperature band
+ * (`emberHeat`). Shared so the light on the smoke cannot read hotter than the thing it comes from
+ * (§4 声音跟画面连接's colour twin) — the 3D layer's halo is drawn from this same ramp.
+ */
+export function cherryHot(temperature: number): Rgb {
+  return mixRgb([255, 120, 32], [255, 236, 190], emberHeat(temperature));
+}
+
+/**
  * The venue's share of the puff's width (S21 通风系数): a sealed place lets the ribbon hang, a
  * forecourt tears it out sideways. Anchored at 1 and only ever adding, because the core's
  * `smoke.dispersion` also carries the rod and the ashtray — taking that straight into the radius
@@ -535,9 +544,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     if (!state.cigarette.pose.visible) return;
 
     const at = viewport.px(state.anchors.ember);
-    // The same band the cherry itself is drawn from, so the light on the smoke cannot read hotter
-    // than the thing it comes from (§4 声音跟画面连接's colour twin).
-    const hot = mixRgb([255, 120, 32], [255, 236, 190], emberHeat(ember.temperature));
+    const hot = cherryHot(ember.temperature);
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

@@ -11,6 +11,7 @@ export {
   PUFF_FLATTEN,
   PUFF_SPREAD,
   cartoonScale,
+  cherryHot,
   plumeIntakeOptions,
   puffAlpha,
   puffHeat,
