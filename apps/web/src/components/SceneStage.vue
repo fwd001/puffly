@@ -442,7 +442,7 @@ function onSceneReady(context: unknown): void {
     mesh.visible = false;
     mesh.position.z = z;
     rigGroup.add(mesh);
-    return { mesh, material, signature: '' };
+    return { mesh, material, signature: '', baseY: 0, baseOpacity: 1 };
   };
   pillCardRig.value = buildCard(-0.09);
   railRig.value = buildCard(-0.072);
@@ -751,6 +751,12 @@ const RUN_TABLE: ReadonlyArray<{ selector: string; nth: number }> = [
   ...Array.from({ length: 32 }, (_, nth) => ({ selector: ARCHIVE_TEXTS, nth })),
 ];
 const RUN_COUNT = RUN_TABLE.length;
+/** The archive's slots, by index — their words ride the card's arrival (see `placeArchive`). */
+const ARCHIVE_RUNS = RUN_TABLE.map((slot, index) =>
+  slot.selector === ARCHIVE_TEXTS ? index : -1,
+).filter((index) => index >= 0);
+/** Where each run last landed, so an arrival can move y without rebuilding the glyph geometry. */
+const runBaseY: number[] = [];
 const chrome = shallowRef<THREE.Group | null>(null);
 interface RingRig {
   track: THREE.Mesh;
@@ -770,6 +776,9 @@ interface CardRig {
   mesh: THREE.Mesh;
   material: THREE.MeshBasicMaterial;
   signature: string;
+  /** Where `fillCard` last put the plate, and at what opacity — the archive's arrival moves both. */
+  baseY: number;
+  baseOpacity: number;
 }
 const pillCardRig = shallowRef<CardRig | null>(null);
 const railRig = shallowRef<CardRig | null>(null);
@@ -902,6 +911,7 @@ function placeText(): void {
         aspect.value,
       );
       mesh.position.set(world[0], world[1], RUN_TEXT_Z);
+      runBaseY[index] = world[1];
     }
     mesh.visible = true;
   });
@@ -1175,6 +1185,7 @@ function fillCard(rig: CardRig, element: HTMLElement | null, shrink: number): vo
       h: rect.height / Math.max(1, viewportHeightPx.value),
     });
     card.position.set(whole.centre[0], whole.centre[1], card.position.z);
+    rig.baseY = whole.centre[1];
     const geometry = new THREE.BufferGeometry();
     const stops = [
       ...style.backgroundImage.matchAll(
@@ -1247,6 +1258,7 @@ function fillCard(rig: CardRig, element: HTMLElement | null, shrink: number): vo
     const ry = Math.min(1, radiusPx / Math.max(1, rect.height / 2));
     material.map = rx >= 1 && ry >= 1 ? solidDisc(64) : roundedRect(128, rx, ry);
     material.needsUpdate = true;
+    rig.baseOpacity = material.opacity;
   }
   card.visible = true;
 }
@@ -1331,11 +1343,60 @@ function placeCat(): void {
   );
 }
 
-/** The archive card (S19's long-press): the surface here, its lines and marks through the runs. */
+/**
+ * S19's arrival, as the scene's own: the card rises 18 px on the same 220 ms curve its DOM copy
+ * animates with (`archive-rise` in ArchiveCard.vue), but that animation is off under this layer —
+ * and moving the plate alone would leave its words standing still, so the runs ride along. The
+ * reduced-motion promise is the CSS gate's: the card is simply there.
+ */
+const ARCHIVE_RISE_PX = 18;
+const ARCHIVE_RISE_MS = 220;
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let archiveShownAt = 0;
+
+/** cubic-bezier(0.16, 0.84, 0.3, 1) — the curve `archive-rise` names, solved by Newton on x. */
+function archiveEase(progress: number): number {
+  const axis = (a: number, b: number, t: number): number =>
+    3 * (1 - t) * (1 - t) * t * a + 3 * (1 - t) * t * t * b + t * t * t;
+  let t = progress;
+  for (let i = 0; i < 5; i += 1) {
+    const error = axis(0.16, 0.3, t) - progress;
+    if (Math.abs(error) < 1e-4) break;
+    const slope =
+      3 * (1 - t) * (1 - t) * 0.16 + 6 * (1 - t) * t * (0.3 - 0.16) + 3 * t * t * (1 - 0.3);
+    if (slope === 0) break;
+    t -= error / slope;
+  }
+  return axis(0.84, 1, t);
+}
+
+/** The archive card (S19's long-press): the surface here, its words through the runs, and arrival. */
 function placeArchive(): void {
   const rig = archiveCardRig.value;
   if (rig === null) return;
-  fillCard(rig, document.querySelector<HTMLElement>('.archive'), 1);
+  const card = document.querySelector<HTMLElement>('.archive');
+  fillCard(rig, card, 1);
+  if (card === null || !rig.mesh.visible) {
+    // Gone — the next appearance is a fresh arrival.
+    archiveShownAt = 0;
+    return;
+  }
+  if (archiveShownAt === 0) archiveShownAt = performance.now();
+  const eased = REDUCED_MOTION
+    ? 1
+    : archiveEase(Math.min(1, (performance.now() - archiveShownAt) / ARCHIVE_RISE_MS));
+  const rise = (1 - eased) * pxToWorld(ARCHIVE_RISE_PX);
+  rig.mesh.position.y = rig.baseY - rise;
+  rig.material.opacity = rig.baseOpacity * eased;
+  for (const index of ARCHIVE_RUNS) {
+    const mesh = runMeshes[index];
+    const material = runMaterials[index];
+    const base = runBaseY[index];
+    if (mesh === undefined || material === undefined || base === undefined || !mesh.visible)
+      continue;
+    mesh.position.y = base - rise;
+    material.opacity *= eased;
+  }
 }
 </script>
 
