@@ -27,7 +27,15 @@ const PURE_PACKAGES = [
   'packages/game-content',
   'packages/game-statistics',
 ];
-const ADAPTER_PACKAGES = ['packages/game-renderer', 'packages/game-audio', 'packages/game-storage'];
+const ADAPTER_PACKAGES = [
+  'packages/game-renderer',
+  'packages/game-audio',
+  'packages/game-storage',
+  // The 3D scene (2026-10-09): TresJS + three/webgpu, the replacement for the Canvas 2D renderer.
+  // It is an adapter like the others — it may touch the platform, and it may not be imported by a
+  // pure package.
+  'packages/game-scene',
+];
 
 /** Platform objects the pure layer may not reach for. Matched as uses, not as words in prose. */
 const BANNED_USES = [
@@ -418,6 +426,25 @@ describe('§73 architecture guards', () => {
     expect(scanAssertionLabels('sample.test.ts', "expect('a string').toBe('a string');")).toEqual(
       [],
     );
+  });
+
+  it('every package on disk is classified, so a new one cannot slip past these rules', () => {
+    // The two lists above are the denominator of every scan in this file. A package that is in
+    // neither is not "clean" — it is unread. That is how `packages/game-scene` arrived on
+    // 2026-10-09: it used a platform type and neither list noticed, because neither list knew it
+    // existed. Classifying is a five-second decision; leaving it silent is a permanent hole.
+    const onDisk = readdirSync(join(root, 'packages')).filter((name) =>
+      statSync(join(root, 'packages', name)).isDirectory(),
+    );
+    const classified = new Set(
+      [...PURE_PACKAGES, ...ADAPTER_PACKAGES].map((dir) => dir.replace('packages/', '')),
+    );
+    const unclassified = onDisk.filter((name) => !classified.has(name));
+    console.log(`PACKAGES on disk=${String(onDisk.length)} classified=${String(classified.size)}`);
+    expect(
+      unclassified,
+      'a package is in neither PURE_PACKAGES nor ADAPTER_PACKAGES, so no rule reads it',
+    ).toEqual([]);
   });
 
   it('no shipped source reaches past a package index', () => {
