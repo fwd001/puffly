@@ -5528,6 +5528,16 @@ SHOT {"name":"desktop-settings","lit":"not attempted","ring":"1","alt":"100%","f
 `npx vitest run packages/game-renderer/src/__tests__/plume-lift.test.ts packages/game-renderer/src/__tests__/place-features.test.ts`。
 两条上限各自的注释里已经写着测量数，这一轮没有动任何断言，也没有为了绿灯去放宽判据。
 
+**这一轮的三处补账**：① `apps/web/src/components/DataRail.vue` 的注释写着「the seven destinations」，
+而 `RAIL_ENTRIES` 是 8 条 —— 数错的注释比数错的代码更难修，改口 eight。② README 那两个"5 种烟形 /
+39 条声音 profile"以前没有复跑口径（只有前三数带着一条 grep）：现在写明它们是
+`packages/game-content/src/textures.ts` 里的 `SMOKE_STYLES` 与 `SOUND_PROFILES`，同一条命令指向那个
+文件印 44，而 44 = 5 + 39（现量）；那三型也现量对过，inhale 7 + savor 3 + filter 1 = 11。
+③ 真机那一族在**同一份构建**上分叉了一次：`a drawn breath rewrites the air above the table` 红在
+mean rise **0.3**（判据 > 1），而 movedRatio 9.2% 是过的；同一构建复跑 mean rise **5.8**、
+`96/96 checks passed`。红的是采样时刻落在烟还没亮进那条带里，不是烟变了（这一轮改的只有注释与文档）。
+README 现在把这件事写在它自己的那条判据旁边，免得下一个人把一次分叉读成一次回归。
+
 **没做，等拍板**：`docs/images/` 里另有六张（`desktop-idle` / `desktop-lit` / `phone-lit` /
 `phone-portrait` / `phone-landscape` / `phone-landscape-lit`）README 一张都没引用，也全是 09-30 的旧界面。
 删掉它们是能删的（`git rm` 一条命令，历史里回得来），但"要不要留一组没人读的旧图"是仓库主人的决定，

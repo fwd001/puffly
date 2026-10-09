@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * S10's column: the seven destinations and the day's own numbers, standing where the phone keeps
+ * S10's column: the eight destinations and the day's own numbers, standing where the phone keeps
  * them behind a tab, a button and a scroll.
  *
  * It is a second density of the same facts, not a second source — the panel is the very component

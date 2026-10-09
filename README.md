@@ -90,12 +90,14 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   `tests/architecture.test.ts` fails the build if a pure package ever does.
 - **Data** `⤓ ⤒ ⌫` — export the save, re-import one, or erase every record on this device.
 - **Rod, room, lighter, tray** — eleven rods, twenty-one rooms, eight props (four lighters, four
-  trays), five smoke styles and thirty-nine sound profiles. The
+  trays), five smoke styles and thirty-nine sound profiles; those last two are the arrays
+  `SMOKE_STYLES` and `SOUND_PROFILES` in `packages/game-content/src/textures.ts`. The
   eleven rods are the ladder of the brief: seven inhaled, three savoured, one filtered, unlocked at
   cumulative sticks, and the cabinet groups them by what the hand does with them. Each rod has a
   plume character (column, haze, curls, pour, bloom), so a Mist pours down the table while an Ember
-  blooms upward. Recount them with
-  `grep -c "^    id: " packages/game-content/src/{cigarettes,environments,props}.ts`. The pack lying
+  blooms upward. Recount the first three with
+  `grep -c "^    id: " packages/game-content/src/{cigarettes,environments,props}.ts`, and the last
+  two with the same command pointed at `textures.ts` — its 44 is 5 + 39. The pack lying
   beside them is a control now: an empty hand taps it to take the rod it says it holds, a hand that
   is already busy taps it to rattle the boxes inside, and neither answer spends anything. Anything
   un-tappable still may not carry an anchor or a hit radius, and a guard keeps that rule
@@ -456,7 +458,10 @@ Honest gaps, so nobody rediscovers them as bugs:
   while and are not any more: the tap anchors are read from `.stage[data-aim]`, which is where the
   engine put them after the table of hand-copied unlifted coordinates was deleted, and the plume
   structure thresholds were re-measured against the picture the shared flow field and the smoke's own
-  drag produce. What the suite still cannot decide is whether the picture is _right_ — the same
+  drag produce. One of its timed checks does fork under load: the breath's mean rise read `0.3` once
+  against a bar of `> 1`, and `5.8` on a rerun of the same build — the sampling moment is the fragile
+  part, not the picture, so a red on that one line is worth a rerun before it is worth a fix.
+  What the suite still cannot decide is whether the picture is _right_ — the same
   division as the bullet above.
 - The reading floor for text a player reads is ≥ 15px, and the desk column's eight entries are
   finger-sized at ≥ 44px; the bottom rail's caption is deliberately one notch under the floor at
