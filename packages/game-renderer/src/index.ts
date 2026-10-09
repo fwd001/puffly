@@ -17,6 +17,7 @@ export {
   puffHeat,
   puffSpread,
   puffTint,
+  sparkStreak,
 } from './renderer';
 export {
   SKY_COOL,

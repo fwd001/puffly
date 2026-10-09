@@ -127,6 +127,24 @@ export function cherryHot(temperature: number): Rgb {
  * would shrink the calibrated picture of every room at once. The brightness half of the same
  * coefficient arrives through `field.visibility`.
  */
+/**
+ * A flint spark as a streak — the same three numbers both painters read: the colour mixed off the
+ * particle's own tint, an alpha that rides `× 3` (a spark lives two frames and has to be seen in
+ * them), and the stroke's width in stage units. From/to are the particle's own previous and
+ * current positions; each reader maps those its own way.
+ */
+export function sparkStreak(particle: { alpha: number; radius: number; tint: Rgb }): {
+  alpha: number;
+  widthUnits: number;
+  colour: Rgb;
+} {
+  return {
+    alpha: clamp01(particle.alpha * 3),
+    widthUnits: particle.radius * 0.9,
+    colour: mixRgb(particle.tint, [255, 214, 150], 0.7),
+  };
+}
+
 export function puffSpread(ventilation: number): number {
   return 1 + ventDraught(ventilation) * 0.45;
 }
@@ -500,10 +518,10 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       for (const particle of sparks) {
         const from = viewport.px({ x: particle.px, y: particle.py });
         const to = viewport.px({ x: particle.x, y: particle.y });
-        const alpha = clamp01(particle.alpha * 3);
-        if (alpha <= 0.01) continue;
-        ctx.strokeStyle = rgbToCss(mixRgb(particle.tint, [255, 214, 150], 0.7), alpha);
-        ctx.lineWidth = Math.max(1, viewport.len(particle.radius * 0.9));
+        const streak = sparkStreak(particle);
+        if (streak.alpha <= 0.01) continue;
+        ctx.strokeStyle = rgbToCss(streak.colour, streak.alpha);
+        ctx.lineWidth = Math.max(1, viewport.len(streak.widthUnits));
         ctx.beginPath();
         ctx.moveTo(from.x, from.y);
         ctx.lineTo(to.x, to.y);

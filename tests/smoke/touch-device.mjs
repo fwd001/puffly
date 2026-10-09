@@ -2485,12 +2485,31 @@ try {
   await page.locator('.pill').click();
   await page.waitForTimeout(220);
   const flameLit = await flameRead();
+  // The flint's sparks arrive on the sim's own clock (~1 s after the strike here), so this waits
+  // for the pass rather than sampling at a guessed moment; the streaks themselves were probe-
+  // checked (7 of them, short dashes off the chimney).
+  const sparksSeen = await page
+    .waitForFunction(
+      () => {
+        const ctx = window.__pufflyScene.context;
+        const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+        let count = 0;
+        scene.traverse((o) => {
+          if (o.name === 'sparks') count = o.count;
+        });
+        return count > 0;
+      },
+      null,
+      { timeout: 4000, polling: 'raf' },
+    )
+    .then(() => true)
+    .catch(() => false);
   // The same strike throws the cap open — `lighter.lid` through LID_THROW_DEG (78°), one input,
   // same as the painted cap. Measured at this sample: −1.24 of −1.36 rad; shut again by rest.
   check(
-    "3D: the ignition's flame and its open cap are drawn by the scene (S2)",
-    !flameIdle.visible && flameLit.visible && flameLit.lid < -0.5,
-    `idle=${String(flameIdle.visible)} lit=${String(flameLit.visible)} lid=${flameLit.lid.toFixed(2)}`,
+    "3D: the ignition's flame, open cap and sparks are drawn by the scene (S2)",
+    !flameIdle.visible && flameLit.visible && flameLit.lid < -0.5 && sparksSeen,
+    `idle=${String(flameIdle.visible)} lit=${String(flameLit.visible)} lid=${flameLit.lid.toFixed(2)} sparks=${String(sparksSeen)}`,
   );
   // The break sheet wears the same mirror: its root gives up its own paint (visibility, so the
   // surface's computed background stays readable), its mirrorable rows give up their ink inline,

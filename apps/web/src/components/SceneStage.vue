@@ -34,6 +34,7 @@ import {
   FLAME_BASE_FRACTION,
   flameMetrics,
   LID_THROW_DEG,
+  sparkStreak,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -275,6 +276,10 @@ let spillMaterial: THREE.MeshBasicMaterial | null = null;
 /** Falling ash, one instance per fragment the core is carrying — a shape, hence `solidDisc`. */
 const ASH_CAPACITY = 64;
 const flakes = shallowRef<THREE.InstancedMesh | null>(null);
+/** The flint's sparks: streaks, not blobs — the one thing in the frame that moves fast. They share
+ *  the smoke pool, and this layer stops drawing them as puffs. */
+const SPARK_CAPACITY = 24;
+const sparksMesh = shallowRef<THREE.InstancedMesh | null>(null);
 /** The lighter's flame: its teardrop and the blue throat under it, both additive. */
 const flameBody = shallowRef<THREE.Mesh | null>(null);
 const flameThroat = shallowRef<THREE.Mesh | null>(null);
@@ -524,6 +529,24 @@ function onSceneReady(context: unknown): void {
   flameMesh.visible = false;
   rigGroup.add(flameMesh);
   flameBody.value = flameMesh;
+  const sparkCloud = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+    SPARK_CAPACITY,
+  );
+  sparkCloud.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  sparkCloud.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(SPARK_CAPACITY * 3),
+    3,
+  );
+  sparkCloud.frustumCulled = false;
+  sparkCloud.name = 'sparks';
+  rigGroup.add(sparkCloud);
+  sparksMesh.value = sparkCloud;
   flameThroatMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(64),
     transparent: true,
@@ -1283,7 +1306,38 @@ function step(deltaMs: number): void {
   const highContrast = props.game.rendererLook().contrast === 'high';
   const spread = puffSpread(state?.environment.ventilation ?? 1);
   let n = 0;
+  let sparkN = 0;
   pool.forEachActive((particle) => {
+    if (particle.spark) {
+      // Sparks are streaks: they belong to this pass, and drawn as puffs they were blobs of smoke
+      // where the picture promises a shower of light.
+      const spark = sparksMesh.value;
+      if (spark !== null && sparkN < SPARK_CAPACITY) {
+        const from = canvasToWorld({ x: particle.px, y: particle.py }, box.value, aspect.value);
+        const to = canvasToWorld({ x: particle.x, y: particle.y }, box.value, aspect.value);
+        const dx = to[0] - from[0];
+        const dy = to[1] - from[1];
+        const streak = sparkStreak(particle);
+        dummy.position.set((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, 0.02 + particle.depth);
+        dummy.rotation.set(0, 0, Math.atan2(dy, dx));
+        dummy.scale.set(
+          Math.hypot(dx, dy),
+          Math.max(streak.widthUnits * unitWorld.value, pxToWorld(1)),
+          1,
+        );
+        dummy.updateMatrix();
+        spark.setMatrixAt(sparkN, dummy.matrix);
+        tint.setRGB(
+          (streak.colour[0] ?? 0) / 255,
+          (streak.colour[1] ?? 0) / 255,
+          (streak.colour[2] ?? 0) / 255,
+          THREE.SRGBColorSpace,
+        );
+        spark.setColorAt(sparkN, tint.multiplyScalar(streak.alpha));
+        sparkN += 1;
+      }
+      return;
+    }
     if (n >= CAPACITY) return;
     // The pool works in stage units; the camera's frame is the only conversion from here on.
     dummy.position.set(
@@ -1309,6 +1363,12 @@ function step(deltaMs: number): void {
     cloud.setColorAt(n, tint.multiplyScalar(a));
     n += 1;
   });
+  const spark = sparksMesh.value;
+  if (spark !== null) {
+    spark.count = sparkN;
+    spark.instanceMatrix.needsUpdate = true;
+    if (spark.instanceColor !== null) spark.instanceColor.needsUpdate = true;
+  }
   cloud.count = n;
   cloud.instanceMatrix.needsUpdate = true;
   if (cloud.instanceColor !== null) cloud.instanceColor.needsUpdate = true;
