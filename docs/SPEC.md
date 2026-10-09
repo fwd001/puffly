@@ -5602,3 +5602,8 @@ padding 顶下去了）。② 改成读条的底边 rect ⇒ 反向差 60 px —
 
 实测：typecheck 退码 0、build 退码 0、真机 `104/104`；README 两处与 ARCHITECTURE 一处条数一起改口，
 README 那段"四组"的话也补上了这条条。
+
+**版本号跟着走 0.2.0 → 0.2.1**（他这一轮点头要的）：九处 `package.json` 加 lock 里那 10 行，
+`npm ls --depth=0` 全树 0.2.1 且没有 missing / invalid，`yocto-queue@0.1.0` 是依赖没被碰。
+运行时没有任何地方读版本（`grep` 过 `package.json` / `__VERSION__` / `npm_package` 三条，零命中），
+所以这次提号不动产物、只动账。
