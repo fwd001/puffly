@@ -492,10 +492,9 @@ export function drawLighter(
 }
 
 /**
- * Where the flame stands on the lighter, as a fraction of its body height above the layout anchor:
- * `chimTop` (top −0.3H + cap 0.44H + chimney 0.11H) less the wick's own 0.05H — the same sum the
- * painted layer's local frame uses, in one named place so the scene's flame stands where its own
- * box is.
+ * Where the flame stands on the lighter, as a fraction of its body height in the local frame this
+ * file draws in (y grows downward): `chimTop` (top −0.3H + cap 0.44H + chimney 0.11H) less the
+ * wick's own 0.05H. A reader whose y grows upward — the scene — flips the sign.
  */
 export const FLAME_BASE_FRACTION = -0.3 + 0.44 + 0.11 - 0.05;
 

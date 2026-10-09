@@ -2474,19 +2474,23 @@ try {
       const ctx = window.__pufflyScene.context;
       const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
       let visible = false;
+      let lid = 0;
       scene.traverse((o) => {
         if (o.isMesh && o.material?.map?.image?.width === 2) visible = visible || o.visible;
+        if (o.name === 'lighter-lid') lid = o.rotation.x;
       });
-      return visible;
+      return { visible, lid };
     });
   const flameIdle = await flameRead();
   await page.locator('.pill').click();
   await page.waitForTimeout(220);
   const flameLit = await flameRead();
+  // The same strike throws the cap open — `lighter.lid` through LID_THROW_DEG (78°), one input,
+  // same as the painted cap. Measured at this sample: −1.24 of −1.36 rad; shut again by rest.
   check(
-    "3D: the ignition's flame is drawn by the scene (S2)",
-    !flameIdle && flameLit,
-    `idle=${String(flameIdle)} lit=${String(flameLit)}`,
+    "3D: the ignition's flame and its open cap are drawn by the scene (S2)",
+    !flameIdle.visible && flameLit.visible && flameLit.lid < -0.5,
+    `idle=${String(flameIdle.visible)} lit=${String(flameLit.visible)} lid=${flameLit.lid.toFixed(2)}`,
   );
   // The break sheet wears the same mirror: its root gives up its own paint (visibility, so the
   // surface's computed background stays readable), its mirrorable rows give up their ink inline,

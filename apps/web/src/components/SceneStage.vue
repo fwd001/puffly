@@ -33,6 +33,7 @@ import {
   type StageBoxFrac,
   FLAME_BASE_FRACTION,
   flameMetrics,
+  LID_THROW_DEG,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -145,6 +146,23 @@ const lighter = computed(() => ({
   w: toWorldSize(LIGHTER_SIZE.width, unitWorld.value),
   h: toWorldSize(LIGHTER_SIZE.height, unitWorld.value),
 }));
+
+/**
+ * The cap's hinge, from the painted layer's own numbers: `lighter.lid` 0–1 through the same 78°
+ * `LID_THROW_DEG`, around +x at the back edge — positive x-rotation swings the cap's top toward the
+ * camera, so the tip-back is the negative. Driven per frame like every other live reading: the
+ * state object is mutated in place, so a computed over it would never fire.
+ */
+const lighterLid = shallowRef<THREE.Group | null>(null);
+const lighterInk = computed(() => {
+  const hue = props.state?.style.lighter.hue ?? [176, 138, 82];
+  return new THREE.Color().setRGB(
+    (hue[0] ?? 0) / 255,
+    (hue[1] ?? 0) / 255,
+    (hue[2] ?? 0) / 255,
+    THREE.SRGBColorSpace,
+  );
+});
 const pack = computed(() => ({
   w: toWorldSize(PACK_SIZE.width, unitWorld.value),
   h: toWorldSize(PACK_SIZE.height, unitWorld.value),
@@ -1073,7 +1091,9 @@ function placeFlame(state: GameStateView | null): void {
   const anchor = at('lighter');
   const bodyW = lighter.value.w;
   const bodyH = lighter.value.h;
-  const baseY = anchor[1] + FLAME_BASE_FRACTION * bodyH;
+  // `FLAME_BASE_FRACTION` is measured in the painted layer's y-down frame (0.2H *below* the
+  // anchor there), and this frame's y is up — so the base is a subtraction away from the anchor.
+  const baseY = anchor[1] - FLAME_BASE_FRACTION * bodyH;
   const height = metrics.height * unitWorld.value;
   const width = metrics.width * unitWorld.value;
   const baseW = Math.min(width, bodyW * 0.2);
@@ -1235,6 +1255,10 @@ function step(deltaMs: number): void {
   placeCherry(state);
   placeAsh(state);
   placeFlame(state);
+  const lid = lighterLid.value;
+  if (lid !== null) {
+    lid.rotation.x = -clamp01(state?.lighter.lid ?? 0) * ((LID_THROW_DEG * Math.PI) / 180);
+  }
   applyBackdrop(state);
   placeText();
   placeRail();
@@ -2248,10 +2272,34 @@ function placeHintInk(): void {
       <TresMeshStandardMaterial :color="tableInk" :roughness="0.85" />
     </TresMesh>
 
-    <TresMesh :position="at('lighter')">
-      <TresBoxGeometry :args="[lighter.w, lighter.h, lighter.w]" />
-      <TresMeshStandardMaterial color="#b08a52" :metalness="0.5" :roughness="0.35" />
-    </TresMesh>
+    <!-- The lighter as the painted layer's own bands: a tank up to the shoulder, the chimney and
+         wick above it, and the cap on a hinge at the back. The body sits in the anchor's frame the
+         way the 2D lays it out (top −0.3H, shoulder +0.14H, bottom +0.7H in its y-down local
+         frame), so the aim point, the flame and the box finally agree on where the thing is. -->
+    <TresGroup :position="at('lighter')">
+      <!-- Tank: −0.7H…−0.14H. -->
+      <TresMesh :position="[0, -0.42 * lighter.h, 0]">
+        <TresBoxGeometry :args="[lighter.w, 0.56 * lighter.h, lighter.w * 0.7]" />
+        <TresMeshStandardMaterial :color="lighterInk" :metalness="0.5" :roughness="0.4" />
+      </TresMesh>
+      <!-- Chimney and wick: −0.14H…−0.03H. -->
+      <TresMesh :position="[0, -0.085 * lighter.h, 0]">
+        <TresBoxGeometry :args="[lighter.w * 0.56, 0.11 * lighter.h, lighter.w * 0.5]" />
+        <TresMeshStandardMaterial color="#6d6259" :metalness="0.35" :roughness="0.7" />
+      </TresMesh>
+      <!-- The cap: hinged at the shoulder's back edge, `lighter.lid` its only input. Closed it
+           covers the chimney; at full throw the shell tips back and the wick comes out. -->
+      <TresGroup
+        ref="lighterLid"
+        name="lighter-lid"
+        :position="[0, -0.14 * lighter.h, -lighter.w * 0.35]"
+      >
+        <TresMesh :position="[0, 0.22 * lighter.h, lighter.w * 0.35]">
+          <TresBoxGeometry :args="[lighter.w * 1.035, 0.44 * lighter.h, lighter.w * 0.7]" />
+          <TresMeshStandardMaterial :color="lighterInk" :metalness="0.55" :roughness="0.3" />
+        </TresMesh>
+      </TresGroup>
+    </TresGroup>
     <TresMesh :position="at('pack')">
       <TresBoxGeometry :args="[pack.w, pack.h, pack.w * 0.6]" />
       <TresMeshStandardMaterial color="#a63a2c" :roughness="0.6" />

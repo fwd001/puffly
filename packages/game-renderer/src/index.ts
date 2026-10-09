@@ -78,6 +78,7 @@ export {
   DIP_SHARE,
   FLAME_BASE_FRACTION,
   flameMetrics,
+  LID_THROW_DEG,
   WAIST,
   type TrayFeedback,
 } from './props';
