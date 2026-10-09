@@ -449,6 +449,24 @@ function onSceneReady(context: unknown): void {
   tabRigs.value = [buildCard(-0.07), buildCard(-0.07), buildCard(-0.07), buildCard(-0.07)];
   catCardRig.value = buildCard(-0.08);
   archiveCardRig.value = buildCard(-0.05);
+
+  // The pill's line art (S4's scale, the wave, the tray flick) rides in front of its own card, so
+  // the rigs hang off one group whose transform is the element's own screen transform.
+  const inkGroup = new THREE.Group();
+  for (let i = 0; i < INK_CAPACITY; i += 1) {
+    const inkMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const inkMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), inkMaterial);
+    inkMesh.frustumCulled = false;
+    inkMesh.visible = false;
+    inkGroup.add(inkMesh);
+    inkRigs.push({ mesh: inkMesh, material: inkMaterial, signature: '' });
+  }
+  pillInk.value = inkGroup;
+  rigGroup.add(inkGroup);
   badgeMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(32),
     transparent: true,
@@ -1026,6 +1044,7 @@ function step(deltaMs: number): void {
     placeRingRig(hudRing, document.querySelector<SVGSVGElement>('.hud .ring svg'), -0.106, -0.105);
   }
   placePill();
+  placePillInk();
 
   const cloud = puffs.value;
   if (cloud === null) return;
@@ -1396,6 +1415,215 @@ function placeArchive(): void {
       continue;
     mesh.position.y = base - rise;
     material.opacity *= eased;
+  }
+}
+
+// ------------------------------------------------------- the pill's line art (S4 / S14 / S15)
+
+/**
+ * The pill's own diagrams — S4's 力度条 (three hairlines ↔ three cloud lobes, a knob where the draw
+ * landed), the wave, and the tray flick — drawn from the same SVG the DOM painted, because that SVG
+ * is hidden under `html.scene3d-text .pill` and this layer is what keeps the diagrams on screen.
+ *
+ * Nothing here re-parses a `d` or re-implements a viewBox: every outline is sampled through the
+ * browser's own geometry (`getTotalLength` / `getPointAtLength`) and a coordinate becomes a screen
+ * point through the element's own transform (`getScreenCTM`), so a change to the SVG moves this
+ * copy the way a change to the CSS moves every other mirror in this file. Strokes become ribbons
+ * (an SVG hairline is a filled 1–1.4 px band that GL's 1-px lines cannot draw); circles become the
+ * same `solidDisc` quads the cat's plate uses.
+ */
+const INK_CAPACITY = 14;
+interface InkRig {
+  mesh: THREE.Mesh;
+  material: THREE.MeshBasicMaterial;
+  signature: string;
+}
+const inkRigs: InkRig[] = [];
+const pillInk = shallowRef<THREE.Group | null>(null);
+/** Longest sample step, in element units — an 18-unit thread becomes 18 segments, a 1000-unit path 32. */
+const INK_STEPS = 32;
+
+/** The element's outline as sampled points, each in its own user units. */
+function inkOutline(element: SVGGeometryElement): Array<[number, number]> {
+  const total = element.getTotalLength();
+  if (!(total > 0)) return [];
+  const steps = Math.max(2, Math.min(INK_STEPS, Math.ceil(total)));
+  const points: Array<[number, number]> = [];
+  for (let i = 0; i <= steps; i += 1) {
+    const point = element.getPointAtLength((i / steps) * total);
+    points.push([point.x, point.y]);
+  }
+  return points;
+}
+
+/** A dashed outline as the pieces the stroke actually paints — the gaps are cut by arc length. */
+function dashPieces(
+  points: ReadonlyArray<readonly [number, number]>,
+  on: number,
+  off: number,
+): Array<Array<[number, number]>> {
+  const pieces: Array<Array<[number, number]>> = [];
+  let current: Array<[number, number]> = [];
+  let drawing = true;
+  let capacity = on;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    let a = points[i];
+    const b = points[i + 1];
+    if (a === undefined || b === undefined) continue;
+    let remaining = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    while (remaining > 1e-6) {
+      const step = Math.min(remaining, capacity);
+      const t = step / remaining;
+      const next: [number, number] = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+      if (drawing) {
+        if (current.length === 0) current.push([a[0], a[1]]);
+        current.push(next);
+      }
+      remaining -= step;
+      capacity -= step;
+      if (capacity <= 1e-6) {
+        if (drawing) {
+          pieces.push(current);
+          current = [];
+        }
+        drawing = !drawing;
+        capacity = drawing ? on : off;
+      }
+      a = next;
+    }
+  }
+  if (current.length > 1) pieces.push(current);
+  return pieces;
+}
+
+/** Stroked polylines as one triangle strip per piece, half the stroke width either side of it. */
+function ribbonGeometry(
+  polylines: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  half: number,
+): THREE.BufferGeometry {
+  const positions: number[] = [];
+  const index: number[] = [];
+  let vertex = 0;
+  for (const points of polylines) {
+    const first = points[0];
+    if (first === undefined || points.length < 2) continue;
+    for (let i = 0; i < points.length; i += 1) {
+      const previous = points[Math.max(0, i - 1)] ?? first;
+      const next = points[Math.min(points.length - 1, i + 1)] ?? first;
+      const point = points[i] ?? first;
+      const dx = next[0] - previous[0];
+      const dy = next[1] - previous[1];
+      const length = Math.hypot(dx, dy) || 1;
+      const nx = (-dy / length) * half;
+      const ny = (dx / length) * half;
+      positions.push(point[0] + nx, point[1] + ny, 0, point[0] - nx, point[1] - ny, 0);
+      if (i > 0) {
+        const base = vertex + (i - 1) * 2;
+        index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+      }
+    }
+    vertex += points.length * 2;
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(index);
+  return geometry;
+}
+
+/** Everything that decides an ink shape's picture; anything outside it can move every frame for free. */
+function inkSignature(element: SVGGeometryElement): string {
+  const style = getComputedStyle(element);
+  const circle =
+    element instanceof SVGCircleElement
+      ? `${element.cx.baseVal.value},${element.cy.baseVal.value},${element.r.baseVal.value}`
+      : '';
+  const outline =
+    element.getAttribute('d') ??
+    element.getAttribute('points') ??
+    `${element.getAttribute('x2') ?? ''} ${element.getAttribute('y2') ?? ''}`;
+  return `${element.tagName}|${circle}|${outline}|${style.stroke}|${style.fill}|${style.strokeWidth}|${style.strokeDasharray}`;
+}
+
+function placePillInk(): void {
+  const group = pillInk.value;
+  if (group === null || inkRigs.length === 0) return;
+  const svg = document.querySelector<SVGSVGElement>('.cta svg.art');
+  const ctm = svg?.getScreenCTM() ?? null;
+  if (svg === null || ctm === null) {
+    for (const rig of inkRigs) rig.mesh.visible = false;
+    return;
+  }
+  const toCanvas = (x: number, y: number): readonly [number, number] => {
+    const screen = new DOMPoint(x, y).matrixTransform(ctm);
+    return [
+      screen.x / Math.max(1, viewportWidthPx.value),
+      screen.y / Math.max(1, viewportHeightPx.value),
+    ];
+  };
+  const at = (x: number, y: number): readonly [number, number, number] => {
+    const [cx, cy] = toCanvas(x, y);
+    return canvasToWorld({ x: cx, y: cy }, box.value, aspect.value);
+  };
+  const origin = at(0, 0);
+  const unitX = at(1, 0);
+  const unitY = at(0, 1);
+  group.position.set(origin[0], origin[1], RUN_TEXT_Z);
+  group.scale.set(unitX[0] - origin[0], unitY[1] - origin[1], 1);
+  const svgOpacity = Number.parseFloat(getComputedStyle(svg).opacity);
+  const svgAlpha = Number.isFinite(svgOpacity) ? svgOpacity : 1;
+  const marks = [...svg.querySelectorAll<SVGGeometryElement>('path, line, polyline, circle')];
+  marks.forEach((element, index) => {
+    const rig = inkRigs[index];
+    if (rig === undefined) return;
+    const style = getComputedStyle(element);
+    const signature = inkSignature(element);
+    const paint = parseColour(style.fill === 'none' ? style.stroke : style.fill);
+    if (signature !== rig.signature) {
+      rig.signature = signature;
+      if (element instanceof SVGCircleElement) {
+        rig.mesh.geometry.dispose();
+        rig.mesh.geometry = new THREE.PlaneGeometry(
+          element.r.baseVal.value * 2,
+          element.r.baseVal.value * 2,
+        ).translate(element.cx.baseVal.value, element.cy.baseVal.value, 0);
+      } else {
+        const outline = inkOutline(element);
+        const dash = style.strokeDasharray;
+        let polylines: Array<Array<[number, number]>> = [outline];
+        if (dash !== 'none' && dash !== '') {
+          const [on, off] = dash.split(/[\s,]+/).map(Number);
+          if (
+            Number.isFinite(on) &&
+            Number.isFinite(off) &&
+            on !== undefined &&
+            off !== undefined &&
+            on > 0 &&
+            off > 0
+          ) {
+            polylines = dashPieces(outline, on, off);
+          }
+        }
+        rig.mesh.geometry.dispose();
+        rig.mesh.geometry = ribbonGeometry(
+          polylines,
+          (Number.parseFloat(style.strokeWidth) || 1) / 2,
+        );
+      }
+    }
+    const wanted = element instanceof SVGCircleElement ? solidDisc(64) : null;
+    if (rig.material.map !== wanted) {
+      rig.material.map = wanted;
+      rig.material.needsUpdate = true;
+    }
+    if (paint !== null) {
+      rig.material.color.copy(paint.colour);
+      rig.material.opacity = paint.alpha * svgAlpha;
+    }
+    rig.mesh.visible = true;
+  });
+  for (let index = marks.length; index < inkRigs.length; index += 1) {
+    const rig = inkRigs[index];
+    if (rig !== undefined) rig.mesh.visible = false;
   }
 }
 </script>

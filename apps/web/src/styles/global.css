@@ -483,6 +483,11 @@ html.scene3d-text .cat {
 html.scene3d-text .hint {
   -webkit-text-fill-color: transparent;
 }
+/* 胶囊下的三张示意图（力度条 / 波形 / 磕灰）不是 .pill 的孩子：它们在 .cta 里，
+   用 visibility 而不是 opacity —— 场景那份要读 svg 自己的 0.8 透明度，opacity 遮罩会把读数变 0。 */
+html.scene3d-text .cta svg.art {
+  visibility: hidden;
+}
 /* S19 的档案卡也整张在场景里：表面从 computed 读，行与记号走 run，DOM 只留下手点。
    卡自己带 220ms 的入场动画（fill: both），动画在层叠里压过静态声明 —— 所以先把动画关掉，
    opacity 才真的落得下去。关掉的只是 2D 入场，卡面的 rect 与背景读值不受影响。 */
