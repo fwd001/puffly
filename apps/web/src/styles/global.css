@@ -475,3 +475,11 @@ html.scene3d-text .pill {
 html.scene3d-text .rail {
   opacity: 0;
 }
+/* 顶左那个圆与角标、以及舞台上那一词提示，墨都进场景。
+   hint 用字墨透明而不是 opacity：它的淡入淡出本来就是用 opacity 做的动画，静态规则压不过动画。 */
+html.scene3d-text .cat {
+  opacity: 0;
+}
+html.scene3d-text .hint {
+  -webkit-text-fill-color: transparent;
+}

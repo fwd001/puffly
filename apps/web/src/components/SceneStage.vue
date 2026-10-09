@@ -444,6 +444,18 @@ function onSceneReady(context: unknown): void {
   pillCardRig.value = buildCard(-0.09);
   railRig.value = buildCard(-0.072);
   tabRigs.value = [buildCard(-0.07), buildCard(-0.07), buildCard(-0.07), buildCard(-0.07)];
+  catCardRig.value = buildCard(-0.08);
+  badgeMaterial = new THREE.MeshBasicMaterial({
+    map: solidDisc(32),
+    transparent: true,
+    depthWrite: false,
+  });
+  const badge = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), badgeMaterial);
+  badge.frustumCulled = false;
+  badge.visible = false;
+  badge.position.z = -0.078;
+  badgeQuad.value = badge;
+  rigGroup.add(badge);
   pillGlowMaterial = new THREE.MeshBasicMaterial({
     map: roundedRect(128, 0.5),
     transparent: true,
@@ -718,6 +730,8 @@ const RUN_SELECTORS = [
   '.hud .ring .digits, .hud .ring .mark',
   '.pill .glyph',
   '.pill .word',
+  '.hint',
+  '.cat > span:not(.badge)',
 ];
 /** S11's desk row is five more runs, matched per element (they come and go with the width). */
 const DESK_RUNS = 5;
@@ -746,6 +760,9 @@ interface CardRig {
 const pillCardRig = shallowRef<CardRig | null>(null);
 const railRig = shallowRef<CardRig | null>(null);
 const tabRigs = shallowRef<CardRig[]>([]);
+const catCardRig = shallowRef<CardRig | null>(null);
+const badgeQuad = shallowRef<THREE.Mesh | null>(null);
+let badgeMaterial: THREE.MeshBasicMaterial | null = null;
 const pillGlow = shallowRef<THREE.Mesh | null>(null);
 let pillGlowMaterial: THREE.MeshBasicMaterial | null = null;
 
@@ -842,6 +859,14 @@ function placeText(): void {
     const style = getComputedStyle(node);
     const fontSize = Number.parseFloat(style.fontSize) || 15;
     const text = node.textContent?.trim() ?? '';
+    // The hint fades and appears — its opacity is the element's own (`0.66`, an animation), and a
+    // run that ignored it would shout where the design whispers.
+    const nodeOpacity = Number.parseFloat(style.opacity);
+    material.opacity = Number.isFinite(nodeOpacity) ? nodeOpacity : 1;
+    if (style.visibility === 'hidden' || style.display === 'none' || material.opacity <= 0.01) {
+      mesh.visible = false;
+      return;
+    }
     const signature = `${text}|${rect.left.toFixed(1)},${rect.top.toFixed(1)},${rect.width.toFixed(1)},${rect.height.toFixed(1)}|${fontSize}|${style.color}`;
     if (signature !== runSignatures[index]) {
       runSignatures[index] = signature;
@@ -969,6 +994,7 @@ function step(deltaMs: number): void {
   applyBackdrop(state);
   placeText();
   placeRail();
+  placeCat();
   const hudRing = hudRig.value;
   if (hudRing !== null) {
     placeRingRig(hudRing, document.querySelector<SVGSVGElement>('.hud .ring svg'), -0.106, -0.105);
@@ -1198,8 +1224,11 @@ function fillCard(rig: CardRig, element: HTMLElement | null, shrink: number): vo
         shrink,
       1,
     );
-    material.map = roundedRect(128, 0.5);
-    material.opacity *= gradient ? 1 : 1;
+    // A radius at half the shorter side is a circle, and a stadium texture's corners are wrong
+    // for it — the cat button is exactly that shape.
+    const radius = Number.parseFloat(style.borderRadius) || 0;
+    const circle = radius >= Math.min(rect.width, rect.height) / 2 - 0.5;
+    material.map = circle ? solidDisc(64) : roundedRect(128, 0.5);
     material.needsUpdate = true;
   }
   card.visible = true;
@@ -1251,6 +1280,38 @@ function placeRail(): void {
   rigs.forEach((rig, index) => {
     fillCard(rig, tabs[index] ?? null, 1);
   });
+}
+
+/** The top-left mark: its disc, and the ember dot that is the only reason it ever wants attention. */
+function placeCat(): void {
+  const rig = catCardRig.value;
+  const cat = document.querySelector<HTMLElement>('.cat');
+  if (rig !== null) fillCard(rig, cat, 1);
+  const badge = badgeQuad.value;
+  if (badge === null || badgeMaterial === null) return;
+  const dot = document.querySelector<HTMLElement>('.cat .badge');
+  if (dot === null || cat === null) {
+    badge.visible = false;
+    return;
+  }
+  const rect = dot.getBoundingClientRect();
+  if (rect.width === 0) {
+    badge.visible = false;
+    return;
+  }
+  const where = rectWorld({
+    x: rect.left / Math.max(1, viewportWidthPx.value),
+    y: rect.top / Math.max(1, viewportHeightPx.value),
+    w: rect.width / Math.max(1, viewportWidthPx.value),
+    h: rect.height / Math.max(1, viewportHeightPx.value),
+  });
+  badge.visible = true;
+  badge.scale.set(where.width, where.height, 1);
+  badge.position.set(where.centre[0], where.centre[1], -0.078);
+  badgeMaterial.color.set(
+    getComputedStyle(document.documentElement).getPropertyValue('--ember-orange').trim() ||
+      '#e2604a',
+  );
 }
 </script>
 
