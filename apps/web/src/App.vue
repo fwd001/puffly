@@ -153,12 +153,13 @@ function dismissOnScene(event: PointerEvent): void {
     :data-break="summary.clock"
     :data-phase="summary.phase"
     :data-aim="summary.aim"
+    :data-stage-box="summary.stageBox"
     :data-affordance="summary.affordance"
     @pointerdown.capture="dismissOnScene"
   >
     <canvas ref="canvas" tabindex="0" :aria-label="announced" />
     <!-- 3D 层还在长，默认不开：URL 里带 ?scene=3d 才挂（&gl=1 强制走 WebGL2 那条）。 -->
-    <SceneStage v-if="useScene3d" :aim="summary.aim" />
+    <SceneStage v-if="useScene3d" :aim="summary.aim" :stage-box="summary.stageBox" />
 
     <p
       v-if="summary.hint !== null && sheet === 'none'"

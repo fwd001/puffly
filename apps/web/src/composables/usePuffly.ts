@@ -85,6 +85,20 @@ function aimOf(
   }).join(' ');
 }
 
+/** The stage rectangle inside the canvas, as fractions of the canvas. */
+function boxOf(box: {
+  cssWidth: number;
+  cssHeight: number;
+  stage: { x: number; y: number; width: number; height: number };
+}): string {
+  const round = (value: number): number => Math.round(value * 1e4) / 1e4;
+  const w = Math.max(1, box.cssWidth);
+  const h = Math.max(1, box.cssHeight);
+  return [box.stage.x / w, box.stage.y / h, box.stage.width / w, box.stage.height / h]
+    .map((v) => String(round(v)))
+    .join(',');
+}
+
 /** How often chrome is allowed to re-render (§54). */
 const SUMMARY_INTERVAL_MS = 200;
 /** A break is over when nothing is burning and the player has gone quiet this long. */
@@ -173,6 +187,12 @@ export interface Summary {
   phase: Phase;
   /** `.stage[data-aim]`: where the touchable things are, in fractions of the canvas. */
   aim: string;
+  /**
+   * `.stage[data-stage-box]`: the stage rectangle inside the canvas (letterboxed by the aspect
+   * rule), as fractions. A scene that only knew the canvas could not tell where the stage begins —
+   * the same reason the anchors are published rather than recomputed.
+   */
+  stageBox: string;
   /**
    * S20's `onReach`: the ceiling has been passed, so the ring goes grey and its digits become a
    * mark. The break is not stopped, locked or annotated — the interface just stops advertising it.
@@ -268,6 +288,7 @@ export function createPuffly(): Puffly {
     clock: formatClock(0),
     burned: formatClock(0),
     aim: '',
+    stageBox: '',
     sessionActive: false,
     controlsVisible: true,
     affordance: 'none',
@@ -483,6 +504,7 @@ export function createPuffly(): Puffly {
       affordance: state.ui.affordance,
       phase: phaseOf(state.cigarette.state),
       aim: aimOf(state, viewport),
+      stageBox: boxOf(viewport),
       overLimit: overLimit(),
       hint: hintWord(state),
       cueChannel: audio?.audible() ? 'audio' : 'visual',

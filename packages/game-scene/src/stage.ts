@@ -62,3 +62,72 @@ export function rodBetween(
     angle: Math.atan2(dy, dx),
   };
 }
+
+/**
+ * The stage rectangle inside the canvas, as four canvas fractions: `x,y,width,height`.
+ *
+ * The letterbox is the reason this exists. Anchors arrive as canvas fractions, but the stage is a
+ * 3:4 box floating in that canvas — so a scene that mapped canvas fractions straight to the world
+ * put the tray in the wrong place at the wrong size. The shell publishes the box for the same
+ * reason it publishes the anchors: a second copy of the layout has gone stale twice in this repo.
+ */
+export interface StageBox {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+export function parseStageBox(text: string): StageBox | null {
+  const parts = text.split(',').map(Number);
+  if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
+  const [x, y, width, height] = parts as [number, number, number, number];
+  if (width <= 0 || height <= 0) return null;
+  return { x, y, width, height };
+}
+
+/**
+ * Canvas fraction → world, through the stage box. `viewportAspect` is the canvas's own aspect
+ * (width / height); the stage's world width follows from how much of the canvas the box covers.
+ */
+export function canvasToWorld(
+  fraction: AimPoint,
+  box: StageBox,
+  viewportAspect: number,
+): readonly [number, number, number] {
+  const nx = (fraction.x - box.x) / box.width;
+  const ny = (fraction.y - box.y) / box.height;
+  const stageWidth = WORLD_HEIGHT * (box.width / box.height) * viewportAspect;
+  return [(nx - 0.5) * stageWidth, (0.5 - ny) * WORLD_HEIGHT, 0];
+}
+
+/** The stage box's world size, which is also the orthographic camera's frame. */
+export function stageWorldSize(
+  box: StageBox,
+  viewportAspect: number,
+): { readonly width: number; readonly height: number } {
+  return { width: WORLD_HEIGHT * (box.width / box.height) * viewportAspect, height: WORLD_HEIGHT };
+}
+
+/** A rod drawn between two canvas fractions, via the same box. */
+export function rodBetweenInBox(
+  body: AimPoint,
+  ember: AimPoint,
+  box: StageBox,
+  viewportAspect: number,
+): {
+  readonly mid: readonly [number, number, number];
+  readonly length: number;
+  readonly angle: number;
+} {
+  const a = canvasToWorld(body, box, viewportAspect);
+  const b = canvasToWorld(ember, box, viewportAspect);
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const span = Math.hypot(dx, dy) || 1e-6;
+  return {
+    mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0],
+    length: span / 0.55,
+    angle: Math.atan2(dy, dx),
+  };
+}

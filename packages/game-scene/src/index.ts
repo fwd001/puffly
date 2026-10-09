@@ -9,6 +9,11 @@ export {
   rodBetween,
   toWorld,
   WORLD_HEIGHT,
+  canvasToWorld,
+  parseStageBox,
+  rodBetweenInBox,
+  stageWorldSize,
+  type StageBox,
   type AimKey,
   type AimPoint,
 } from './stage';

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { parseAim, rodBetween, toWorld, WORLD_HEIGHT } from '../stage';
+import {
+  canvasToWorld,
+  parseAim,
+  parseStageBox,
+  rodBetween,
+  stageWorldSize,
+  toWorld,
+  WORLD_HEIGHT,
+} from '../stage';
 
 describe('the scene reads the shell’s own mirror, and nothing else', () => {
   it('parses the five points out of the data-aim string', () => {
@@ -36,5 +44,42 @@ describe('the scene reads the shell’s own mirror, and nothing else', () => {
     const degenerate = rodBetween({ x: 0.5, y: 0.5 }, { x: 0.5, y: 0.5 }, 1);
     expect(Number.isFinite(degenerate.length)).toBe(true);
     expect(degenerate.length).toBeLessThan(0.01);
+  });
+});
+
+describe('the stage box is what makes a fraction land where the core says', () => {
+  it('refuses a box it cannot read rather than pretending the canvas is the stage', () => {
+    expect(parseStageBox('0,0.1,1,0.7')).toEqual({ x: 0, y: 0.1, width: 1, height: 0.7 });
+    expect(parseStageBox('junk')).toBeNull();
+    expect(parseStageBox('0,0,0,1')).toBeNull();
+    expect(parseStageBox('0,0,1')).toBeNull();
+  });
+
+  it('puts the stage centre at the world origin whatever the letterbox', () => {
+    const box = { x: 0.1, y: 0.2, width: 0.8, height: 0.5 };
+    const centre = canvasToWorld({ x: 0.5, y: 0.45 }, box, 0.5);
+    expect(centre[0]).toBeCloseTo(0, 6);
+    expect(centre[1]).toBeCloseTo(0, 6);
+  });
+
+  it('lands the box’s own edges on the stage’s world edges', () => {
+    // A 3:4 stage inside a 390×844 canvas: full width, and a letterbox top and bottom.
+    const box = { x: 0, y: 0.192, width: 1, height: 0.616 };
+    const viewportAspect = 390 / 844;
+    const topLeft = canvasToWorld({ x: 0, y: 0.192 }, box, viewportAspect);
+    const bottomRight = canvasToWorld({ x: 1, y: 0.808 }, box, viewportAspect);
+    const size = stageWorldSize(box, viewportAspect);
+    expect(topLeft[1]).toBeCloseTo(size.height / 2, 6);
+    expect(bottomRight[1]).toBeCloseTo(-size.height / 2, 6);
+    expect(topLeft[0]).toBeCloseTo(-size.width / 2, 6);
+    expect(bottomRight[0]).toBeCloseTo(size.width / 2, 6);
+    // And the stage is 3:4, because that is what the box says it is — not what a camera assumed.
+    expect(size.width / size.height).toBeCloseTo(0.75, 3);
+  });
+
+  it('sizes the camera frame from the box, not from the canvas', () => {
+    const size = stageWorldSize({ x: 0, y: 0, width: 0.75, height: 1 }, 0.5);
+    expect(size.height).toBe(WORLD_HEIGHT);
+    expect(size.width).toBeCloseTo(WORLD_HEIGHT * 0.75 * 0.5, 6);
   });
 });
