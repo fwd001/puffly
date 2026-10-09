@@ -27,7 +27,7 @@ Canvas 2D 的绘制路径；逻辑层（模拟、内容、声音、存档、统�
 
 | 事实 | 读数 | 口径 |
 | --- | --- | --- |
-| 渲染器包的复用边界 | `packages/game-renderer/src` 12 个文件里 **5 个零 canvas/DOM 引用**（`noise` `viewport` `intake` `particles` `index`），7 个混着画 | 逐文件数 `getContext|CanvasRenderingContext|document.|OffscreenCanvas\|createImageData\|new Image` |
+| 渲染器包的复用边界 | 源码 12 个文件里 **5 个零 canvas/DOM 引用**（`noise` `viewport` `intake` `particles` `index`），7 个混着画；**测试 34 个文件：19 个读像素、13 个纯** | 逐文件数 `getContext\|CanvasRenderingContext\|document.\|OffscreenCanvas\|createImageData\|new Image`；测试按 `getImageData\|toDataURL\|canvas\|ctx.` 分类 |
 | 核心对渲染层的缝 | `GameStateView = DeepReadonly<GameState>` + `setStageAspect(aspect, stageHeightPx)` —— **核心一行不用改** | `packages/game-core/src/engine.ts` |
 | 文案表规模 | 448 条字符串，去重后 **314 个不同汉字** + 45 个西文/数字字符，最长一条 67 字 | 对 `apps/web/src/i18n/copy.ts` 的字符串字面量做字符集统计 |
 | 包体基线 | 整站 dist 440 KB，入口 JS **120 KB（gzip）** | `du -sh apps/web/dist`；`gzip -c` 入口文件 |
@@ -93,8 +93,14 @@ packages/game-core / game-content / game-audio / game-storage / game-statistics 
 
 ## 8. 判据与门禁怎么换
 
-**失效的**（读 canvas 像素的那些）：`packages/game-renderer/src/__tests__` 下的 10 个套件、
-真机套件里 `getImageData` 族的读数（`airSample` / `cloudStructure` / 场景翻转）。
+**失效的**（读 canvas 像素的那些）：`packages/game-renderer/src/__tests__` **34 个文件里读像素的 19 个**
+（`ash-flake` `background-stillness` `choice-pixels` `ember-glow` `ember-heat` `ignition-punch` `lid-hinge`
+`pack-object` `paper-dimple` `place-features` `plume-column` `plume-contrast` `plume-lift` `prop-placement`
+`rain-fall` `realism` `rendering` `scene-change` `warmth-scale`）；
+另 **13 个是纯的**（`plume-shape` / `plume-continuity` / `plume-on-stage` / `plume-palette` / `chrome-band` /
+`rod-anchor` / `skin` / `spark-bounce` / `sprite-focus` / `char-edge` / `custom-background` / `platform` —
+它们量的是几何与派生量，不读像素），**跟着模块搬进 `game-scene`，不失效**；
+真机套件里 4 处读 canvas（`getImageData` / `toDataURL`：`airSample` / `cloudStructure` / 场景翻转那些）。
 
 **替身三层**：
 
@@ -156,5 +162,5 @@ S12 已拍板不做）。重写的验收动作是：**用同一把尺子、在 3
 
 1. **要不要装 Playwright 自带的 Chromium**（约 150 MB，进本机缓存）：装了 WebGPU 那条也能进本机门禁；
    不装就写"WebGPU 只能人工验"。
-2. **随渲染器一起失效的那 10 个套件**：建议直接删（逻辑层的不动、判据以 §8 的三层重建）；
-   如果你想留档，我会改成 `*.skip.ts` 之外的形式而不是留着红的。
+2. **随渲染器一起失效的那 19 个读像素套件**：建议直接删（逻辑层与那 13 个纯套件都不动，判据按 §8 的三层重建）；
+   如果你想留档，我会换成不进 CI 的归档形式，而不是留一堆红的。
