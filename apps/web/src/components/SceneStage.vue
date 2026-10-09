@@ -1074,11 +1074,11 @@ function placeRingRig(rig: RingRig, svg: SVGSVGElement | null, zTrack: number, z
 /**
  * The pill: a stadium card, its glow, and the state's own paint.
  *
- * **Not switched on yet.** The card builds correctly — its geometry carries the converted gradient
- * stops, `vertexColors` is on, the uvs are there — but the shape on screen does not change when its
- * material is repainted red or green, and it survives hiding both the card and the glow, so the
- * brown shape at the pill's place belongs to something this file has not identified. The DOM pill
- * stays visible (`global.css` says so) until that is closed.
+ * The card's geometry is built per state change, and its winding cost a long probe round: a custom
+ * quad still has to wind counter-clockwise or it is culled — the card drew nothing at all, and the
+ * shape on screen was its own glow, which is why repainting the card's material changed no pixel
+ * and why hiding the card changed nothing either. The aha came from hiding each scene child in turn
+ * and watching which one owned the pixel.
  *
  * The sustained states carry a three-stop ember gradient; the quiet ones a flat mix. Both are read
  * from what the browser resolved (`background-color`, and the `rgb(...)` stops inside
@@ -1149,7 +1149,9 @@ function placePill(): void {
       geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       const index: number[] = [];
       for (let i = 0; i < stops.length - 1; i += 1) {
-        index.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 2, i * 2 + 1, i * 2 + 3);
+        // Counter-clockwise seen from the camera, or the card faces away and is culled — the same
+        // trap the text quads fell into, and the one that hid this card behind its own glow.
+        index.push(i * 2, i * 2 + 2, i * 2 + 1, i * 2 + 1, i * 2 + 2, i * 2 + 3);
       }
       geometry.setIndex(index);
       // Vertex colours are what carry the stops; without this the card paints a flat white.
