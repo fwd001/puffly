@@ -73,4 +73,11 @@ export {
 export { drawBackground } from './background';
 export { drawEffects, EffectList, type EffectKind, type SceneEffect } from './effects';
 export { clearWeatherCache, drawDust, drawRain } from './weather';
-export { drawAffordanceHint, DIP_SHARE, WAIST, type TrayFeedback } from './props';
+export {
+  drawAffordanceHint,
+  DIP_SHARE,
+  FLAME_BASE_FRACTION,
+  flameMetrics,
+  WAIST,
+  type TrayFeedback,
+} from './props';

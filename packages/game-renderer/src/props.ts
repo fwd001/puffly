@@ -441,14 +441,16 @@ export function drawLighter(
     // The flame stands on the wick, not on the top of the closed case. With the cap thrown
     // back those two are ~13 px apart on a phone, and the gap read as fire from nowhere.
     const flameBase = chimTop - bodyH * 0.05;
-    const jitter = wander(state.nowMs / 1000, 11) * 0.12 + state.lighter.flicker * 0.4;
-    const height =
-      state.style.lighter.flameHeight *
-      viewport.len(1) *
-      flame *
-      (1 + jitter * 0.25) *
-      (1 - sputter * 0.7);
-    const width = height * 0.42;
+    const metrics = flameMetrics({
+      flame,
+      flicker: state.lighter.flicker,
+      sputter,
+      nowMs: state.nowMs,
+      flameHeight: state.style.lighter.flameHeight,
+    });
+    const { jitter } = metrics;
+    const height = metrics.height * viewport.len(1);
+    const width = metrics.width * viewport.len(1);
     // A flame is narrowest where it leaves the wick and widest a little way up. Starting the path at
     // the full `width` gave the base a flat bottom the same span as the case, which at this size is
     // a white disc rather than a flame.
@@ -487,6 +489,32 @@ export function drawLighter(
     ctx.globalCompositeOperation = 'source-over';
   }
   ctx.restore();
+}
+
+/**
+ * Where the flame stands on the lighter, as a fraction of its body height above the layout anchor:
+ * `chimTop` (top −0.3H + cap 0.44H + chimney 0.11H) less the wick's own 0.05H — the same sum the
+ * painted layer's local frame uses, in one named place so the scene's flame stands where its own
+ * box is.
+ */
+export const FLAME_BASE_FRACTION = -0.3 + 0.44 + 0.11 - 0.05;
+
+/**
+ * The lighter's flame as numbers, in stage units and free of any canvas — the one copy both the
+ * painted layer (multiplied by `viewport.len(1)`) and the scene (by the unit's world size) consume.
+ * `flame` is the 0–1 strength the simulation holds, `flicker`/`sputter` its two nervous inputs,
+ * and `wander` the same noise the painted layer has always used.
+ */
+export function flameMetrics(input: {
+  flame: number;
+  flicker: number;
+  sputter: number;
+  nowMs: number;
+  flameHeight: number;
+}): { height: number; width: number; jitter: number } {
+  const jitter = wander(input.nowMs / 1000, 11) * 0.12 + input.flicker * 0.4;
+  const height = input.flameHeight * input.flame * (1 + jitter * 0.25) * (1 - input.sputter * 0.7);
+  return { height, width: height * 0.42, jitter };
 }
 
 export function drawCigarette(

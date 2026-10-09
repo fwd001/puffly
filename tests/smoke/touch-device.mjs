@@ -2455,6 +2455,39 @@ try {
     card.name >= 170,
     `name max ${String(card.name)}`,
   );
+  // S2's ignition: the flame on the lighter, from the same metrics the painted layer draws it
+  // with (`flameMetrics`). Read as a state pair rather than pixels — the flame's screen size and
+  // place move with the sim's flicker, and a fixed band once read the *hint word* instead — while
+  // the pixel evidence lives in the probe notes: 223 in the flame's band, 41 with the mesh
+  // hidden. The flame mesh is the only one whose texture is 2 px wide. |control|: hiding that
+  // mesh makes `lit` false and reddens this.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const affordance = await page.evaluate(
+      () => document.querySelector('.stage')?.dataset.affordance ?? '',
+    );
+    if (affordance === 'lighter') break;
+    await page.locator('.pill').click();
+    await page.waitForTimeout(650);
+  }
+  const flameRead = () =>
+    page.evaluate(() => {
+      const ctx = window.__pufflyScene.context;
+      const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+      let visible = false;
+      scene.traverse((o) => {
+        if (o.isMesh && o.material?.map?.image?.width === 2) visible = visible || o.visible;
+      });
+      return visible;
+    });
+  const flameIdle = await flameRead();
+  await page.locator('.pill').click();
+  await page.waitForTimeout(220);
+  const flameLit = await flameRead();
+  check(
+    "3D: the ignition's flame is drawn by the scene (S2)",
+    !flameIdle && flameLit,
+    `idle=${String(flameIdle)} lit=${String(flameLit)}`,
+  );
   // The break sheet wears the same mirror: its root gives up its own paint (visibility, so the
   // surface's computed background stays readable), its mirrorable rows give up their ink inline,
   // and the rows the atlas cannot carry keep theirs. Two mutations measured: putting the root's

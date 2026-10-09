@@ -125,6 +125,33 @@ export function frameRect(
   return maskTexture(size, coverage);
 }
 
+/**
+ * The flame gradient's alpha profile, hue-free: 0.7 on the wick, 0.85 at the belly, gone by the
+ * tip — the vertical slice the scene multiplies its vertex colours by (the painted layer's three
+ * `addColorStop` opacities, in one place).
+ */
+export function flameAlpha(): THREE.DataTexture {
+  const width = 2;
+  const height = 32;
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    const t = y / (height - 1);
+    const alpha = t <= 0.45 ? 0.7 + (0.85 - 0.7) * (t / 0.45) : 0.85 * (1 - (t - 0.45) / 0.55);
+    for (let x = 0; x < width; x += 1) {
+      const i = (y * width + x) * 4;
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
+    }
+  }
+  const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
+  texture.needsUpdate = true;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
 /** Rounded-rectangle coverage per texel, 0..1 — the one copy of the corner distance math. */
 function roundedMask(
   size: number,

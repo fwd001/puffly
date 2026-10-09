@@ -31,6 +31,8 @@ import {
   puffTint,
   vignetteAlpha,
   type StageBoxFrac,
+  FLAME_BASE_FRACTION,
+  flameMetrics,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -60,6 +62,7 @@ import {
   type GlyphAtlas,
   type RendererChoice,
   type StageBox,
+  flameAlpha,
 } from '@puffly/game-scene';
 import * as THREE from 'three';
 
@@ -254,6 +257,12 @@ let spillMaterial: THREE.MeshBasicMaterial | null = null;
 /** Falling ash, one instance per fragment the core is carrying — a shape, hence `solidDisc`. */
 const ASH_CAPACITY = 64;
 const flakes = shallowRef<THREE.InstancedMesh | null>(null);
+/** The lighter's flame: its teardrop and the blue throat under it, both additive. */
+const flameBody = shallowRef<THREE.Mesh | null>(null);
+const flameThroat = shallowRef<THREE.Mesh | null>(null);
+let flameMaterial: THREE.MeshBasicMaterial | null = null;
+let flameThroatMaterial: THREE.MeshBasicMaterial | null = null;
+let flameSignature = '';
 
 /**
  * The room itself, as meshes: the sky's three stops, the wall band, the table edge's nosing, the
@@ -483,6 +492,32 @@ function onSceneReady(context: unknown): void {
   }
   hintInk.value = hintGroup;
   rigGroup.add(hintGroup);
+
+  flameMaterial = new THREE.MeshBasicMaterial({
+    map: flameAlpha(),
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    vertexColors: true,
+    blending: THREE.AdditiveBlending,
+  });
+  const flameMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), flameMaterial);
+  flameMesh.frustumCulled = false;
+  flameMesh.visible = false;
+  rigGroup.add(flameMesh);
+  flameBody.value = flameMesh;
+  flameThroatMaterial = new THREE.MeshBasicMaterial({
+    map: solidDisc(64),
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  flameThroatMaterial.color.setRGB(110 / 255, 170 / 255, 255 / 255, THREE.SRGBColorSpace);
+  const throatMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), flameThroatMaterial);
+  throatMesh.frustumCulled = false;
+  throatMesh.visible = false;
+  rigGroup.add(throatMesh);
+  flameThroat.value = throatMesh;
 
   // The sheet's surface, and one rig per line of its text. The rigs carry the four clip planes
   // from the start, so a scrolled row is cut at the panel's edge the moment it is drawn.
@@ -1004,6 +1039,103 @@ function placeText(): void {
 }
 
 /**
+ * S2's ignition picture: the lighter's flame, from the same numbers the painted layer draws it
+ * with (`flameMetrics`), the same two quadratics, the same three gradient stops — the gradient's
+ * opacities ride a hue-free texture and its colours ride the vertices, because a mesh has only one
+ * material opacity. The throat is the second ellipse; both blend additively, which is the canvas's
+ * `lighter` composite.
+ */
+function placeFlame(state: GameStateView | null): void {
+  const body = flameBody.value;
+  const throat = flameThroat.value;
+  if (body === null || throat === null || flameMaterial === null || flameThroatMaterial === null) {
+    return;
+  }
+  const lighterState = state?.lighter;
+  const style = state?.style.lighter;
+  if (
+    state == null ||
+    lighterState === undefined ||
+    style === undefined ||
+    lighterState.flame <= 0.01
+  ) {
+    body.visible = false;
+    throat.visible = false;
+    return;
+  }
+  const metrics = flameMetrics({
+    flame: lighterState.flame,
+    flicker: lighterState.flicker,
+    sputter: lighterState.sputter,
+    nowMs: state.nowMs,
+    flameHeight: style.flameHeight,
+  });
+  const anchor = at('lighter');
+  const bodyW = lighter.value.w;
+  const bodyH = lighter.value.h;
+  const baseY = anchor[1] + FLAME_BASE_FRACTION * bodyH;
+  const height = metrics.height * unitWorld.value;
+  const width = metrics.width * unitWorld.value;
+  const baseW = Math.min(width, bodyW * 0.2);
+  const { jitter } = metrics;
+  const signature = `${height.toFixed(4)}|${width.toFixed(4)}|${jitter.toFixed(4)}|${baseW.toFixed(4)}`;
+  if (signature !== flameSignature) {
+    flameSignature = signature;
+    const hue = style.hue;
+    const stop0 = mixRgb(hue, [255, 252, 240], 0.42);
+    const stop1 = hue;
+    const stop2 = mixRgb(hue, [60, 40, 90], 0.6);
+    const colour = new THREE.Color();
+    const tinted = (t: number): THREE.Color => {
+      const [from, to, span] =
+        t <= 0.45 ? [stop0, stop1, t / 0.45] : [stop1, stop2, (t - 0.45) / 0.55];
+      const rgb: [number, number, number] = [
+        (from[0] ?? 0) + ((to[0] ?? 0) - (from[0] ?? 0)) * span,
+        (from[1] ?? 0) + ((to[1] ?? 0) - (from[1] ?? 0)) * span,
+        (from[2] ?? 0) + ((to[2] ?? 0) - (from[2] ?? 0)) * span,
+      ];
+      return colour.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
+    };
+    const positions: number[] = [];
+    const colours: number[] = [];
+    const uvs: number[] = [];
+    const index: number[] = [];
+    const steps = 14;
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps;
+      const u = 1 - t;
+      const tipX = jitter * width * 0.6;
+      const leftX =
+        u * u * (-baseW / 2) + 2 * u * t * (-width * 0.62 + jitter * width) + t * t * tipX;
+      const rightX =
+        t * t * tipX + 2 * t * u * (width * 0.6 + jitter * width) + u * u * (baseW / 2);
+      const y = -t * height;
+      const shade = tinted(t);
+      positions.push(leftX, y, 0, rightX, y, 0);
+      colours.push(shade.r, shade.g, shade.b, shade.r, shade.g, shade.b);
+      uvs.push(0, t, 1, t);
+      if (i > 0) {
+        const base = (i - 1) * 2;
+        index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+      }
+    }
+    body.geometry.dispose();
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(index);
+    body.geometry = geometry;
+  }
+  body.position.set(anchor[0], baseY, 0.02);
+  body.visible = true;
+  throat.position.set(anchor[0], baseY - height * 0.2, 0.021);
+  throat.scale.set(width * 0.6, height * 0.26, 1);
+  flameThroatMaterial.opacity = 0.35 * lighterState.flame;
+  throat.visible = true;
+}
+
+/**
  * Falling ash, straight off the core's own list.
  *
  * Each fragment carries its origin, its size, its `length` (a column piece is drawn as long as the
@@ -1102,6 +1234,7 @@ function step(deltaMs: number): void {
   probe.frames += 1;
   placeCherry(state);
   placeAsh(state);
+  placeFlame(state);
   applyBackdrop(state);
   placeText();
   placeRail();
