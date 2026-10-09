@@ -469,18 +469,53 @@ describe('§73 architecture guards', () => {
   }
 
   it('points at a real test wherever the ledger claims one', () => {
-    const doc = readFileSync(join(root, 'docs/SPEC.md'), 'utf8');
-    const citations = [...doc.matchAll(/`((?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.test\.ts)`/g)].map(
-      (match) => String(match[1]),
+    // Both operator-facing documents, not just the ledger: the README is where a newcomer takes
+    // commands and citations from, and a stale sentence there is worse than a missing one here.
+    // The floor is per document — the ledger cites in the hundreds, the README in single digits —
+    // because a shared threshold would quietly stop proving anything about the smaller file.
+    for (const [doc, floor] of [
+      ['docs/SPEC.md', 20],
+      ['README.md', 2],
+    ] as const) {
+      const text = readFileSync(join(root, doc), 'utf8');
+      const citations = [
+        ...text.matchAll(/`((?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.test\.ts)`/g),
+      ].map((match) => String(match[1]));
+      expect(
+        citations.length,
+        `${doc} cites no tests, so this scan proves nothing`,
+      ).toBeGreaterThan(floor);
+      console.log(
+        `DOC_CITATIONS ${doc}: ${String(citations.length)} mentions of ${String(
+          new Set(citations).size,
+        )} files`,
+      );
+      expect(unresolvableCitations(text), `${doc} points at tests that are not there}`).toEqual([]);
+    }
+  });
+
+  /**
+   * The README is also a list of commands, and a command that does not exist in the scripts it
+   * names is the same class of drift: it reads as documentation and behaves as a broken link.
+   */
+  it('asks for scripts that the root package actually has', () => {
+    const readme = readFileSync(join(root, 'README.md'), 'utf8');
+    const scripts = Object.keys(
+      JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts as Record<
+        string,
+        unknown
+      >,
     );
+    const asked = [...readme.matchAll(/npm run ([a-zA-Z0-9:_-]+)/g)].map((match) =>
+      String(match[1]),
+    );
+    console.log(`DOC_SCRIPTS ${asked.length} mentions, ${scripts.length} scripts available`);
     expect(
-      citations.length,
-      'the document cites no tests, so this scan proves nothing',
-    ).toBeGreaterThan(20);
-    console.log(
-      `DOC_CITATIONS ${String(citations.length)} mentions of ${String(new Set(citations).size)} files`,
-    );
-    expect(unresolvableCitations(doc), 'the ledger points at tests that are not there').toEqual([]);
+      asked.length,
+      'the README names no scripts, so this scan proves nothing',
+    ).toBeGreaterThan(3);
+    const missing = [...new Set(asked)].filter((name) => !scripts.includes(name));
+    expect(missing, 'the README tells a reader to run scripts that do not exist').toEqual([]);
   });
 
   /**

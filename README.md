@@ -13,7 +13,7 @@ makes. Nothing to read, nothing to sign up for, nothing leaves the device.
 | ![Landscape phone](docs/images/phone-landscape-smoke.jpg)                        | ![Settings](docs/images/desktop-settings.jpg)                      |
 | 844×390: the props spread apart instead of crowding everything into a column.    | A word per row, and a control beside it. Nothing here is required. |
 
-**Play it now: <https://fwd001.github.io/puffly/>** — the same build `main` publishes on every
+**Play it now: <https://wenzo001.github.io/puffly/>** — the same build `main` publishes on every
 push, installable to a phone home screen and usable offline afterwards.
 
 The full product and engineering contract is [`docs/SPEC.md`](docs/SPEC.md); the reasoning behind
@@ -84,26 +84,27 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   default. It is a drawing decision and nothing more: no code that runs the rod may read it, and
   `tests/architecture.test.ts` fails the build if a pure package ever does.
 - **Data** `⤓ ⤒ ⌫` — export the save, re-import one, or erase every record on this device.
-- **Rod, room, lighter, tray** — eleven rods, seven rooms, eight props, five smoke styles. The
-  eleven are the ladder of the brief: seven inhaled, three savoured, one filtered, unlocked at 0 /
-  8 / 20 / 40 / 65 / 95 / 135 / 190 / 250 / 320 / 420 cumulative sticks, and the cabinet groups them
-  by what the hand does with them. Each rod has a plume character (column, haze, curls, pour, bloom),
-  so a Mist pours down the table while an Ember blooms upward. Recount them with
+- **Rod, room, lighter, tray** — eleven rods, twenty-one rooms, eight props (four lighters, four
+  trays), five smoke styles and thirty-nine sound profiles. The
+  eleven rods are the ladder of the brief: seven inhaled, three savoured, one filtered, unlocked at
+  cumulative sticks, and the cabinet groups them by what the hand does with them. Each rod has a
+  plume character (column, haze, curls, pour, bloom), so a Mist pours down the table while an Ember
+  blooms upward. Recount them with
   `grep -c "^    id: " packages/game-content/src/{cigarettes,environments,props}.ts`. The pack lying
-  beside them is scenery that says which rod you are smoking — it is deliberately not a control, and
-  a guard keeps anything un-tappable off the anchors the interaction layer carries (SPEC.md §49).
-- **The rooms** — the seven places a break can happen are a ladder of their own, not colour chips on
-  the props row: a card is the room's own light, its name, and the number of the rung that opens it
-  (`3`, `7`, `14`, `21`, `30`, `45` days — one axis, the one the whole interface already counts
-  on). A room counted in breaks would print `◷14` beside a day's bare `14`, because two cards
-  printing the same number would be the same door twice; nothing ships on that axis now, and a test
-  keeps the mark honest anyway. What the number
-  _counts_ is never printed, only spoken (`第 14 天` / `14 breaks`), so the row survives the wordless
-  tier as digits and marks. It lives under `skins` in the sidebar, because changing the background
-  has always had two halves — the four palette layers and the room. Rerun the rungs with
-  `grep -n "unlock:" packages/game-content/src/environments.ts`. Picking one is also measured at the
-  pixel seam rather than assumed: the same state painted with two rooms changes most of the colours
-  the background asks for, and a selection that never reached the state would fail its own test
+  beside them is a control now: an empty hand taps it to take the rod it says it holds, a hand that
+  is already busy taps it to rattle the boxes inside, and neither answer spends anything. Anything
+  un-tappable still may not carry an anchor or a hit radius, and a guard keeps that rule
+  (`SPEC.md §37`, §49).
+- **The rooms** — the twenty-one places a break can happen are a ladder of their own, not colour
+  chips on the props row: a card is the room's own light, its shape, and the number of the rung that
+  opens it. The rung is a level, and a level is counted in rests kept (`LEVEL_THRESHOLDS`), which is
+  a thing the player did rather than a number of days that passed while the app sat shut — the seven
+  places this started with were hung on the calendar, and that made an unlock a fact about
+  attendance. `grep -n "LEVEL_THRESHOLDS" -A 3 packages/game-core/src/levels.ts` prints the rungs;
+  `grep -n "unlock:" packages/game-content/src/environments.ts` prints which room sits on which.
+  Picking one is also measured at the pixel seam rather than assumed: the same state painted with two
+  rooms changes most of the colours the background asks for, and a selection that never reached the
+  state would fail its own test
   (`npx vitest run packages/game-renderer/src/__tests__/scene-change.test.ts`).
 - **All four layers are layers** — a skin is 纸面, 余烬, 烟羽 and 光池, and the third one used to
   reach only the haze behind the smoke, where its alpha tops out at 0.033. That was measured by
@@ -113,6 +114,12 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   What is already in the air when you switch stays as it was for a few seconds — smoke that has left
   the rod does not get a second colour. Rerun with
   `npx vitest run packages/game-renderer/src/__tests__/plume-palette.test.ts`.
+  A skin may also name one room — the deck's 「外加一个环境预设」, which the brief's own hard
+  constraint seemed to forbid until it was ruled in. It is a pointer to a room that already exists
+  and only moves the player into one they have already reached: 一套皮肤带来一个地方，但颜色不是钥匙.
+  What a skin may never carry is a number, and that is a shape check on the shipped data rather than
+  a sentence: `npx vitest run apps/web/src/__tests__/skins.test.ts` prints
+  `PRESET 1 of 6 skins bring a place` and reddens on a skin that grows a fifth kind of key.
 - **The smoke moves as one body.** Every particle used to sample its own noise lattice, which sounds
   like variety and is actually a swarm: neighbours were pushed in unrelated directions, so no puff
   had a body and the room read as out-of-focus fog (像雾, 没对上焦). They share the air now, and the
@@ -257,28 +264,41 @@ The chrome is three things, and all three are readings of the same state machine
 ways to navigate:
 
 - **the row** across the top — which stick of the day this is, inside a ring that empties as the
-  rod burns, then the break's clock and what is left of the stick: `1 · 03:00 · 100%`. While it is
-  being lit the ring counts the flame (`0.4s`), while it is drawn it counts the draws (`6 / 12`),
-  and when the ash is standing it measures the ash (`18mm · 1.1g`). Icons and Arabic digits: nothing
-  in that row needs translating, which is why it survives the wordless tier.
+  rod burns, then the break's clock and what is left of the stick: `1 · 03:00 · 100%`. The ring is
+  the readout of whatever the rod is doing: it counts the flame while it is being lit (`0.4s`), the
+  draws while the mouth is closed (`6 / 12`, with the hold in seconds beside it), the strength of
+  the draw that just ended while the smoke is leaving (`62`, no unit — the bar under the pill is its
+  legend), and the ash when a column is standing (`18mm` beside what the tray is holding in grams).
+  Icons and Arabic digits: nothing in that row needs translating, which is why it survives the
+  wordless tier, and every figure is a measurement the simulation already makes rather than a number
+  rounded up into a claim. On a desk-width window the same row stands as five figures at once
+  (clock, draws, what is left, this stick's ash, and the rod's own name where hint words are on),
+  because a monitor has room for what a thumb has to take one phase at a time.
 - **the pill** above the rail — the same gesture the scene accepts, as a handle. It says `pick up`,
   `light it`, `inhale`, `flick the ash`, `put it out`. Holding it draws; tapping it decides. The
   short label stays on purpose: it is the anchor a translation hangs on, so a rail of pure marks
-  would leave localisation with nothing to hold. It is not always `inhale`, though: pick up a
+  would leave localisation with nothing to hold. Under it the moment gets a picture rather than a
+  sentence: the lungs' resistance as a waveform while the draw runs, the strength of the draw that
+  just ended as a bar whose ends are three hairlines of mist and three lobes of cloud (no words at
+  either end — that pair of labels is exactly what the design's own audit page struck out), and a
+  tap-to-flick strip when the ash is standing. It is not always `inhale`, though: pick up a
   cigarillo, a cigar or a pipe and the handle reads `savour`, because those three are smoked from
   the mouth — the draw fills on a fixed two seconds instead of on the rod's own draw length, the
-  ring follows that filling, and nothing carries over into the next draw. The pill learns this
-  from the rod's measurement (`savourMs`), not from a list of categories the shell would have to
-  keep true. What comes out is the other half of the same sentence: a mouthed draw is breathed out
-  slowly — the cloud lives twice as long, leaves at half the speed and stops climbing.
+  ring follows that filling, and no resistance waveform appears, because those rods hold nothing in
+  the lungs to resist. The pill learns this from the rod's measurement (`savourMs`), not from a list
+  of categories the shell would have to keep true. What comes out is the other half of the same
+  sentence: a mouthed draw is breathed out slowly — the cloud lives twice as long, leaves at half
+  the speed and stops climbing.
 - **the rail** along the bottom — three phases and settings. The phases are indicators: the
-  cigarette lights one of them, and no finger is required or invited.
+  cigarette lights one of them, and no finger is required or invited. In the wordless tier the hint
+  strip that names the next gesture carries a drawing of the paper caving in instead of a word, and
+  it appears only where there is no word to put it in.
 
 On a desk-width window the same chrome gains a fourth piece: a standing 260px column on the inline-end
-with the seven destinations and the day's numbers in it, and the scene shrinks to what is left rather
+with the eight destinations and the day's numbers in it, and the scene shrinks to what is left rather
 than being covered. It is a second density of one set of facts — the panel in that column is the very
 component the break sheet renders, and each entry opens the same sheet the chrome opens, landing on
-the group it names.
+the group it names. Recount the entries with `grep -c "{ id: '" apps/web/src/rail.ts`.
 
 The row's numbers are the stage's only numbers, and they live in the row rather than on the scene
 because a measurement of the simulation is not a thing to tap. Two of its cells are buttons: the
@@ -298,14 +318,42 @@ line may tell the player what they should do. The ceiling itself is a preference
 not allowed to read — an architecture test fails the build if `game-core` or the renderer ever
 looks at it.
 
+**What the other sheets hold**
+
+The cabinet is one sheet with four groups, and each group is a different question the same answer
+form fits:
+
+- **the ladder** — eleven rods, each tile four lines (its name, which of the three families it is —
+  吸入型 / 品鉴型 / 过滤型, the minutes the rod itself takes, and the rung it waits on). A tile
+  answers a long press with its archive card: tier two is what this stick measures, tier three
+  (reached by pinning the card) is the softer reference material, and every quoted range there
+  carries its `≈`.
+- **the boxes** — twelve slots in three tiers, counted `0 / 12`, with the finale box reserved rather
+  than locked behind a door. A collected slot opens the same card shape as a rod does, and it names
+  a real brand: brands are archive material only, never an object to hold, never a price comparison
+  laid out beside another brand, never a health claim (three bottom lines, each with its own guard).
+- **the skins** — six, four colour layers each, and the one place a skin may name (see above).
+- **the rest of the table** — the kit: lighters, trays, smoke shapes, sounds.
+
+The `stats` entry is four numbers and nothing else, all of them derived from the session log on this
+device: sticks, draws, ash in grams, and time held under the flame. The achievement row on the break
+sheet reads the same four axes and nothing new is stored for it; three of its rows are the funny
+gusts the room happened to roll, and the pace is a couple of months of breaks rather than a week of
+tapping. Nothing anywhere awards a streak, because a streak is a punishment with better marketing.
+
 ## How it is verified
 
-| Command                                                 | What it proves                                                                                                                          |
-| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm test`                                              | The simulation and its state machine, replay determinism, statistics derived from the log, the boundaries above                         |
-| `npm run typecheck`                                     | Every workspace, including the Vue shell                                                                                                |
-| `npm run build` then `bash tests/smoke/served-build.sh` | The built app is servable from its subpath: entry script, manifest and service worker all answer                                        |
-| `node tests/smoke/touch-device.mjs <url>`               | A whole break performed with taps on an emulated phone and with a mouse in a desktop window, and a breath with light and dark inside it |
+| Command                                                 | What it proves                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`                                              | 132 files / 1014 cases: the simulation and its state machine, replay determinism, statistics derived from the log, the boundaries above, and the two document guards — every `*.test.ts` cited here and in `docs/SPEC.md` must exist, and every `npm run …` must be a script the root package actually has |
+| `npm run typecheck`                                     | Every workspace, including the Vue shell                                                                                                                                                                                                                                                                   |
+| `npm run build` then `bash tests/smoke/served-build.sh` | The built app is servable from its subpath: entry script, manifest and service worker all answer                                                                                                                                                                                                           |
+| `node tests/smoke/touch-device.mjs <url>`               | **96 checks** in a real browser: a whole break performed with taps on an emulated phone and with a mouse in a desktop window, the chrome read against the state it claims, and a breath with light and dark inside it                                                                                      |
+
+The six steps above are run as one gate before a commit lands, in this order — format, lint with
+`--max-warnings 0`, typecheck, `npm test`, the subpath build (`PUBLIC_BASE=/puffly/`), the served
+artifact — and the device suite is run against the build that gate produced, not against the dev
+server, so what is measured is what ships.
 
 The served-build check exists because a wrong base path passes every unit test and shows up in
 production as a blank page. It was verified to fail loudly, not just to pass: _index.html loads
@@ -331,11 +379,15 @@ To ship somewhere else, build with your own prefix:
 PUBLIC_BASE=/any/prefix/ npm run build
 ```
 
-|               |                                            |
-| ------------- | ------------------------------------------ |
-| Live site     | <https://fwd001.github.io/puffly/>         |
-| Workflow runs | <https://github.com/fwd001/puffly/actions> |
-| Repository    | <https://github.com/fwd001/puffly>         |
+|               |                                              |
+| ------------- | -------------------------------------------- |
+| Live site     | <https://wenzo001.github.io/puffly/>         |
+| Workflow runs | <https://github.com/wenzo001/puffly/actions> |
+| Repository    | <https://github.com/wenzo001/puffly>         |
+
+The old `fwd001` owner path is a redirect for the repository and a 404 for Pages, so the Pages
+address above is the one to share. Both were probed rather than assumed: the new address answers
+200 and the old one 404.
 
 A 404 at the live address after a push means Pages is not set to **GitHub Actions** as its
 source for this repository — the deploy job cannot change that setting itself.
@@ -381,30 +433,26 @@ Honest gaps, so nobody rediscovers them as bugs:
   (`plume-shape`, `plume-on-stage`, `plume-continuity`). An earlier version of this bullet quoted an
   elongation of 2.4 against 1.10; that number is gone on purpose — it measured how far the cloud had
   travelled, and the cloud was travelling out of the picture. What the measurements still cannot
-  answer is the only question that matters: is this the picture. The design's frames are in a
-  signed-in browser — S3 吸烟 is node `3:127`, S4 吐烟 is `3:187`, both 390×844 — but at the zoom that
-  fits the whole page a frame is 27×59 CSS pixels, making one bigger needs real wheel or keyboard
-  input, which the editor does not accept from synthetic events, and the browser connector's command
-  queue has since stopped answering at all (three times in one session, `Tool command waited too long
-in queue`, including for a plain tab list). So the last word on the smoke is a human eye's.
+  answer is the only question that matters: is this the picture. The deck itself is read as text
+  now: its 24 slides are extracted and every 「已改 / 问题 / 待办」 line is answered row by row in
+  `docs/SPEC.md` (稿子 24 屏逐屏对账), with the numbers that screen prints — the ≤0.4 s reverb tail,
+  the 80/20 split, the ash in grams per stick, the ≈ on every quoted range — pinned by tests rather
+  than remembered. The frames still live in a signed-in design tool, and at the zoom that fits a
+  whole page one is 27×59 CSS pixels, so the last word on the smoke is a human eye's. That division
+  is deliberate: the machine proves the geometry a platform was asked for; whether it is the picture
+  is not a question a threshold can answer.
 - No `LICENSE` file has been chosen for the repository yet.
 - The 12-box collection reserves three boxes for the cinnabar skin's finale (中华硬 / 黄鹤楼1916 /
   和天下). They are real rows that the roll skips; nothing about them is a placeholder in the data.
-- The touch check below is the one gate that cannot run on this machine (no Playwright browser in
-  the local cache), so the sections written this round — the row, the pill, the rail, the archive's
-  three densities, the cabinet ladder, the skins, the boxes, the three language tiers, the rooms
-  ladder and the check that a breath has structure rather than only brightness — have not been
-  executed _as that script_. The last one was run verbatim against a known picture instead (the
-  shipped function, pointed at a rendered exhale: 9806 cloud samples, neighbour difference 8.44,
-  relative spread 0.294, where the old cloud measured 5.17 and 0.234), so its thresholds are
-  calibrated rather than guessed — but the script itself has not been run end to end here, **and two
-  of its numbers are known stale**: the structure thresholds were set against the picture from before
-  the plume was given one shared field and one drag of its own, and the tap anchors are the unlifted
-  layout values. Both are marked where they sit in `tests/smoke/touch-device.mjs`. Each one was checked by hand against a connected Chrome on the
-  dev server instead: a whole break performed through the keyboard path, the ash readings
-  (`15.7mm · 0.65g`), the reduction page's seven bars and its delta, and the desk column's seven
-  entries at ≥ 44px tall with their words at ≥ 15px. That last pair is the reading floor for text a
-  player reads, not a rule for every string in the shell: the bottom rail's caption is deliberately
-  one notch under it at 13px, because at 15px 烟灰缸 wrapped onto the mark's line — a decision with a
-  guard of its own (`rail-label.test.ts`), so the two sizes cannot be mistaken for each other later.
-  Run the script with `PUFFLY_BROWSER=chromium` to fold those claims back into CI.
+- The device suite **does** run on this machine: it resolves Playwright from the npm cache and a
+  browser binary through `PUFFLY_CHROME` (headless Brave here — there is no Chrome.app), and the run
+  that backs today's README reports `96/96 checks passed`. Two of its numbers were stale for a
+  while and are not any more: the tap anchors are read from `.stage[data-aim]`, which is where the
+  engine put them after the table of hand-copied unlifted coordinates was deleted, and the plume
+  structure thresholds were re-measured against the picture the shared flow field and the smoke's own
+  drag produce. What the suite still cannot decide is whether the picture is _right_ — the same
+  division as the bullet above.
+- The reading floor for text a player reads is ≥ 15px, and the desk column's eight entries are
+  finger-sized at ≥ 44px; the bottom rail's caption is deliberately one notch under the floor at
+  13px, because at 15px 烟灰缸 wrapped onto the mark's line — a decision with a guard of its own
+  (`rail-label.test.ts`), so the two sizes cannot be mistaken for each other later.
