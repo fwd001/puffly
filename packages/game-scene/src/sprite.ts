@@ -91,7 +91,49 @@ export function roundedRect(
     [radiusX, radiusY],
     [radiusX, radiusY],
   ];
-  const data = new Uint8Array(size * size * 4);
+  return maskTexture(size, roundedMask(size, 1, 1, radii, feather));
+}
+
+/**
+ * The same shape as a ring — the outer rounded rectangle minus an inner one inset by the border
+ * width — which is what a control's 1px border is. CSS's own rule for the inner corner comes along:
+ * its radius is the outer radius minus the border. Both edges keep their own feather, so a hairline
+ * stays a hairline instead of turning into a soft band.
+ */
+export function frameRect(
+  size: number,
+  outer: ReadonlyArray<readonly [number, number]>,
+  insetX: number,
+  insetY: number,
+  feather = 1.5,
+): THREE.DataTexture {
+  const inner = outer.map(
+    ([rx, ry]) => [Math.max(0, rx - insetX), Math.max(0, ry - insetY)] as [number, number],
+  );
+  const whole = roundedMask(size, 1, 1, outer, feather);
+  const hole = roundedMask(
+    size,
+    Math.max(1e-6, 1 - insetX),
+    Math.max(1e-6, 1 - insetY),
+    inner,
+    feather,
+  );
+  const coverage = new Float32Array(size * size);
+  for (let i = 0; i < coverage.length; i += 1) {
+    coverage[i] = Math.max(0, (whole[i] ?? 0) - (hole[i] ?? 0));
+  }
+  return maskTexture(size, coverage);
+}
+
+/** Rounded-rectangle coverage per texel, 0..1 — the one copy of the corner distance math. */
+function roundedMask(
+  size: number,
+  spanX: number,
+  spanY: number,
+  radii: ReadonlyArray<readonly [number, number]>,
+  feather: number,
+): Float32Array {
+  const mask = new Float32Array(size * size);
   const centre = (size - 1) / 2;
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
@@ -107,26 +149,39 @@ export function roundedRect(
           : x < centre
             ? (radii[0] ?? radii[1])
             : (radii[1] ?? radii[0]);
-      const [cornerX, cornerY] = corner ?? [radiusX, radiusY];
-      // Distance to the inner rectangle whose corners the radii turn — per axis, so a card on a
-      // wide quad keeps round corners instead of stretched ones.
-      const cx = Math.max(0, dx - Math.max(0, 1 - cornerX)) / Math.max(1e-6, cornerX);
-      const cy = Math.max(0, dy - Math.max(0, 1 - cornerY)) / Math.max(1e-6, cornerY);
-      const radius = Math.min(cornerX, cornerY);
+      const [cornerX, cornerY] = corner ?? [0.5, 0.5];
+      // The edge bounds and the radius that turns them — per axis, so a card on a wide quad keeps
+      // round corners instead of stretched ones. A radius never exceeds its half-span, the way CSS
+      // clamps.
+      const edgeX = Math.max(1e-6, spanX - Math.min(cornerX, spanX));
+      const edgeY = Math.max(1e-6, spanY - Math.min(cornerY, spanY));
+      const radius = Math.min(Math.min(cornerX, spanX), Math.min(cornerY, spanY));
+      const cx = Math.max(0, dx - edgeX) / Math.max(1e-6, radius);
+      const cy = Math.max(0, dy - edgeY) / Math.max(1e-6, radius);
       const distance = Math.hypot(cx, cy);
-      const t =
+      mask[y * size + x] =
         distance <= 1
           ? 1
           : Math.max(
               0,
-              (1 + feather / (centre * radius) - distance) * ((centre * radius) / feather),
+              Math.min(
+                1,
+                (1 + feather / (centre * radius) - distance) * ((centre * radius) / feather),
+              ),
             );
-      const i = (y * size + x) * 4;
-      data[i] = 255;
-      data[i + 1] = 255;
-      data[i + 2] = 255;
-      data[i + 3] = Math.round(Math.min(1, t) * 255);
     }
+  }
+  return mask;
+}
+
+function maskTexture(size: number, coverage: ArrayLike<number>): THREE.DataTexture {
+  const data = new Uint8Array(size * size * 4);
+  for (let i = 0; i < size * size; i += 1) {
+    const base = i * 4;
+    data[base] = 255;
+    data[base + 1] = 255;
+    data[base + 2] = 255;
+    data[base + 3] = Math.round(Math.min(1, Math.max(0, coverage[i] ?? 0)) * 255);
   }
   const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   texture.needsUpdate = true;

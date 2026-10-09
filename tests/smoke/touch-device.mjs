@@ -2477,17 +2477,35 @@ try {
     ).data;
     let max = 0;
     for (let i = 0; i < d.length; i += 4) max = Math.max(max, d[i], d[i + 1], d[i + 2]);
+    const marked = element.querySelector('[data-scene-surface]');
+    const close = element.querySelector('.close');
     return {
       visibility: getComputedStyle(element).visibility,
       fill: row.style.getPropertyValue('-webkit-text-fill-color'),
       nameMax: max,
+      surfaces: element.querySelectorAll('[data-scene-surface]').length,
+      markedPaint:
+        marked === null
+          ? null
+          : [getComputedStyle(marked).backgroundColor, getComputedStyle(marked).borderTopColor],
+      closeFill: close === null ? '' : close.style.getPropertyValue('-webkit-text-fill-color'),
     };
   }, sheetShot.toString('base64'));
   await page.locator('.sheet[data-open="true"] .close').click();
   await page.waitForTimeout(420);
   check(
     '3D: the open sheet hands its ink over (root hidden, the row fill taken)',
-    sheet.visibility === 'hidden' && sheet.fill === 'transparent',
+    sheet.visibility === 'hidden' &&
+      sheet.fill === 'transparent' &&
+      sheet.closeFill === 'transparent',
+    JSON.stringify(sheet),
+  );
+  check(
+    "3D: the controls' own paint is handed over too (a marked surface is masked transparent)",
+    sheet.surfaces >= 1 &&
+      Array.isArray(sheet.markedPaint) &&
+      sheet.markedPaint[0] === 'rgba(0, 0, 0, 0)' &&
+      sheet.markedPaint[1] === 'rgba(0, 0, 0, 0)',
     JSON.stringify(sheet),
   );
   check(

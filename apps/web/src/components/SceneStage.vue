@@ -37,6 +37,7 @@ import {
   ashtrayRadiusWorld,
   canvasToWorld,
   createPufflyRenderer,
+  frameRect,
   layoutText,
   LIGHTER_SIZE,
   PACK_SIZE,
@@ -463,7 +464,7 @@ function onSceneReady(context: unknown): void {
     inkMesh.frustumCulled = false;
     inkMesh.visible = false;
     inkGroup.add(inkMesh);
-    inkRigs.push({ mesh: inkMesh, material: inkMaterial, signature: '' });
+    inkRigs.push({ mesh: inkMesh, material: inkMaterial, signature: '', skipped: false });
   }
   pillInk.value = inkGroup;
   rigGroup.add(inkGroup);
@@ -483,7 +484,25 @@ function onSceneReady(context: unknown): void {
     sheetMesh.visible = false;
     sheetMesh.position.z = RUN_TEXT_Z;
     rigGroup.add(sheetMesh);
-    sheetRuns.push({ mesh: sheetMesh, material: sheetMaterial, signature: '' });
+    sheetRuns.push({ mesh: sheetMesh, material: sheetMaterial, signature: '', skipped: false });
+  }
+  for (let i = 0; i < SHEET_SURFACE_POOL; i += 1) {
+    const surface = buildCard(0.098);
+    sheetSurfaces.push(surface);
+  }
+  for (let i = 0; i < SHEET_FRAME_POOL; i += 1) {
+    const frameMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      clippingPlanes: sheetClip,
+    });
+    const frameMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), frameMaterial);
+    frameMesh.frustumCulled = false;
+    frameMesh.visible = false;
+    frameMesh.position.z = 0.0985;
+    rigGroup.add(frameMesh);
+    sheetFrames.push({ mesh: frameMesh, material: frameMaterial, signature: '', skipped: false });
   }
   badgeMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(32),
@@ -1296,48 +1315,71 @@ function fillCard(rig: CardRig, element: HTMLElement | null, shrink: number): vo
     }
     card.geometry.dispose();
     card.geometry = geometry;
-    card.scale.set(
-      (rect.width / Math.max(1, viewportWidthPx.value)) *
-        (frame.value.width / Math.max(0.0001, box.value.width)) *
-        shrink,
-      (rect.height / Math.max(1, viewportHeightPx.value)) *
-        (frame.value.height / Math.max(0.0001, box.value.height)) *
-        shrink,
-      1,
-    );
-    // The corner's own radii, per axis: 1/1 is a circle (the cat), ~1 on the short axis is the
-    // stadium the pill and the rail ask for, and a big card's 16px stays 16px on both axes.
-    // The computed shorthand is expanded by CSS's own rules (1/2/3/4 values, `x / y` split first),
-    // so a sheet's "22px 22px 0 0" keeps its square bottom corners instead of rounding all four.
-    const [horizontal = ''] = style.borderRadius.split('/');
-    const radiusParts = horizontal.split(/\s+/).map((value) => Number.parseFloat(value) || 0);
-    const radiusAt = (index: number): number =>
-      radiusParts.length <= 1
-        ? (radiusParts[0] ?? 0)
-        : radiusParts.length === 2
-          ? (radiusParts[index % 2] ?? 0)
-          : radiusParts.length === 3
-            ? ([radiusParts[0], radiusParts[1], radiusParts[2], radiusParts[1]][index] ?? 0)
-            : (radiusParts[index] ?? 0);
-    const halfW = Math.max(1, rect.width / 2);
-    const halfH = Math.max(1, rect.height / 2);
-    const corners = [0, 1, 2, 3].map(
-      (index) =>
-        [Math.min(1, radiusAt(index) / halfW), Math.min(1, radiusAt(index) / halfH)] as const,
-    );
-    const [cornerX, cornerY] = corners[0] ?? [0, 0];
-    const uniform = corners.every(([x, y]) => x === cornerX && y === cornerY);
-    if (uniform && cornerX >= 1 && cornerY >= 1) {
+    quadScale(card, rect, shrink);
+    const { corners, first, uniform } = cornerRadii(style.borderRadius, rect);
+    if (uniform && first[0] >= 1 && first[1] >= 1) {
       material.map = solidDisc(64);
     } else if (uniform) {
-      material.map = roundedRect(128, cornerX, cornerY);
+      material.map = roundedRect(128, first[0], first[1]);
     } else {
-      material.map = roundedRect(128, cornerX, cornerY, 1.5, corners);
+      material.map = roundedRect(128, first[0], first[1], 1.5, corners);
     }
     material.needsUpdate = true;
     rig.baseOpacity = material.opacity;
   }
   card.visible = true;
+}
+
+/**
+ * A card's four corner radii, per axis: 1/1 is a circle (the cat), ~1 on the short axis is the
+ * stadium the pill and the rail ask for, and a big card's 16px stays 16px on both axes. The computed
+ * shorthand is expanded by CSS's own rules (1/2/3/4 values, `x / y` split first), so a sheet's
+ * "22px 22px 0 0" keeps its square bottom corners instead of rounding all four.
+ */
+function cornerRadii(
+  borderRadius: string,
+  rect: { width: number; height: number },
+): {
+  corners: Array<readonly [number, number]>;
+  first: readonly [number, number];
+  uniform: boolean;
+} {
+  const [horizontal = ''] = borderRadius.split('/');
+  const radiusParts = horizontal.split(/\s+/).map((value) => Number.parseFloat(value) || 0);
+  const radiusAt = (index: number): number =>
+    radiusParts.length <= 1
+      ? (radiusParts[0] ?? 0)
+      : radiusParts.length === 2
+        ? (radiusParts[index % 2] ?? 0)
+        : radiusParts.length === 3
+          ? ([radiusParts[0], radiusParts[1], radiusParts[2], radiusParts[1]][index] ?? 0)
+          : (radiusParts[index] ?? 0);
+  const halfW = Math.max(1, rect.width / 2);
+  const halfH = Math.max(1, rect.height / 2);
+  const corners = [0, 1, 2, 3].map(
+    (index) =>
+      [Math.min(1, radiusAt(index) / halfW), Math.min(1, radiusAt(index) / halfH)] as const,
+  );
+  const first = corners[0] ?? ([0, 0] as const);
+  const uniform = corners.every(([x, y]) => x === first[0] && y === first[1]);
+  return { corners, first, uniform };
+}
+
+/** A DOM rect as a unit quad's world scale, through the stage box everything else uses. */
+function quadScale(
+  mesh: THREE.Mesh,
+  rect: { width: number; height: number },
+  shrink: number,
+): void {
+  mesh.scale.set(
+    (rect.width / Math.max(1, viewportWidthPx.value)) *
+      (frame.value.width / Math.max(0.0001, box.value.width)) *
+      shrink,
+    (rect.height / Math.max(1, viewportHeightPx.value)) *
+      (frame.value.height / Math.max(0.0001, box.value.height)) *
+      shrink,
+    1,
+  );
 }
 
 /** The pill: its card, its ring and its glow. */
@@ -1501,7 +1543,36 @@ const sheetClip: THREE.Plane[] = [
   new THREE.Plane(new THREE.Vector3(0, 1, 0), -1e6),
 ];
 const maskedLeaves = new Set<HTMLElement>();
+/** The sheet's painted controls: one fill rig each, plus a frame rig for the bordered ones. */
+const SHEET_SURFACE_POOL = 40;
+const SHEET_FRAME_POOL = 36;
+const sheetSurfaces: CardRig[] = [];
+const sheetFrames: InkRig[] = [];
+const markedSurfaces = new Set<HTMLElement>();
 let sheetClippingOn = false;
+
+/**
+ * A control's own paint, taken away inline — not with `visibility`, which is what the first cut
+ * used and what the suite caught: `visibility: hidden` removes the element from hit testing, so a
+ * masked chip stopped answering the finger. Backgrounds and borders gate no hits, so those two
+ * properties are what this layer withholds; the scene reads them just before masking, in the same
+ * frame (clear, read, paint, re-mask), which is why nothing here needs to remember what the values
+ * were.
+ */
+function clearSurfacePaint(node: HTMLElement): void {
+  if (!markedSurfaces.delete(node)) return;
+  node.removeAttribute('data-scene-surface');
+  node.style.removeProperty('background-color');
+  node.style.removeProperty('border-color');
+}
+
+function maskSurfacePaint(node: HTMLElement): void {
+  if (markedSurfaces.has(node)) return;
+  markedSurfaces.add(node);
+  node.setAttribute('data-scene-surface', '');
+  node.style.setProperty('background-color', 'transparent');
+  node.style.setProperty('border-color', 'transparent');
+}
 
 /** Four half-spaces around the sheet's box, so a scrolled row is cut at the panel's own edge. */
 function updateSheetClip(rect: DOMRect): void {
@@ -1537,7 +1608,10 @@ function hideSheetMirror(): void {
   const card = sheetCardRig.value;
   if (card !== null) card.mesh.visible = false;
   for (const rig of sheetRuns) rig.mesh.visible = false;
+  for (const rig of sheetSurfaces) rig.mesh.visible = false;
+  for (const rig of sheetFrames) rig.mesh.visible = false;
   for (const node of [...maskedLeaves]) clearLeafMask(node);
+  for (const node of [...markedSurfaces]) clearSurfacePaint(node);
 }
 
 function placeSheet(): void {
@@ -1564,34 +1638,34 @@ function placeSheet(): void {
   card.material.opacity = card.baseOpacity * panelAlpha;
   const panelBox = sheet.getBoundingClientRect();
   updateSheetClip(panelBox);
-  const leaves = [...sheet.querySelectorAll<HTMLElement>('*')].filter(
+  const elements = [...sheet.querySelectorAll<HTMLElement>('*')];
+  const leaves = elements.filter(
     (element) => element.childElementCount === 0 && (element.textContent ?? '').trim() !== '',
   );
   const wanted = new Set<HTMLElement>();
+  const domKept = new Set<HTMLElement>();
   leaves.forEach((node, index) => {
     const rig = sheetRuns[index];
     if (rig === undefined) return;
     const rect = node.getBoundingClientRect();
     const style = getComputedStyle(node);
+    // A rect question only: the closed sheet is already excluded by the `[data-open]` query, and a
+    // visibility read here would see this layer's own mask (a marked surface computes `hidden`).
     const outside =
       rect.width === 0 ||
       rect.height === 0 ||
       rect.bottom < panelBox.top - 4 ||
-      rect.top > panelBox.bottom + 4 ||
-      style.visibility === 'hidden' ||
-      style.display === 'none';
+      rect.top > panelBox.bottom + 4;
     const text = node.textContent?.trim() ?? '';
     const fontSize = Number.parseFloat(style.fontSize) || 15;
     const signature = `${text}|${rect.left.toFixed(1)},${rect.top.toFixed(1)},${rect.width.toFixed(1)},${rect.height.toFixed(1)}|${fontSize}|${style.color}`;
-    const skipped = rig.signature.startsWith('skip|');
-    if ((skipped ? rig.signature.slice(5) : rig.signature) !== signature) {
+    if (rig.signature !== signature) {
       const em = pxToWorld(fontSize);
       const layout = layoutText(text, glyphs, em);
-      if (outside || layout.missing.length > 0) {
-        // Characters the atlas does not carry (the header's emoji): the whole line stays the DOM's.
-        rig.signature = `skip|${signature}`;
-      } else {
-        rig.signature = signature;
+      rig.signature = signature;
+      // Characters the atlas does not carry (the header's emoji): the whole line stays the DOM's.
+      rig.skipped = outside || layout.missing.length > 0;
+      if (!rig.skipped) {
         fillRunGeometry(rig.mesh, text, em, layout);
         const colour = parseColour(style.color);
         if (colour !== null) rig.material.color.copy(colour.colour);
@@ -1608,9 +1682,10 @@ function placeSheet(): void {
         rig.mesh.position.set(world[0], world[1], RUN_TEXT_Z);
       }
     }
-    if (outside || rig.signature.startsWith('skip|')) {
+    if (outside || rig.skipped) {
       rig.mesh.visible = false;
       clearLeafMask(node);
+      domKept.add(node);
       return;
     }
     const nodeOpacity = Number.parseFloat(style.opacity);
@@ -1626,6 +1701,90 @@ function placeSheet(): void {
   for (const node of [...maskedLeaves]) {
     if (!wanted.has(node)) clearLeafMask(node);
   }
+
+  // The controls' own paint, one layer under the words: every element that draws a background or a
+  // border gets a fill (through `fillCard`) and, when bordered, a frame. That is what the inline
+  // `-webkit-text-fill-color` cannot reach — it hides a line's ink, not a chip's own body. Lines the
+  // atlas could not take stay the DOM's entirely (the `domKept` set), border included.
+  // The masks are lifted first so this frame's reads are the DOM's own values; the wanted ones are
+  // put back once the paints have been taken (the loop at the end of this function).
+  for (const node of [...markedSurfaces]) clearSurfacePaint(node);
+  const painted = elements.filter((element) => {
+    if (domKept.has(element)) return false;
+    const style = getComputedStyle(element);
+    if (style.display === 'none') return false;
+    const rect = element.getBoundingClientRect();
+    if (
+      rect.width === 0 ||
+      rect.height === 0 ||
+      rect.bottom < panelBox.top - 4 ||
+      rect.top > panelBox.bottom + 4
+    ) {
+      return false;
+    }
+    const fills = style.backgroundImage !== 'none' || style.backgroundColor !== 'rgba(0, 0, 0, 0)';
+    const bordered =
+      (Number.parseFloat(style.borderTopWidth) || 0) > 0 && style.borderTopStyle !== 'none';
+    return fills || bordered;
+  });
+  const wantedSurfaces = new Set<HTMLElement>();
+  painted.forEach((element, index) => {
+    const rig = sheetSurfaces[index];
+    if (rig === undefined) return;
+    fillCard(rig, element, 1);
+    if (!rig.mesh.visible) return;
+    const style = getComputedStyle(element);
+    const own = Number.parseFloat(style.opacity);
+    rig.material.opacity = rig.baseOpacity * panelAlpha * (Number.isFinite(own) ? own : 1);
+    wantedSurfaces.add(element);
+  });
+  for (let index = painted.length; index < sheetSurfaces.length; index += 1) {
+    const rig = sheetSurfaces[index];
+    if (rig !== undefined) rig.mesh.visible = false;
+  }
+  let frameSlot = 0;
+  painted.forEach((element) => {
+    const style = getComputedStyle(element);
+    const width = Number.parseFloat(style.borderTopWidth) || 0;
+    if (!(width > 0) || style.borderTopStyle === 'none') return;
+    const rig = sheetFrames[frameSlot];
+    frameSlot += 1;
+    if (rig === undefined) return;
+    const rect = element.getBoundingClientRect();
+    const signature = `${rect.left.toFixed(1)},${rect.top.toFixed(1)},${rect.width.toFixed(1)},${rect.height.toFixed(1)}|${String(width)}|${style.borderTopColor}|${style.borderRadius}`;
+    if (signature !== rig.signature) {
+      rig.signature = signature;
+      const { corners } = cornerRadii(style.borderRadius, rect);
+      rig.mesh.geometry.dispose();
+      rig.mesh.geometry = new THREE.PlaneGeometry(1, 1);
+      rig.material.map = frameRect(
+        128,
+        corners,
+        width / Math.max(1, rect.width / 2),
+        width / Math.max(1, rect.height / 2),
+      );
+      rig.material.needsUpdate = true;
+      const whole = rectWorld({
+        x: rect.left / Math.max(1, viewportWidthPx.value),
+        y: rect.top / Math.max(1, viewportHeightPx.value),
+        w: rect.width / Math.max(1, viewportWidthPx.value),
+        h: rect.height / Math.max(1, viewportHeightPx.value),
+      });
+      rig.mesh.position.set(whole.centre[0], whole.centre[1], rig.mesh.position.z);
+      quadScale(rig.mesh, rect, 1);
+    }
+    const paint = parseColour(style.borderTopColor);
+    if (paint !== null) {
+      rig.material.color.copy(paint.colour);
+      rig.material.opacity = paint.alpha * panelAlpha;
+    }
+    rig.mesh.visible = true;
+  });
+  for (let index = frameSlot; index < sheetFrames.length; index += 1) {
+    const rig = sheetFrames[index];
+    if (rig !== undefined) rig.mesh.visible = false;
+  }
+  for (const node of wantedSurfaces) maskSurfacePaint(node);
 }
 
 // ------------------------------------------------------- the pill's line art (S4 / S14 / S15)
@@ -1647,6 +1806,10 @@ interface InkRig {
   mesh: THREE.Mesh;
   material: THREE.MeshBasicMaterial;
   signature: string;
+  /** This run is left to the DOM (characters the atlas lacks, or a rect outside the panel). An
+   *  explicit field, not a prefix inside the signature: a prefix made the skip sticky, because a
+   *  later frame whose plain signature matched the stripped one never rebuilt. */
+  skipped: boolean;
 }
 const inkRigs: InkRig[] = [];
 const pillInk = shallowRef<THREE.Group | null>(null);

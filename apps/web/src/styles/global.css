@@ -504,3 +504,5 @@ html.scene3d-text .sheet {
 html.scene3d-text .sheet[data-open='true'] * {
   visibility: visible;
 }
+/* 控件自己的画（底与边）由场景 inline 拿走 —— 不能用 visibility：它会把元素从命中测试里
+   摘掉，按钮就不能点了（真机套件抓到的）。底/边不挡命中，所以只撤这两样。 */

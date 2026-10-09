@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { radialVignette, roundedRect, softDisc, solidDisc } from '../sprite';
+import { frameRect, radialVignette, roundedRect, softDisc, solidDisc } from '../sprite';
 
 describe('the puff sprite is soft, and it is generated rather than drawn', () => {
   it('is solid in the middle and clear at the rim', () => {
@@ -96,6 +96,22 @@ describe('a card is a rounded rectangle, not a disc', () => {
     expect(alphaAt(63, 63)).toBeLessThan(60);
     expect(alphaAt(1, 1)).toBe(255);
     expect(alphaAt(63, 1)).toBe(255);
+  });
+});
+
+describe('a control border is a frame, not a fill', () => {
+  it('keeps the rim and gives up the middle', () => {
+    const size = 65;
+    const outer = [
+      [0.5, 0.5],
+      [0.5, 0.5],
+      [0.5, 0.5],
+      [0.5, 0.5],
+    ] as const;
+    const data = frameRect(size, outer, 0.1, 0.1).image.data as Uint8Array;
+    const alphaAt = (x: number, y: number): number => data[(y * size + x) * 4 + 3] as number;
+    expect(alphaAt(32, 32)).toBeLessThan(60);
+    expect(alphaAt(32, 2)).toBeGreaterThan(180);
   });
 });
 
