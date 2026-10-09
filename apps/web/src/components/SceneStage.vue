@@ -1633,7 +1633,24 @@ function hideSheetMirror(): void {
 function placeSheet(): void {
   const card = sheetCardRig.value;
   if (card === null) return;
-  const sheet = document.querySelector<HTMLElement>('.sheet[data-open="true"]');
+  // The sheet that is on stage *right now*: an open one, or one still sliding out — its own
+  // rect/opacity carry the close transition, and the mirror simply keeps reading them. A closed
+  // sheet sits below the viewport, so its intersection area is zero.
+  let sheet: HTMLElement | null = null;
+  let best = 1;
+  for (const candidate of document.querySelectorAll<HTMLElement>('.sheet')) {
+    const rect = candidate.getBoundingClientRect();
+    const width = Math.max(0, Math.min(rect.right, viewportWidthPx.value) - Math.max(rect.left, 0));
+    const height = Math.max(
+      0,
+      Math.min(rect.bottom, viewportHeightPx.value) - Math.max(rect.top, 0),
+    );
+    const area = width * height;
+    if (area > best) {
+      best = area;
+      sheet = candidate;
+    }
+  }
   const glyphs = atlas;
   if (sheet === null || glyphs === null || atlasTexture === null) {
     hideSheetMirror();
