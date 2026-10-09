@@ -450,6 +450,14 @@ html {
 /* 3D 迁移中（?scene=3d）：顶栏那两个数字的墨由场景里的图集画，DOM 只留按钮与无障碍那一行。
    `-webkit-text-fill-color` 而不是 `color`：场景侧要读同一个 `color` 来上色，而 S19 的对比度
    扫描器不看 `-webkit-text-fill-color`，两边互不打扰。图集没落地时这个类不会挂上来。 */
+/* 场景那张画布对指针完全失聪：手势全部属于它下面的 DOM（§5，P3 起就是设计意图）。
+   这条原来写在 SceneStage.vue 的 scoped 样式里，而 TresJS 渲染的是它自己的 canvas ——
+   scoped 属性没落到那个元素上，量出来 `pointer-events: auto`：整块画布盖着页面把**持续手势**
+   吞掉（按住的吸入从来没有在 ?scene=3d 里生效过；点按侥幸能过）。掩膜搬到全局，和别的几条
+   在一起，并由真机的「吸入时纸面塌陷」那一格看住它。 */
+html.scene3d-text canvas.scene3d {
+  pointer-events: none;
+}
 html.scene3d-text .hud .num {
   -webkit-text-fill-color: transparent;
 }

@@ -93,6 +93,7 @@ export {
   FLAME_BASE_FRACTION,
   flameMetrics,
   LID_THROW_DEG,
+  paperGive,
   WAIST,
   type TrayFeedback,
 } from './props';

@@ -45,6 +45,8 @@ import {
   noise2,
   CHAR_BIT,
   CHAR_GRAIN_SEED,
+  paperGive,
+  DIP_SHARE,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -312,6 +314,11 @@ let charHotMaterial: THREE.MeshBasicMaterial | null = null;
 let charSignature = '';
 /** The painted layer's own grain count: `max(9, min(38, round((thickness / size) * 5)))`. */
 const CHAR_GRAIN_CAPACITY = 38;
+/** The rod's own tube, so its rings can be pinched by the painter's `paperGive` while drawing. */
+const rodMesh = shallowRef<THREE.Mesh | null>(null);
+let rodBase: Float32Array | null = null;
+let rodBuiltLength = -1;
+let rodShapeSignature = '';
 /** The lighter's flame: its teardrop and the blue throat under it, both additive. */
 const flameBody = shallowRef<THREE.Mesh | null>(null);
 const flameThroat = shallowRef<THREE.Mesh | null>(null);
@@ -1472,6 +1479,56 @@ function placeAsh(state: GameStateView | null): void {
 const COLUMN_Z = 0.005;
 
 /**
+ * The paper as a tube that can be sucked inward (S7, S15: 吸入时纸面会塌陷): each ring of the
+ * cylinder is scaled radially by the painter's own `paperGive` — the very curve `rodBodyPath`
+ * bows — so the waist sits where the painter puts it (`WAIST`, just behind the cherry) and the
+ * ends never move. `dip` is the painter's own `thickness · DIP_SHARE · intensity`; at zero every
+ * ring falls back to the straight tube, so an idle rod is the identical shape it always was.
+ */
+function placeRod(state: GameStateView | null): void {
+  const mesh = rodMesh.value;
+  const current = rod.value;
+  if (mesh === null || current === null) return;
+  const len = Math.max(1e-4, current.length);
+  let geometry = mesh.geometry;
+  if (Math.abs(len - rodBuiltLength) > 0.0005 || rodBase === null) {
+    // The tube itself, under this script's hand rather than the template's `:args`: TresJS
+    // rebuilds args reactively, and that rebuild lands *after* this step's deform — measured as a
+    // perfectly round tube while the puff was live. One owner, one order: rebuild here, then pinch.
+    rodBuiltLength = len;
+    geometry.dispose();
+    geometry = new THREE.CylinderGeometry(0.018, 0.018, len, 12, 16);
+    mesh.geometry = geometry;
+    rodBase = (
+      geometry.getAttribute('position') as THREE.BufferAttribute
+    ).array.slice() as Float32Array;
+  }
+  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const puff = state?.cigarette.puff;
+  const perPx = pxToWorld(1);
+  const lenPx = len / perPx;
+  const thickPx = 0.036 / perPx;
+  const dip = puff != null && puff.active ? thickPx * DIP_SHARE * clamp01(puff.intensity) : 0;
+  const signature = `${lenPx.toFixed(2)}|${dip.toFixed(3)}`;
+  if (signature === rodShapeSignature) return;
+  rodShapeSignature = signature;
+  if (rodBase === null) return;
+  const array = position.array as Float32Array;
+  const halfPx = thickPx / 2;
+  for (let i = 0; i < position.count; i += 1) {
+    const bx = rodBase[i * 3] ?? 0;
+    const by = rodBase[i * 3 + 1] ?? 0;
+    const bz = rodBase[i * 3 + 2] ?? 0;
+    const give = dip <= 0 ? 0 : paperGive(lenPx, thickPx, dip, clamp01(by / len + 0.5) * lenPx);
+    const scale = give <= 0 ? 1 : Math.max(0.2, (halfPx - give) / halfPx);
+    array[i * 3] = bx * scale;
+    array[i * 3 + 1] = by;
+    array[i * 3 + 2] = bz * scale;
+  }
+  position.needsUpdate = true;
+}
+
+/**
  * The painting frame: canvas pixels, because every formula copied out of `props.ts` is written in
  * them — and because the canvas is the one space that is isotropic (`stage.width` and `stage.height`
  * are different scales, so a sag laid out in stage fractions comes out skewed by the aspect). The
@@ -1831,6 +1888,7 @@ function step(deltaMs: number): void {
   probe.frames += 1;
   placeCherry(state);
   placeAsh(state);
+  placeRod(state);
   placeColumn(state);
   placeChar(state);
   placeFlame(state);
@@ -2946,14 +3004,15 @@ function placeHintInk(): void {
     </TresMesh>
 
     <!-- The rod: a cylinder between the two published points (its true ends), rotated by the
-         angle they imply. -->
+         angle they imply. `placeRod` pinches its rings while a draw is held (S7/S15). -->
     <TresMesh
       v-if="rod !== null"
+      ref="rodMesh"
       name="rod"
       :position="rod.mid"
       :rotation="[0, 0, rod.angle - Math.PI / 2]"
     >
-      <TresCylinderGeometry :args="[0.018, 0.018, rod.length, 12]" />
+      <TresCylinderGeometry :args="[0.018, 0.018, 0.1, 12, 16]" />
       <TresMeshStandardMaterial color="#e8e2d6" />
     </TresMesh>
 
@@ -2982,10 +3041,12 @@ function placeHintInk(): void {
 </template>
 
 <style scoped>
-/* Over the live canvas for now, and deaf to the pointer: the 2D stage still owns every gesture. */
+/* The canvas is decoration over the live stage and deaf to the pointer — but the mask itself lives
+   in `global.css` (`html.scene3d-text canvas.scene3d`): a scoped rule never reached the canvas
+   TresJS renders, measured `pointer-events: auto`, and the covered page swallowed the sustained
+   gestures (the pill's hold-to-draw never fired in `?scene=3d`). */
 .scene3d {
   position: absolute;
   inset: 0;
-  pointer-events: none;
 }
 </style>

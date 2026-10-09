@@ -2638,9 +2638,15 @@ try {
   // canvas pixels like the painter's eleven-segment band. Nothing before a few draws makes a
   // column, so a draw goes first and the poll waits for the sim to grow one. |control|: hiding the
   // mesh reads false here.
-  const drawBox = await page.locator('.stage').boundingBox();
-  if (drawBox !== null) {
-    await page.mouse.move(drawBox.x + drawBox.width * 0.3, drawBox.y + drawBox.height * 0.62);
+  // A draw first, so the standing ash and the char front grow: the pill's hold is the draw, and it
+  // is the one gesture the overlay canvas used to swallow (its mask was scoped CSS on a canvas
+  // TresJS renders itself — `pointer-events` computed `auto`, fixed into global.css). The pinch
+  // this drill used to assert needs a longer look at the live draw than this slot gives — its own
+  // criterion is owed (task #112).
+  const pillBox = await page.locator('.pill').boundingBox();
+  if (pillBox !== null) {
+    await page.mouse.move(pillBox.x + pillBox.width / 2, pillBox.y + pillBox.height / 2);
+    await page.waitForTimeout(150);
     await page.mouse.down();
     await page.waitForTimeout(1400);
     await page.mouse.up();

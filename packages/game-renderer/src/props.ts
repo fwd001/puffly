@@ -931,7 +931,7 @@ export const WAIST = 0.78;
  * band's centre — a stripe standing a hair outside a collapsed tube, which is exactly how a fake dent
  * reads as a bug. One sampler, one shape.
  */
-function paperGive(length: number, thickness: number, dip: number, x: number): number {
+export function paperGive(length: number, thickness: number, dip: number, x: number): number {
   if (dip <= 0) return 0;
   const half = thickness / 2;
   const r = Math.min(thickness * 0.45, length / 2, half);
