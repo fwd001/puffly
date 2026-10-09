@@ -11,7 +11,7 @@ import { ParticlePool } from '../particles';
 import { FIELD_SCALE, intakeBurst, SMOKE_DRAG } from '../intake';
 import { curl2, fbm2, noise2, wander } from '../noise';
 import { createViewport } from '../viewport';
-import { createCanvasRenderer } from '../renderer';
+import { createCanvasRenderer, grainAlpha } from '../renderer';
 import { drawEffects, EffectList } from '../effects';
 import { drawAshtray } from '../props';
 import { createFakeCanvas, deepFreeze, fakeSprite } from './fakeCanvas';
@@ -750,5 +750,15 @@ describe('§48: the renderer must not write to game state', () => {
     expect(fake.count('setTransform')).toBeGreaterThan(0);
     expect(renderer.particleCount()).toBeGreaterThan(0);
     renderer.dispose();
+  });
+});
+
+describe('the film grain amount (§23, §56)', () => {
+  it('is off under reduced motion and under an amount of zero, capped at the ceiling', () => {
+    // The 3D layer reads this same function, so the two ceilings are one number.
+    expect(grainAlpha(0.5, true)).toBeNull();
+    expect(grainAlpha(0, false)).toBeNull();
+    expect(grainAlpha(0.5, false)).toBeCloseTo(0.045, 10);
+    expect(grainAlpha(4, false)).toBeCloseTo(0.14, 10);
   });
 });

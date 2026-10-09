@@ -95,6 +95,15 @@ export const NEAR_DEPTH = 0.55;
 const TRAY_FULL_GRAMS = 0.36;
 /** Overlap instead of opacity: see `drawSmoke`. */
 export const PUFF_SPREAD = 1.34;
+/**
+ * The film grain's own amount, shared with the 3D layer: `null` when there is nothing to put on
+ * (reduced motion is the first thing grain gives up — it is texture, not information — and a venue
+ * may declare none at all). §23, §56, §63.
+ */
+export function grainAlpha(grain: number, reducedMotion: boolean): number | null {
+  if (reducedMotion || grain <= 0) return null;
+  return Math.min(0.14, grain * 0.09);
+}
 const PUFF_ALPHA = 0.62;
 /** A puff is not a circle: the drawn ellipse is this much shorter than it is wide. */
 export const PUFF_FLATTEN = 0.74;
@@ -607,13 +616,13 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
   ): void => {
     // Grain is texture, not information: it is the first thing to go when the player asked for
     // less movement, and it never appears without a tile to repeat (§64, §63: absent is fine).
-    if (!tile || reducedMotion) return;
-    const amount = state.environment.background.grain;
-    if (amount <= 0) return;
+    if (!tile) return;
+    const alpha = grainAlpha(state.environment.background.grain, reducedMotion);
+    if (alpha === null) return;
     const pattern = context.createPattern(tile as unknown as CanvasImageSource, 'repeat');
     if (!pattern) return;
     context.save();
-    context.globalAlpha = Math.min(0.14, amount * 0.09);
+    context.globalAlpha = alpha;
     context.fillStyle = pattern;
     context.fillRect(0, 0, viewport.cssWidth, viewport.cssHeight);
     context.restore();

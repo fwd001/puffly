@@ -2584,6 +2584,36 @@ try {
     rainCount === 0,
     `rain count ${String(rainCount)}`,
   );
+  // The film grain: one plane wearing the painted layer's own tile (`createGrainTile`), at the
+  // shared `grainAlpha`. quiet-room declares grain 0.5, so the floor here is the formula's own
+  // 0.5 × 0.09 = 0.045 (band-pinned, not equality: the venue's number is content). |control|:
+  // widening `grainAlpha` to `grain * 0.9` reads 0.45 and reddens this.
+  const grain = await page.evaluate(() => {
+    const ctx = window.__pufflyScene.context;
+    const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+    let found = null;
+    scene.traverse((o) => {
+      if (o.name === 'grain') {
+        found = {
+          visible: o.visible,
+          opacity: o.material?.opacity ?? -1,
+          repeatX: o.material?.map?.repeat?.x ?? -1,
+        };
+      }
+    });
+    return found;
+  });
+  check(
+    '3D: the film grain is on the scene, at the shared amount (S23/§56)',
+    grain !== null &&
+      grain.visible &&
+      grain.opacity > 0 &&
+      grain.opacity <= 0.14 &&
+      grain.repeatX > 1,
+    grain === null
+      ? 'no grain mesh'
+      : `visible ${String(grain.visible)} opacity ${grain.opacity.toFixed(3)} repeatX ${grain.repeatX.toFixed(2)}`,
+  );
   // The break sheet wears the same mirror: its root gives up its own paint (visibility, so the
   // surface's computed background stays readable), its mirrorable rows give up their ink inline,
   // and the rows the atlas cannot carry keep theirs. Two mutations measured: putting the root's

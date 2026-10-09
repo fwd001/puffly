@@ -40,6 +40,8 @@ import {
   NEAR_DEPTH,
   RAIN_TINT,
   rainLines,
+  createGrainTile,
+  grainAlpha,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -291,6 +293,9 @@ const dustMesh = shallowRef<THREE.InstancedMesh | null>(null);
 /** The sky's rain: one streak per instance, from `rainLines`. 96 covers a storm's 90. */
 const RAIN_CAPACITY = 96;
 const rainMesh = shallowRef<THREE.InstancedMesh | null>(null);
+/** The film grain: one full-frame plane wearing the painted layer's own tile. */
+const grainMesh = shallowRef<THREE.Mesh | null>(null);
+let grainMaterial: THREE.MeshBasicMaterial | null = null;
 /** The lighter's flame: its teardrop and the blue throat under it, both additive. */
 const flameBody = shallowRef<THREE.Mesh | null>(null);
 const flameThroat = shallowRef<THREE.Mesh | null>(null);
@@ -595,6 +600,36 @@ function onSceneReady(context: unknown): void {
   rainCloud.name = 'rain';
   rigGroup.add(rainCloud);
   rainMesh.value = rainCloud;
+  // The film grain's tile, baked by the painted layer's own `createGrainTile` (same LCG, same
+  // 128 px), read back as pixels because every texture on this stage so far is a DataTexture and
+  // this pipeline has only ever been fed those.
+  const grainTile = createGrainTile();
+  const tileCtx =
+    grainTile === null
+      ? null
+      : (grainTile.getContext?.('2d') as unknown as CanvasRenderingContext2D | null);
+  const grainPixels = tileCtx?.getImageData(0, 0, 128, 128) ?? null;
+  if (grainPixels !== null) {
+    const texture = new THREE.DataTexture(grainPixels.data, 128, 128, THREE.RGBAFormat);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    // The canvas composites the tile in sRGB; tagging it is what keeps the mid-greys the same
+    // grey through the renderer's own output pass.
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+    grainMaterial = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+    });
+    const grainPlane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), grainMaterial);
+    grainPlane.name = 'grain';
+    grainPlane.frustumCulled = false;
+    grainPlane.visible = false;
+    grainPlane.position.set(0, 0, GRAIN_Z);
+    rigGroup.add(grainPlane);
+    grainMesh.value = grainPlane;
+  }
   flameThroatMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(64),
     transparent: true,
@@ -1164,6 +1199,33 @@ function placeDust(state: GameStateView | null): void {
  */
 const RAIN_Z = 0.032;
 
+/**
+ * Grain's rung on the ladder: immediately behind the dust (−0.6), which is the order the painted
+ * layer uses (背景 → grain → dust). Two deviations are deliberate and sub-perceptual: the table
+ * slab and the interior ink sit in front of it, and the canvas has grain over them — both are
+ * dark surfaces where a 4% noise is nothing.
+ */
+const GRAIN_Z = -0.65;
+
+/** The film grain, from the painted layer's own tile and its own amount (`grainAlpha`). */
+function placeGrain(state: GameStateView | null): void {
+  const mesh = grainMesh.value;
+  if (mesh === null || grainMaterial === null) return;
+  const alpha =
+    state === null
+      ? null
+      : grainAlpha(state.environment.background.grain, props.game.rendererLook().reducedMotion);
+  mesh.visible = alpha !== null;
+  if (alpha === null) return;
+  grainMaterial.opacity = alpha;
+  mesh.scale.set(frame.value.width, frame.value.height, 1);
+  const map = grainMaterial.map;
+  if (map !== null) {
+    // One tile per 128 CSS px, the painted pattern's own period.
+    map.repeat.set(viewportWidthPx.value / 128, viewportHeightPx.value / 128);
+  }
+}
+
 /** The sky's rain, from the painted layer's own `rainLines` — one streak per instance. */
 function placeRain(state: GameStateView | null): void {
   const cloud = rainMesh.value;
@@ -1426,6 +1488,7 @@ function step(deltaMs: number): void {
   placeFlame(state);
   placeDust(state);
   placeRain(state);
+  placeGrain(state);
   const lid = lighterLid.value;
   if (lid !== null) {
     lid.rotation.x = -clamp01(state?.lighter.lid ?? 0) * ((LID_THROW_DEG * Math.PI) / 180);

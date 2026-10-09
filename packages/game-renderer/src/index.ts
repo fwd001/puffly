@@ -13,6 +13,7 @@ export {
   PUFF_SPREAD,
   cartoonScale,
   cherryHot,
+  grainAlpha,
   plumeIntakeOptions,
   puffAlpha,
   puffHeat,
