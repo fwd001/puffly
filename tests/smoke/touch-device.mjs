@@ -2393,6 +2393,48 @@ try {
     digits >= 180,
     `max ${String(digits)}`,
   );
+  // S19's card, held open: the runs sit nearer than every chrome plate (`RUN_TEXT_Z`) and the DOM
+  // copy gives up its ink — `animation: none` first, because the card's own 220 ms arrival outranks
+  // a static opacity in the cascade. Both mutations measured: pushing the runs back behind the
+  // plate dims the name to 103, and putting the arrival animation back lifts the DOM to opacity 1.
+  const mark = await page.locator('.hud [data-hook="category"]').boundingBox();
+  await page.mouse.move(mark.x + mark.width / 2, mark.y + mark.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(950);
+  const heldShot = await page.screenshot();
+  const card = await page.evaluate(async (b64) => {
+    const el = document.querySelector('[data-hook="archive"]');
+    if (el === null) return { opacity: 'missing', name: 0 };
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const r = el.querySelector('.name').getBoundingClientRect();
+    const d = ctx.getImageData(
+      Math.round(r.left) - 2,
+      Math.round(r.top) - 2,
+      Math.round(r.width) + 4,
+      Math.round(r.height) + 4,
+    ).data;
+    let max = 0;
+    for (let i = 0; i < d.length; i += 4) max = Math.max(max, d[i], d[i + 1], d[i + 2]);
+    return { opacity: getComputedStyle(el).opacity, name: max };
+  }, heldShot.toString('base64'));
+  await page.mouse.up();
+  check(
+    "3D: the held card's DOM copy gives up its ink (a static mask beats the arrival animation)",
+    card.opacity === '0',
+    `computed opacity ${card.opacity}`,
+  );
+  check(
+    "3D: the card's name is painted by the scene, over its own plate",
+    card.name >= 170,
+    `name max ${String(card.name)}`,
+  );
   check('3D: none of it threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 }

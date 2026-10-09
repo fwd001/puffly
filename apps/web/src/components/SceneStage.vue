@@ -448,6 +448,7 @@ function onSceneReady(context: unknown): void {
   railRig.value = buildCard(-0.072);
   tabRigs.value = [buildCard(-0.07), buildCard(-0.07), buildCard(-0.07), buildCard(-0.07)];
   catCardRig.value = buildCard(-0.08);
+  archiveCardRig.value = buildCard(-0.05);
   badgeMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(32),
     transparent: true,
@@ -727,19 +728,29 @@ const runSignatures: string[] = [];
  * What each run mirrors: the two figures beside the ring, then whatever the ring is carrying —
  * digits when it has a number and a mark when it does not. The DOM still lays all three out.
  */
-const RUN_SELECTORS = [
-  '.hud > button.num',
-  '.hud > span.num.alt',
-  '.hud .ring .digits, .hud .ring .mark',
-  '.pill .glyph',
-  '.pill .word',
-  '.hint',
-  '.cat > span:not(.badge)',
+/**
+ * Every run in the scene, as (selector, nth-match) pairs.
+ *
+ * The head slots are single elements; the rows that come and go with the width or the phase —
+ * S11's desk readouts, the rail's four glyphs and words, and the archive card's own lines — are
+ * matched per element, in DOM order, so their count is the only fixed thing about them.
+ */
+const ARCHIVE_TEXTS =
+  '.archive .name, .archive .zh, .archive .close, .archive dt, .archive dd, .archive p, .archive .chip, .archive .pin span';
+const RUN_TABLE: ReadonlyArray<{ selector: string; nth: number }> = [
+  { selector: '.hud > button.num', nth: 0 },
+  { selector: '.hud > span.num.alt', nth: 0 },
+  { selector: '.hud .ring .digits, .hud .ring .mark', nth: 0 },
+  { selector: '.pill .glyph', nth: 0 },
+  { selector: '.pill .word', nth: 0 },
+  { selector: '.hint', nth: 0 },
+  { selector: '.cat > span:not(.badge)', nth: 0 },
+  ...[0, 1, 2, 3, 4].map((nth) => ({ selector: '.hud .desk .read', nth })),
+  ...[0, 1, 2, 3].map((nth) => ({ selector: '.rail .tab .glyph', nth })),
+  ...[0, 1, 2, 3].map((nth) => ({ selector: '.rail .tab .word', nth })),
+  ...Array.from({ length: 32 }, (_, nth) => ({ selector: ARCHIVE_TEXTS, nth })),
 ];
-/** S11's desk row is five more runs, matched per element (they come and go with the width). */
-const DESK_RUNS = 5;
-const RAIL_RUNS = 8;
-const RUN_COUNT = RUN_SELECTORS.length + DESK_RUNS + RAIL_RUNS;
+const RUN_COUNT = RUN_TABLE.length;
 const chrome = shallowRef<THREE.Group | null>(null);
 interface RingRig {
   track: THREE.Mesh;
@@ -764,6 +775,7 @@ const pillCardRig = shallowRef<CardRig | null>(null);
 const railRig = shallowRef<CardRig | null>(null);
 const tabRigs = shallowRef<CardRig[]>([]);
 const catCardRig = shallowRef<CardRig | null>(null);
+const archiveCardRig = shallowRef<CardRig | null>(null);
 const badgeQuad = shallowRef<THREE.Mesh | null>(null);
 let badgeMaterial: THREE.MeshBasicMaterial | null = null;
 const pillGlow = shallowRef<THREE.Mesh | null>(null);
@@ -803,6 +815,13 @@ async function loadAtlas(): Promise<void> {
   }
 }
 
+/**
+ * Where every run of text sits. Nearer the camera than any chrome plate: the archive card is the
+ * closest one at −0.05, the pill's at −0.09. A plate drawn *after* its own words dims them by the
+ * plate's alpha — measured on the archive name: 103 where the same glyph unplated reads 224.
+ */
+const RUN_TEXT_Z = -0.04;
+
 function fillRunGeometry(mesh: THREE.Mesh, text: string, em: number): void {
   if (atlas === null) return;
   const layout = layoutText(text, atlas, em);
@@ -836,19 +855,12 @@ function fillRunGeometry(mesh: THREE.Mesh, text: string, em: number): void {
 function placeText(): void {
   const group = textRuns.value;
   if (group === null || atlas === null || atlasTexture === null) return;
-  const desk = document.querySelectorAll<HTMLElement>('.hud .desk .read');
-  const railGlyphs = document.querySelectorAll<HTMLElement>('.rail .tab .glyph');
-  const railWords = document.querySelectorAll<HTMLElement>('.rail .tab .word');
   runMeshes.forEach((mesh, index) => {
-    let node: HTMLElement | null = null;
-    if (index < RUN_SELECTORS.length) {
-      node = document.querySelector<HTMLElement>(RUN_SELECTORS[index] ?? '');
-    } else if (index < RUN_SELECTORS.length + DESK_RUNS) {
-      node = desk[index - RUN_SELECTORS.length] ?? null;
-    } else {
-      const slot = index - RUN_SELECTORS.length - DESK_RUNS;
-      node = slot % 2 === 0 ? (railGlyphs[slot / 2] ?? null) : (railWords[(slot - 1) / 2] ?? null);
-    }
+    const slot = RUN_TABLE[index];
+    const node =
+      slot === undefined
+        ? null
+        : (document.querySelectorAll<HTMLElement>(slot.selector)[slot.nth] ?? null);
     const material = runMaterials[index];
     if (node === null || material === undefined) {
       mesh.visible = false;
@@ -889,7 +901,7 @@ function placeText(): void {
         box.value,
         aspect.value,
       );
-      mesh.position.set(world[0], world[1], -0.1);
+      mesh.position.set(world[0], world[1], RUN_TEXT_Z);
     }
     mesh.visible = true;
   });
@@ -998,6 +1010,7 @@ function step(deltaMs: number): void {
   placeText();
   placeRail();
   placeCat();
+  placeArchive();
   const hudRing = hudRig.value;
   if (hudRing !== null) {
     placeRingRig(hudRing, document.querySelector<SVGSVGElement>('.hud .ring svg'), -0.106, -0.105);
@@ -1227,11 +1240,12 @@ function fillCard(rig: CardRig, element: HTMLElement | null, shrink: number): vo
         shrink,
       1,
     );
-    // A radius at half the shorter side is a circle, and a stadium texture's corners are wrong
-    // for it — the cat button is exactly that shape.
-    const radius = Number.parseFloat(style.borderRadius) || 0;
-    const circle = radius >= Math.min(rect.width, rect.height) / 2 - 0.5;
-    material.map = circle ? solidDisc(64) : roundedRect(128, 0.5);
+    // The corner's own radii, per axis: 1/1 is a circle (the cat), ~1 on the short axis is the
+    // stadium the pill and the rail ask for, and a big card's 16px stays 16px on both axes.
+    const radiusPx = Number.parseFloat(style.borderRadius) || 0;
+    const rx = Math.min(1, radiusPx / Math.max(1, rect.width / 2));
+    const ry = Math.min(1, radiusPx / Math.max(1, rect.height / 2));
+    material.map = rx >= 1 && ry >= 1 ? solidDisc(64) : roundedRect(128, rx, ry);
     material.needsUpdate = true;
   }
   card.visible = true;
@@ -1315,6 +1329,13 @@ function placeCat(): void {
     getComputedStyle(document.documentElement).getPropertyValue('--ember-orange').trim() ||
       '#e2604a',
   );
+}
+
+/** The archive card (S19's long-press): the surface here, its lines and marks through the runs. */
+function placeArchive(): void {
+  const rig = archiveCardRig.value;
+  if (rig === null) return;
+  fillCard(rig, document.querySelector<HTMLElement>('.archive'), 1);
 }
 </script>
 
