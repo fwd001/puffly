@@ -162,6 +162,7 @@ export default tseslint.config(
         URL: 'readonly',
         document: 'readonly',
         window: 'readonly',
+        Image: 'readonly',
         PointerEvent: 'readonly',
         MouseEvent: 'readonly',
         Event: 'readonly',

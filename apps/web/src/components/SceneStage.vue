@@ -399,7 +399,10 @@ function onSceneReady(context: unknown): void {
   const words = new THREE.Group();
   for (let i = 0; i < RUN_COUNT; i += 1) {
     const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
-    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
+    // A real (invisible) plane, not an empty BufferGeometry: TresJS walks the scene when a
+    // primitive mounts and reads the position attribute — an empty one throws inside its watcher
+    // (measured: `Cannot read properties of undefined (reading 'count')` on both backends).
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
     mesh.frustumCulled = false;
     mesh.visible = false;
     runMaterials.push(material);

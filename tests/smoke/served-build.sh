@@ -78,6 +78,33 @@ if [ -n "$MANIFEST" ]; then
   printf 'ok  manifest %s\n' "$MANIFEST"
 fi
 
+# The scene rewrite's own budget (§8 of `docs/superpowers/specs/2026-10-09-scene3d-rewrite-design.md`):
+# the 3D engine is what only `?scene=3d` pays for, and every visitor pays for the entry. `navigator.gpu`
+# is the marker rather than a class name — property names survive minification, identifiers do not.
+ENTRY_FILE="$DIST/${ASSET#"$BASE"}"
+[ -f "$ENTRY_FILE" ] || fail "entry asset $ASSET is not on disk as $ENTRY_FILE"
+ENTRY_GZIP=$(gzip -c "$ENTRY_FILE" | wc -c | tr -d ' ')
+if grep -q 'navigator\.gpu' "$ENTRY_FILE"; then
+  fail "the entry chunk carries the 3D engine — the scene must stay lazy"
+fi
+printf 'ok  entry chunk is %s gzip bytes and carries no 3D engine\n' "$ENTRY_GZIP"
+
+SCENE_CHUNKS="$(for f in "$DIST"/assets/*.js; do
+  if grep -q 'navigator\.gpu' "$f"; then basename "$f"; fi
+done)"
+[ -n "$SCENE_CHUNKS" ] || fail "no lazy chunk carries the 3D engine — did the scene become eager?"
+printf 'ok  the 3D engine rides its own lazy chunk (%s)\n' "$(printf '%s' "$SCENE_CHUNKS" | tr '\n' ' ')"
+
+FIRST_GZIP="$ENTRY_GZIP"
+for f in "$DIST"/assets/*.css; do
+  [ -f "$f" ] || continue
+  FIRST_GZIP=$((FIRST_GZIP + $(gzip -c "$f" | wc -c | tr -d ' ')))
+done
+if [ "$FIRST_GZIP" -gt 716800 ]; then
+  fail "first paint is ${FIRST_GZIP} gzip bytes — over the 700 KiB ceiling the design set"
+fi
+printf 'ok  first paint %s gzip bytes (ceiling 700 KiB)\n' "$FIRST_GZIP"
+
 # Offline is the product (§53): the generated worker has to be reachable under the same base.
 if [ -f "$DIST/sw.js" ]; then
   curl -fsS -o /dev/null "$ORIGIN${BASE}sw.js" || fail "sw.js is not reachable under $BASE"

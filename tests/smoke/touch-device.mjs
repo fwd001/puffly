@@ -2335,6 +2335,68 @@ try {
   await context.close();
 }
 
+// ------------------------------------------- the 3D stage, on both backends (SPEC §76 rewrite)
+//
+// The scene is opt-in (`?scene=3d`), and the acceptance is "两条后端出帧": whatever the machine has
+// faces the default path, and `&gl=1` must land on the WebGL2 backend rather than silently using
+// WebGPU anyway. The digits' check is the atlas's own — the DOM's ink is transparent under the
+// flag, so a bright pixel inside the clock's box is the scene's text and nothing else.
+{
+  const context = await browser.newContext({ viewport: { width: 393, height: 852 } });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (event) => errors.push(String(event).slice(0, 120)));
+  for (const [label, query, wanted] of [
+    ['default', '?scene=3d', null],
+    ['forced WebGL2', '?scene=3d&gl=1', 'webgl2'],
+  ]) {
+    await page.goto(`${URL_ARG}${query}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2600);
+    const before = await page.evaluate(() => window.__pufflyScene?.frames ?? -1);
+    await page.waitForTimeout(700);
+    const state = await page.evaluate(() => ({
+      frames: window.__pufflyScene?.frames ?? -1,
+      backend: window.__pufflyScene?.backend ?? '',
+    }));
+    check(
+      `3D: the ${label} path renders frames`,
+      state.frames > before + 5,
+      `frames ${String(before)}→${String(state.frames)}, backend=${state.backend}`,
+    );
+    if (wanted !== null) {
+      check(`3D: ${label} reports the ${wanted} backend`, state.backend === wanted, state.backend);
+    } else {
+      check(
+        '3D: the default path took one of the two backends',
+        state.backend === 'webgpu' || state.backend === 'webgl2',
+        state.backend,
+      );
+    }
+  }
+  const shot = await page.screenshot();
+  const digits = await page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(100, 16, 55, 24).data;
+    let max = 0;
+    for (let i = 0; i < d.length; i += 4) max = Math.max(max, d[i], d[i + 1], d[i + 2]);
+    return max;
+  }, shot.toString('base64'));
+  check(
+    '3D: the clock is drawn by the scene (bright pixels inside its box)',
+    digits >= 180,
+    `max ${String(digits)}`,
+  );
+  check('3D: none of it threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+}
+
 await browser.close();
 const failed = results.filter((entry) => !entry.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
