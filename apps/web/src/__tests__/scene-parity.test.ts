@@ -7,13 +7,25 @@
  * with it, and the scene's constants become the only ones.
  */
 import { describe, expect, it } from 'vitest';
-import { LIGHTER_SIZE as SCENE_LIGHTER, PACK_SIZE as SCENE_PACK } from '@puffly/game-scene';
-import { LIGHTER_SIZE as CANVAS_LIGHTER, PACK_SIZE as CANVAS_PACK } from '@puffly/game-renderer';
+import {
+  LIGHTER_SIZE as SCENE_LIGHTER,
+  PACK_SIZE as SCENE_PACK,
+  TRAY_FLATTEN as SCENE_FLATTEN,
+} from '@puffly/game-scene';
+import {
+  LIGHTER_SIZE as CANVAS_LIGHTER,
+  PACK_SIZE as CANVAS_PACK,
+  TRAY_FLATTEN as CANVAS_FLATTEN,
+} from '@puffly/game-renderer';
 
 describe('the two renderers agree about prop sizes', () => {
   it('draws the lighter and the pack at the size the canvas layer uses', () => {
     expect(SCENE_LIGHTER).toEqual(CANVAS_LIGHTER);
     expect(SCENE_PACK).toEqual(CANVAS_PACK);
+  });
+
+  it('squashes the tray by the same amount the canvas layer draws it', () => {
+    expect(SCENE_FLATTEN).toBe(CANVAS_FLATTEN);
   });
 
   it('reads a stage unit the same way: the number is a fraction of the stage’s height', () => {

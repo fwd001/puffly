@@ -11,6 +11,8 @@
  */
 export const LIGHTER_SIZE = { width: 0.05, height: 0.075 } as const;
 export const PACK_SIZE = { width: 0.058, height: 0.088 } as const;
+/** How much the tray's disc is squashed on screen — the 2D layer's convention, not a perspective. */
+export const TRAY_FLATTEN = 0.42;
 
 /** A size in stage units → world units, given the stage's world height. */
 export function toWorldSize(size: number, worldHeight: number): number {

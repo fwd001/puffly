@@ -40,6 +40,7 @@ export {
   drawPack,
   LIGHTER_SIZE,
   PACK_SIZE,
+  TRAY_FLATTEN,
   lighterBox,
   packBox,
 } from './props';

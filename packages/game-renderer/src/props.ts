@@ -47,7 +47,7 @@ export function drawAshtray(
   if (rock !== 0) ctx.rotate(rock);
 
   ctx.beginPath();
-  ctx.ellipse(0, 0, radius, radius * 0.42, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, radius, radius * TRAY_FLATTEN, 0, 0, Math.PI * 2);
   ctx.fillStyle = rgbToCss(mixRgb(style.base, [0, 0, 0], 0.35));
   ctx.fill();
 
@@ -74,7 +74,7 @@ export function drawAshtray(
   // Rim highlight: the only place a tray shows its material.
   const invite = clamp01(feedback.invited);
   ctx.beginPath();
-  ctx.ellipse(0, 0, radius, radius * 0.42, 0, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.ellipse(0, 0, radius, radius * TRAY_FLATTEN, 0, Math.PI * 1.05, Math.PI * 1.95);
   ctx.lineWidth = Math.max(1, radius * 0.06);
   ctx.strokeStyle = rgbToCss(
     mixRgb(style.rim, [255, 214, 150], invite * 0.7),
@@ -100,6 +100,13 @@ export function drawAshtray(
  * size no test can reason about.
  */
 export const LIGHTER_SIZE = { width: 0.05, height: 0.075 } as const;
+
+/**
+ * The tray is a circle seen from a little above, and this is by how much it is squashed: the drawn
+ * ellipse's minor axis is 0.42 of the major. The 2D layer draws it; the 3D layer squashes a disc by
+ * the same number, which is why it is exported rather than left inside the draw call.
+ */
+export const TRAY_FLATTEN = 0.42;
 // Portrait, because that is the one silhouette a pack cannot be mistaken for. Lying it on its
 // side (the previous 0.095 x 0.062) made it the same shape as a tin of something, and the tin is
 // the thing the player then asks the name of.

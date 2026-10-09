@@ -22,6 +22,7 @@ import {
   rodBetweenInBox,
   stageWorldSize,
   toWorldSize,
+  TRAY_FLATTEN,
   WORLD_HEIGHT,
   type RendererChoice,
   type StageBox,
@@ -122,7 +123,21 @@ const tableY = computed(() => -WORLD_HEIGHT * 0.42);
       <TresBoxGeometry :args="[pack.w, pack.h, pack.w * 0.6]" />
       <TresMeshStandardMaterial color="#a63a2c" :roughness="0.6" />
     </TresMesh>
-    <TresMesh :position="at('ashtray')" :rotation="[-Math.PI / 2, 0, 0]">
+    <!--
+      A disc facing the camera, squashed by the 2D layer's own ratio: the canvas draws the tray as an
+      ellipse because its drawing implies a view from a little above, and the 3D layer reproduces that
+      convention as geometry. Tilting the camera would have reproduced the look by breaking the 1:1
+      mapping between the mirror's fractions and the screen.
+    -->
+    <!-- The squash is on the LOCAL z axis on purpose: scale is applied before the rotation, and this
+         disc is turned a quarter turn about x — so its local z is what the screen reads as vertical.
+         Squashing local y instead (the obvious guess) squashes the tray's thickness into the screen
+         and leaves a perfect circle on it. -->
+    <TresMesh
+      :position="at('ashtray')"
+      :rotation="[-Math.PI / 2, 0, 0]"
+      :scale="[1, 1, TRAY_FLATTEN]"
+    >
       <TresCylinderGeometry :args="[trayRadius, trayRadius, trayRadius * 0.28, 32]" />
       <TresMeshStandardMaterial color="#6b6b70" :metalness="0.3" :roughness="0.5" />
     </TresMesh>
