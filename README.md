@@ -416,9 +416,9 @@ What already draws in the scene: the room and its furniture, the rod with its ch
 ash, the smoke / the falling ash / the flint sparks, the weather (rain gated by a venue that can see
 the sky, the film grain, and the air's dust), the head-up row and rails, the pill and its diagrams,
 the archive card, and the four sheets — surfaces, rows, controls and their closing motion — with the
-lighter's flame, cap and flint sparks. Still 2D-only today: the sliders' native track and thumb
-(their pseudo-element styles cannot be read back — `getComputedStyle` returns element-level values,
-see §12 of the spec), and the paper's dimple while drawing.
+lighter's flame, cap and flint sparks, and the paper's dimple while drawing. Still 2D-only today:
+the sliders' native track and thumb (their pseudo-element styles cannot be read back —
+`getComputedStyle` returns element-level values, see §12 of the spec).
 
 ## Product boundaries
 
