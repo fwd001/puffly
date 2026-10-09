@@ -140,6 +140,18 @@ export default tseslint.config(
     },
   },
   {
+    // The atlas bake is a Node build script with no page under it — console, process and the
+    // performance timer are this process's own globals.
+    files: ['apps/web/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        performance: 'readonly',
+      },
+    },
+  },
+  {
     // The smoke checks are Node scripts that speak to a browser: `document` and `PointerEvent`
     // appear inside `page.evaluate`, where they are the page's globals, not this process's.
     files: ['tests/smoke/**/*.mjs'],

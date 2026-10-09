@@ -37,9 +37,11 @@ import {
   ashtrayRadiusWorld,
   canvasToWorld,
   createPufflyRenderer,
+  layoutText,
   LIGHTER_SIZE,
   PACK_SIZE,
   parseAim,
+  parseAtlas,
   parsePropScale,
   parseStageBox,
   puffDiameterWorld,
@@ -53,6 +55,7 @@ import {
   toWorldSize,
   TRAY_FLATTEN,
   WORLD_HEIGHT,
+  type GlyphAtlas,
   type RendererChoice,
   type StageBox,
 } from '@puffly/game-scene';
@@ -104,6 +107,7 @@ const stopEvents = props.game.onEvent((event) => {
 });
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize);
+  document.documentElement.classList.remove('scene3d-text');
   stopEvents();
 });
 
@@ -388,6 +392,26 @@ function onSceneReady(context: unknown): void {
     root.add(mesh);
   }
   backdrop.value = root;
+
+  // The two text runs the DOM's numbers mirror into. Their geometry is filled per change, not per
+  // frame — a run changes when a figure changes, which is nothing like 60 times a second.
+  const words = new THREE.Group();
+  for (let i = 0; i < 2; i += 1) {
+    const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
+    mesh.frustumCulled = false;
+    mesh.visible = false;
+    runMaterials.push(material);
+    runMeshes.push(mesh);
+    words.add(mesh);
+  }
+  textRuns.value = words;
+  void loadAtlas();
+}
+
+/** Screen pixels as world units, through the same stage box everything else uses. */
+function pxToWorld(px: number): number {
+  return (px / Math.max(1, box.value.height * viewportHeightPx.value)) * frame.value.height;
 }
 
 /** A canvas-fraction rect as world position and size, through the stage box the core published. */
@@ -550,6 +574,138 @@ function applyBackdrop(state: GameStateView | null): void {
   }
 }
 
+// ------------------------------------------------------------------- words
+
+/**
+ * The HUD's two figures, painted from the baked atlas instead of by the browser.
+ *
+ * The DOM keeps both buttons — they are the tap target and the screen reader's line — but goes
+ * invisible over them (`html.scene3d-text`, `-webkit-text-fill-color: transparent`, which leaves
+ * `color` readable for this side), and the scene draws the same string at the same place in the
+ * same colour: layout is still the DOM's, the paint is the atlas's. The class only lands after the
+ * atlas bytes are in, so a failed fetch leaves the DOM's own words on screen instead of nothing.
+ */
+const textRuns = shallowRef<THREE.Group | null>(null);
+let atlas: GlyphAtlas | null = null;
+let atlasTexture: THREE.Texture | null = null;
+const runMeshes: THREE.Mesh[] = [];
+const runMaterials: THREE.MeshBasicMaterial[] = [];
+const runSignatures: string[] = [];
+
+async function loadAtlas(): Promise<void> {
+  try {
+    const base = import.meta.env.BASE_URL;
+    const response = await fetch(`${base}atlas/glyphs.json`);
+    if (!response.ok) throw new Error(`atlas json ${response.status}`);
+    const parsed = parseAtlas(await response.json());
+    const texture = await new Promise<THREE.Texture>((resolve, reject) => {
+      new THREE.TextureLoader().load(
+        `${base}atlas/glyphs.png`,
+        (loaded) => {
+          // The layout measures v from the image's top row, so the texture has to agree with it.
+          loaded.flipY = false;
+          loaded.colorSpace = THREE.SRGBColorSpace;
+          resolve(loaded);
+        },
+        undefined,
+        () => reject(new Error('atlas png failed')),
+      );
+    });
+    // Attach, recompile, then let the DOM go quiet: the run has been drawing nothing while the
+    // atlas was in flight, `needsUpdate` is what makes the already-compiled quads take the map,
+    // and `html.scene3d-text` (below) is what hides the browser's own copy of the same digits.
+    atlas = parsed;
+    atlasTexture = texture;
+    for (const material of runMaterials) {
+      material.map = texture;
+      material.needsUpdate = true;
+    }
+    document.documentElement.classList.add('scene3d-text');
+  } catch (error) {
+    console.warn('scene text: atlas unavailable, the DOM keeps its own words', error);
+  }
+}
+
+function fillRunGeometry(mesh: THREE.Mesh, text: string, em: number): void {
+  if (atlas === null) return;
+  const layout = layoutText(text, atlas, em);
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const push = (x: number, y: number, u: number, v: number): void => {
+    positions.push(x, y, 0);
+    uvs.push(u, v);
+  };
+  for (const quad of layout.quads) {
+    const x0 = quad.x;
+    const x1 = quad.x + quad.width;
+    const y0 = quad.y;
+    const y1 = quad.y + quad.height;
+    // Counter-clockwise seen from the camera, or the quad faces away and is culled: TL → BL → BR.
+    push(x0, y1, quad.u0, quad.v0);
+    push(x0, y0, quad.u0, quad.v1);
+    push(x1, y0, quad.u1, quad.v1);
+    push(x0, y1, quad.u0, quad.v0);
+    push(x1, y0, quad.u1, quad.v1);
+    push(x1, y1, quad.u1, quad.v0);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  mesh.geometry.dispose();
+  mesh.geometry = geometry;
+}
+
+/** The two phone-row figures, mirrored from the DOM every frame — the DOM is the layout's home. */
+function placeText(): void {
+  const group = textRuns.value;
+  if (group === null || atlas === null || atlasTexture === null) return;
+  const nodes = document.querySelectorAll<HTMLElement>('.hud .num');
+  runMeshes.forEach((mesh, index) => {
+    const node = nodes[index];
+    const material = runMaterials[index];
+    if (node === undefined || material === undefined) {
+      mesh.visible = false;
+      return;
+    }
+    const rect = node.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      mesh.visible = false;
+      return;
+    }
+    const style = getComputedStyle(node);
+    const fontSize = Number.parseFloat(style.fontSize) || 15;
+    const text = node.textContent?.trim() ?? '';
+    const signature = `${text}|${rect.left.toFixed(1)},${rect.top.toFixed(1)},${rect.width.toFixed(1)},${rect.height.toFixed(1)}|${fontSize}|${style.color}`;
+    if (signature !== runSignatures[index]) {
+      runSignatures[index] = signature;
+      const em = pxToWorld(fontSize);
+      fillRunGeometry(mesh, text, em);
+      const parsed = /rgba?\(([^)]+)\)/.exec(style.color);
+      const parts = parsed?.[1]?.split(',').map(Number) ?? [255, 255, 255];
+      material.color.setRGB(
+        (parts[0] ?? 255) / 255,
+        (parts[1] ?? 255) / 255,
+        (parts[2] ?? 255) / 255,
+        THREE.SRGBColorSpace,
+      );
+      // The DOM keeps its line box; the atlas puts the baseline at the em box's bottom, which is
+      // where a cell's glyph sits too — so the run's origin is the bottom of the digits' box.
+      const baselinePx = rect.top + (rect.height - fontSize) / 2 + fontSize;
+      const padding = Number.parseFloat(style.paddingLeft) || 0;
+      const world = canvasToWorld(
+        {
+          x: (rect.left + padding) / Math.max(1, viewportWidthPx.value),
+          y: baselinePx / Math.max(1, viewportHeightPx.value),
+        },
+        box.value,
+        aspect.value,
+      );
+      mesh.position.set(world[0], world[1], -0.1);
+    }
+    mesh.visible = true;
+  });
+}
+
 /**
  * Falling ash, straight off the core's own list.
  *
@@ -650,6 +806,7 @@ function step(deltaMs: number): void {
   placeCherry(state);
   placeAsh(state);
   applyBackdrop(state);
+  placeText();
 
   const cloud = puffs.value;
   if (cloud === null) return;
@@ -798,6 +955,10 @@ function step(deltaMs: number): void {
 
     <!-- Falling ash: one ellipse per fragment the core is carrying. -->
     <primitive v-if="flakes !== null" :object="flakes" />
+
+    <!-- The HUD's two figures, painted from the baked atlas; the DOM under them keeps the taps
+         and the screen reader's line while `html.scene3d-text` hides their ink. -->
+    <primitive v-if="textRuns !== null" :object="textRuns" />
   </TresCanvas>
 </template>
 

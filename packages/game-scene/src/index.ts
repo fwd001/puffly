@@ -13,6 +13,7 @@ export {
 export { roomBackdrop, type RoomBackdrop } from './room';
 export { radialVignette, softDisc, solidDisc } from './sprite';
 export { puffDiameterWorld } from './plume';
+export { layoutText, parseAtlas, type GlyphAtlas, type GlyphQuad, type TextLayout } from './text';
 export { createPufflyRenderer, type RendererChoice } from './renderer';
 export {
   AIM_KEYS,

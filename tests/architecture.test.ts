@@ -609,7 +609,13 @@ describe('§73 architecture guards', () => {
    * prop is drawn from vectors, so the one thing that could break the line is someone dropping artwork
    * into the public folder, and that fails silently: it would simply look right.
    */
-  const SHIPPED_ART = ['icon.svg', 'icon-maskable.svg'];
+  /**
+   * `atlas/` is the one addition, and it is not artwork in this guard's sense: it holds the baked
+   * glyph atlas (`apps/web/scripts/bake-atlas.mjs`) — outlines from a font, generated from the copy
+   * table, re-baked whenever the table grows (`atlas-coverage.test.ts` is the check). No prop, no
+   * pack and no brand is allowed to arrive the same way a picture would.
+   */
+  const SHIPPED_ART = ['icon.svg', 'icon-maskable.svg', 'atlas'];
   const artOffenders = (names: readonly string[]): string[] =>
     names.filter((name) => !SHIPPED_ART.includes(name));
 

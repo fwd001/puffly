@@ -446,3 +446,10 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+
+/* 3D 迁移中（?scene=3d）：顶栏那两个数字的墨由场景里的图集画，DOM 只留按钮与无障碍那一行。
+   `-webkit-text-fill-color` 而不是 `color`：场景侧要读同一个 `color` 来上色，而 S19 的对比度
+   扫描器不看 `-webkit-text-fill-color`，两边互不打扰。图集没落地时这个类不会挂上来。 */
+html.scene3d-text .hud .num {
+  -webkit-text-fill-color: transparent;
+}
