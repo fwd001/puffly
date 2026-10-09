@@ -194,6 +194,11 @@ export interface Summary {
    */
   stageBox: string;
   /**
+   * `.stage[data-prop-scale]`: the ashtray's radius in stage units, straight off the core's anchors.
+   * A prop's size is a fact about the layout, so it travels the same road as the anchors.
+   */
+  propScale: string;
+  /**
    * S20's `onReach`: the ceiling has been passed, so the ring goes grey and its digits become a
    * mark. The break is not stopped, locked or annotated — the interface just stops advertising it.
    */
@@ -289,6 +294,7 @@ export function createPuffly(): Puffly {
     burned: formatClock(0),
     aim: '',
     stageBox: '',
+    propScale: '',
     sessionActive: false,
     controlsVisible: true,
     affordance: 'none',
@@ -505,6 +511,7 @@ export function createPuffly(): Puffly {
       phase: phaseOf(state.cigarette.state),
       aim: aimOf(state, viewport),
       stageBox: boxOf(viewport),
+      propScale: String(Math.round(state.anchors.ashtrayRadius * 1e4) / 1e4),
       overLimit: overLimit(),
       hint: hintWord(state),
       cueChannel: audio?.audible() ? 'audio' : 'visual',

@@ -11,18 +11,23 @@
 import { TresCanvas } from '@tresjs/core';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
+  ashtrayRadiusWorld,
   canvasToWorld,
   createPufflyRenderer,
+  LIGHTER_SIZE,
+  PACK_SIZE,
   parseAim,
+  parsePropScale,
   parseStageBox,
   rodBetweenInBox,
   stageWorldSize,
+  toWorldSize,
   WORLD_HEIGHT,
   type RendererChoice,
   type StageBox,
 } from '@puffly/game-scene';
 
-const props = defineProps<{ aim: string; stageBox: string }>();
+const props = defineProps<{ aim: string; stageBox: string; propScale: string }>();
 
 const params = new URLSearchParams(window.location.search);
 const forceWebGL = params.get('gl') === '1';
@@ -62,6 +67,22 @@ const rod = computed(() => {
     ? null
     : rodBetweenInBox(body, ember, box.value, aspect.value);
 });
+/**
+ * Sizes in world units. One stage unit is the stage's own height (see `props.ts`), so every number
+ * the core or the 2D props module owns multiplies `WORLD_HEIGHT` and nothing is re-invented here.
+ */
+const lighter = computed(() => ({
+  w: toWorldSize(LIGHTER_SIZE.width, WORLD_HEIGHT),
+  h: toWorldSize(LIGHTER_SIZE.height, WORLD_HEIGHT),
+}));
+const pack = computed(() => ({
+  w: toWorldSize(PACK_SIZE.width, WORLD_HEIGHT),
+  h: toWorldSize(PACK_SIZE.height, WORLD_HEIGHT),
+}));
+const FALLBACK_TRAY_RADIUS = 0.1;
+const trayRadius = computed(() =>
+  ashtrayRadiusWorld(parsePropScale(props.propScale) ?? FALLBACK_TRAY_RADIUS, WORLD_HEIGHT),
+);
 /** The table sits under the props: a touch below the stage's own middle. */
 const tableY = computed(() => -WORLD_HEIGHT * 0.42);
 </script>
@@ -94,15 +115,15 @@ const tableY = computed(() => -WORLD_HEIGHT * 0.42);
     </TresMesh>
 
     <TresMesh :position="at('lighter')">
-      <TresBoxGeometry :args="[0.12, 0.3, 0.12]" />
+      <TresBoxGeometry :args="[lighter.w, lighter.h, lighter.w]" />
       <TresMeshStandardMaterial color="#b08a52" :metalness="0.5" :roughness="0.35" />
     </TresMesh>
     <TresMesh :position="at('pack')">
-      <TresBoxGeometry :args="[0.26, 0.2, 0.16]" />
+      <TresBoxGeometry :args="[pack.w, pack.h, pack.w * 0.6]" />
       <TresMeshStandardMaterial color="#a63a2c" :roughness="0.6" />
     </TresMesh>
     <TresMesh :position="at('ashtray')" :rotation="[-Math.PI / 2, 0, 0]">
-      <TresCylinderGeometry :args="[0.22, 0.22, 0.06, 24]" />
+      <TresCylinderGeometry :args="[trayRadius, trayRadius, trayRadius * 0.28, 32]" />
       <TresMeshStandardMaterial color="#6b6b70" :metalness="0.3" :roughness="0.5" />
     </TresMesh>
 

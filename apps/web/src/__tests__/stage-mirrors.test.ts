@@ -27,6 +27,7 @@ const MIRRORS: Record<string, string> = {
   'data-affordance': 'summary.affordance',
   'data-aim': 'summary.aim',
   'data-stage-box': 'summary.stageBox',
+  'data-prop-scale': 'summary.propScale',
 };
 
 describe('the stage mirrors the break instead of describing it', () => {
