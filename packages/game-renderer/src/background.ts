@@ -128,6 +128,14 @@ const NEON_TINTS: readonly Rgb[] = [
 
 const NEON_FALLBACK: Rgb = NEON_TINTS[0] ?? [236, 92, 150];
 
+/**
+ * The sky's two ends, by warmth: `warmth` runs 0 (cool/blue) .. 1 (warm/amber), and the mix between
+ * these is the room's own light. Exported because the 3D backdrop has to read the sky the same way —
+ * a second pair of numbers would be a second sky.
+ */
+export const SKY_COOL: readonly [number, number, number] = [210, 224, 240];
+export const SKY_WARM: readonly [number, number, number] = [255, 232, 200];
+
 export function drawBackground(
   ctx: CanvasRenderingContext2D,
   state: GameStateView,
@@ -144,12 +152,7 @@ export function drawBackground(
   // light thing in them, and at the old exposure a room came out mid-grey, which left the plume
   // with nothing to be bright against — the single biggest reason the smoke did not read as the
   // mock-up's does.
-  const exposure = 0.34 + light.ambient * 0.46;
-  const cool = mixRgb([210, 224, 240], [255, 232, 200], light.warmth);
-  const skyTop = scale(background.sky[0], exposure, cool);
-  const skyBottom = scale(background.sky[1], exposure * 0.95, cool);
-  const horizon = scale(background.horizon, exposure, cool);
-  const silhouette = scale(background.silhouette, exposure * 0.9, cool);
+  const { skyTop, skyBottom, horizon, silhouette } = skyPalette(light, background);
 
   const sky = ctx.createLinearGradient(0, 0, 0, h);
   sky.addColorStop(0, rgbToCss(skyTop));
@@ -212,6 +215,28 @@ export function drawBackground(
   vignette.addColorStop(1, `rgba(0,0,0,${(0.55 + (1 - light.ambient) * 0.3).toFixed(3)})`);
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
+}
+
+/**
+ * The room's four painted colours — sky top, sky bottom, horizon, silhouette — from its own palette,
+ * its exposure and the warm/cool cast.
+ *
+ * Extracted so the 3D layer reads the same room by the same rule: exposure is `0.34 + ambient * 0.46`
+ * and every colour is nudged a tenth of the way to the cast. Two callers, one formula; a backdrop
+ * that mixed only the cast came out as a bright day sky in a night room.
+ */
+export function skyPalette(
+  light: { ambient: number; warmth: number },
+  background: { sky: readonly [Rgb, Rgb]; horizon: Rgb; silhouette: Rgb },
+): { skyTop: Rgb; skyBottom: Rgb; horizon: Rgb; silhouette: Rgb } {
+  const exposure = 0.34 + light.ambient * 0.46;
+  const cool = mixRgb(SKY_COOL, SKY_WARM, light.warmth);
+  return {
+    skyTop: scale(background.sky[0], exposure, cool),
+    skyBottom: scale(background.sky[1], exposure * 0.95, cool),
+    horizon: scale(background.horizon, exposure, cool),
+    silhouette: scale(background.silhouette, exposure * 0.9, cool),
+  };
 }
 
 function scale(value: Rgb, exposure: number, cast: Rgb): Rgb {

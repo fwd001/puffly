@@ -7,6 +7,7 @@
  */
 
 export { MAX_SMOKE_RADIUS_PX, PUFF_SPREAD, plumeIntakeOptions, cartoonScale } from './renderer';
+export { SKY_COOL, SKY_WARM, skyPalette } from './background';
 export {
   createCanvasRenderer,
   type CanvasRendererOptions,

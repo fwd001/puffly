@@ -26,6 +26,7 @@ import {
   parsePropScale,
   parseStageBox,
   puffDiameterWorld,
+  roomBackdrop,
   rodBetweenInBox,
   softDisc,
   stageUnitToWorld,
@@ -154,6 +155,37 @@ const FALLBACK_TRAY_RADIUS = 0.1;
 const trayRadius = computed(() =>
   ashtrayRadiusWorld(parsePropScale(props.propScale) ?? FALLBACK_TRAY_RADIUS, unitWorld.value),
 );
+/**
+ * The room: its sky mixed by the place's own warmth, its exposure, its key light's angle and the
+ * pool the table sits in. All four come from the state, through the same mix the 2D layer paints
+ * with, so a venue change moves this picture for the same reason it moves that one.
+ */
+const room = computed(() =>
+  props.state === null ? null : roomBackdrop(props.state.environment, props.state.style),
+);
+/**
+ * The sky, already at the room's own exposure: `roomBackdrop` runs the palette the painted layer
+ * paints with, so this file does not scale it a second time — doing that is how a night room came out
+ * as bright midday.
+ */
+const skyColour = computed(() => {
+  const r = room.value;
+  return r === null ? new THREE.Color('#101010') : new THREE.Color(r.sky[0], r.sky[1], r.sky[2]);
+});
+const keyLight = computed<{
+  position: readonly [number, number, number];
+  intensity: number;
+  colour: string | THREE.Color;
+}>(() => {
+  const r = room.value;
+  if (r === null) return { position: [2, 3, 2], intensity: 1.4, colour: '#ffffff' };
+  return {
+    position: [r.key.x * 3, Math.max(0.6, r.key.y * 2), 2],
+    intensity: 0.6 + r.ambient * 1.6,
+    colour: skyColour.value,
+  };
+});
+
 /** The table sits under the props: a touch below the stage's own middle. */
 const tableY = computed(() => -WORLD_HEIGHT * 0.42);
 
@@ -242,8 +274,20 @@ function step(deltaMs: number): void {
       :position="[0, 0, 3]"
       :look-at="[0, 0, 0]"
     />
-    <TresDirectionalLight :position="[2, 3, 2]" :intensity="1.6" />
-    <TresAmbientLight :intensity="0.5" />
+    <!-- The room's own light: direction from the place's key angle, colour from its sky. -->
+    <TresDirectionalLight
+      :position="keyLight.position"
+      :intensity="keyLight.intensity"
+      :color="keyLight.colour"
+    />
+    <TresAmbientLight :intensity="0.35" />
+
+    <!-- The sky, at the room's exposure. A plane rather than the canvas' clear colour so it moves
+         with the venue like everything else, and greys out when nothing is lit. -->
+    <TresMesh :position="[0, 0, -1.4]">
+      <TresPlaneGeometry :args="[frame.width * 2.4, frame.height * 1.6]" />
+      <TresMeshBasicMaterial :color="skyColour" />
+    </TresMesh>
 
     <!-- The table: a slab, not a plane, so it catches the key light the way the 2D one does. -->
     <TresMesh :position="[0, tableY, -0.4]">
