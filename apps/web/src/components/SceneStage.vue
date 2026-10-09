@@ -2,14 +2,23 @@
 /**
  * The 3D stage, under construction (2026-10-09).
  *
- * It renders nothing a player recognises yet — P1 proves the two things that are expensive to get
- * wrong later: that the frame loop runs, and that the machine reports which backend it actually
- * used. It is mounted only when the URL asks for it (`?scene=3d`, plus `&gl=1` to force the WebGL2
- * path), so the shipped interface is untouched while this grows; the canvas renderer stays the live
- * one until the scene reaches parity with the 24-screen ledger.
+ * Mounted only when the URL asks for it (`?scene=3d`, `&gl=1` forces the WebGL2 path), so the
+ * shipped interface is untouched while this grows. It reads the same mirror a check outside the
+ * page reads — `.stage[data-aim]`, five points in canvas fractions — and nothing else: the core
+ * owns the geometry (SPEC §79), and a second copy of it is the mistake this repository has already
+ * paid for twice.
  */
 import { TresCanvas } from '@tresjs/core';
-import { createPufflyRenderer, type RendererChoice } from '@puffly/game-scene';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import {
+  createPufflyRenderer,
+  parseAim,
+  rodBetween,
+  toWorld,
+  type RendererChoice,
+} from '@puffly/game-scene';
+
+const props = defineProps<{ aim: string }>();
 
 const params = new URLSearchParams(window.location.search);
 const forceWebGL = params.get('gl') === '1';
@@ -17,19 +26,32 @@ const forceWebGL = params.get('gl') === '1';
 interface SceneProbe {
   backend: RendererChoice['backend'] | 'pending';
   frames: number;
-  error: string | null;
 }
-const probe: SceneProbe = { backend: 'pending', frames: 0, error: null };
+const probe: SceneProbe = { backend: 'pending', frames: 0 };
 (window as unknown as { __pufflyScene?: SceneProbe }).__pufflyScene = probe;
 
-/** The factory TresJS calls once, when it builds the renderer for this canvas. */
 const rendererFactory = (ctx: Parameters<typeof createPufflyRenderer>[0]) =>
-  createPufflyRenderer(ctx, {
-    forceWebGL,
-    onChoice: (choice) => {
-      probe.backend = choice.backend;
-    },
-  });
+  createPufflyRenderer(ctx, { forceWebGL, onChoice: (choice) => (probe.backend = choice.backend) });
+
+/** The canvas fills the viewport, so the viewport's own aspect is the stage's aspect. */
+const aspect = ref(window.innerWidth / Math.max(1, window.innerHeight));
+const onResize = (): void => {
+  aspect.value = window.innerWidth / Math.max(1, window.innerHeight);
+};
+onMounted(() => window.addEventListener('resize', onResize));
+onBeforeUnmount(() => window.removeEventListener('resize', onResize));
+
+const points = computed(() => parseAim(props.aim));
+const at = (key: 'lighter' | 'ashtray' | 'pack'): readonly [number, number, number] => {
+  const p = points.value[key];
+  return p === undefined ? [0, -99, 0] : toWorld(p, aspect.value);
+};
+const rod = computed(() => {
+  const { body, ember } = points.value;
+  return body === undefined || ember === undefined ? null : rodBetween(body, ember, aspect.value);
+});
+/** The table sits under the props: the lowest of the three, a touch below it. */
+const tableY = computed(() => -aspect.value * 1.1);
 </script>
 
 <template>
@@ -41,13 +63,33 @@ const rendererFactory = (ctx: Parameters<typeof createPufflyRenderer>[0]) =>
     @loop="probe.frames += 1"
   >
     <TresPerspectiveCamera :position="[0, 0, 3]" :look-at="[0, 0, 0]" />
-    <!-- P2 replaces this placeholder with the table, the props and the rod. -->
-    <TresMesh>
-      <TresBoxGeometry :args="[1.2, 0.08, 0.7]" />
-      <TresMeshStandardMaterial color="#55412f" />
-    </TresMesh>
-    <TresDirectionalLight :position="[2, 3, 2]" :intensity="1.4" />
+    <TresDirectionalLight :position="[2, 3, 2]" :intensity="1.6" />
     <TresAmbientLight :intensity="0.5" />
+
+    <!-- The table: a slab, not a plane, so it catches the key light the way the 2D one does. -->
+    <TresMesh :position="[0, tableY, -0.4]">
+      <TresBoxGeometry :args="[aspect * 3.4, 3.4, 0.3]" />
+      <TresMeshStandardMaterial color="#241c17" :roughness="0.85" />
+    </TresMesh>
+
+    <TresMesh :position="at('lighter')">
+      <TresBoxGeometry :args="[0.12, 0.3, 0.12]" />
+      <TresMeshStandardMaterial color="#b08a52" :metalness="0.5" :roughness="0.35" />
+    </TresMesh>
+    <TresMesh :position="at('pack')">
+      <TresBoxGeometry :args="[0.26, 0.2, 0.16]" />
+      <TresMeshStandardMaterial color="#a63a2c" :roughness="0.6" />
+    </TresMesh>
+    <TresMesh :position="at('ashtray')" :rotation="[-Math.PI / 2, 0, 0]">
+      <TresCylinderGeometry :args="[0.22, 0.22, 0.06, 24]" />
+      <TresMeshStandardMaterial color="#6b6b70" :metalness="0.3" :roughness="0.5" />
+    </TresMesh>
+
+    <!-- The rod: a cylinder between the two published points, rotated by the angle it implies. -->
+    <TresMesh v-if="rod !== null" :position="rod.mid" :rotation="[0, 0, rod.angle - Math.PI / 2]">
+      <TresCylinderGeometry :args="[0.018, 0.018, rod.length, 12]" />
+      <TresMeshStandardMaterial color="#e8e2d6" emissive="#ff5a1f" :emissive-intensity="0.6" />
+    </TresMesh>
   </TresCanvas>
 </template>
 
