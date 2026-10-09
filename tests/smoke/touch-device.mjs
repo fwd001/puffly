@@ -2702,6 +2702,32 @@ try {
       ? 'no aim or rod'
       : `len ${rodFit.built.toFixed(3)}/${rodFit.expected.length.toFixed(3)} mid off ${Math.hypot(rodFit.mid[0] - rodFit.expected.mid[0], rodFit.mid[1] - rodFit.expected.mid[1]).toFixed(3)}`,
   );
+  // The char front (§17, S12): the paper behind the cherry chars and glows, so the band exists and
+  // is sized whenever the ember is alive. |control|: gating on `total > 0` keeps it hidden and
+  // reddens this.
+  const charSeen = await page
+    .waitForFunction(
+      () => {
+        const ctx = window.__pufflyScene.context;
+        const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+        let node = null;
+        scene.traverse((o) => {
+          if (o.name === 'rod-char') node = o;
+        });
+        return (
+          node !== null && node.visible && (node.geometry?.attributes?.position?.count ?? 0) > 0
+        );
+      },
+      null,
+      { timeout: 6000, polling: 120 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  check(
+    '3D: the rod wears its char front while the cherry is alive (S17/S12)',
+    charSeen,
+    `char seen ${String(charSeen)}`,
+  );
   // The break sheet wears the same mirror: its root gives up its own paint (visibility, so the
   // surface's computed background stays readable), its mirrorable rows give up their ink inline,
   // and the rows the atlas cannot carry keep theirs. Two mutations measured: putting the root's
