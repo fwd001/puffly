@@ -131,3 +131,16 @@ export function rodBetweenInBox(
     angle: Math.atan2(dy, dx),
   };
 }
+
+/**
+ * Stage units → world units, with the frame the camera is built around.
+ *
+ * Distinct from `canvasToWorld`: those two take *canvas fractions* (positions the shell publishes
+ * for pointers); these take the core's own stage units, which is what the particle pool works in.
+ */
+export function stageToWorld(
+  point: AimPoint,
+  frame: { readonly width: number; readonly height: number },
+): readonly [number, number, number] {
+  return [(point.x - 0.5) * frame.width, (0.5 - point.y) * frame.height, 0];
+}

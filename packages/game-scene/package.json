@@ -11,7 +11,8 @@
     "@puffly/game-core": "*",
     "@puffly/shared": "*",
     "@tresjs/core": "^5.9.3",
-    "three": "^0.186.1"
+    "three": "^0.186.1",
+    "@puffly/game-renderer": "*"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
