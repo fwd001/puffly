@@ -37,6 +37,9 @@ import {
   sparkStreak,
   cartoonScale,
   dustMotes,
+  NEAR_DEPTH,
+  RAIN_TINT,
+  rainLines,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -285,6 +288,9 @@ const sparksMesh = shallowRef<THREE.InstancedMesh | null>(null);
 /** The room's dust: the always-on half of the air, straight from `dustMotes`. */
 const DUST_CAPACITY = 32;
 const dustMesh = shallowRef<THREE.InstancedMesh | null>(null);
+/** The sky's rain: one streak per instance, from `rainLines`. 96 covers a storm's 90. */
+const RAIN_CAPACITY = 96;
+const rainMesh = shallowRef<THREE.InstancedMesh | null>(null);
 /** The lighter's flame: its teardrop and the blue throat under it, both additive. */
 const flameBody = shallowRef<THREE.Mesh | null>(null);
 const flameThroat = shallowRef<THREE.Mesh | null>(null);
@@ -345,6 +351,7 @@ function onSceneReady(context: unknown): void {
   cloud.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 3), 3);
   cloud.frustumCulled = false;
   cloud.count = 0;
+  cloud.name = 'smoke';
   puffs.value = cloud;
 
   const glow = softDisc(64);
@@ -571,6 +578,23 @@ function onSceneReady(context: unknown): void {
   dustCloud.name = 'dust';
   rigGroup.add(dustCloud);
   dustMesh.value = dustCloud;
+  const rainCloud = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+    }),
+    RAIN_CAPACITY,
+  );
+  rainCloud.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  rainCloud.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(RAIN_CAPACITY * 3),
+    3,
+  );
+  rainCloud.frustumCulled = false;
+  rainCloud.name = 'rain';
+  rigGroup.add(rainCloud);
+  rainMesh.value = rainCloud;
   flameThroatMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(64),
     transparent: true,
@@ -1133,6 +1157,50 @@ function placeDust(state: GameStateView | null): void {
 }
 
 /**
+ * Rain's own rung on the ladder: in front of the near half of the smoke (which tops out at 0.03 —
+ * see `particleZ`) and behind the chrome's first plate (0.034). The painted layer draws rain after
+ * the plume, and the canvas always sits under the DOM; both halves of that sentence are this one
+ * number.
+ */
+const RAIN_Z = 0.032;
+
+/** The sky's rain, from the painted layer's own `rainLines` — one streak per instance. */
+function placeRain(state: GameStateView | null): void {
+  const cloud = rainMesh.value;
+  if (cloud === null) return;
+  if (state == null) {
+    cloud.count = 0;
+    return;
+  }
+  const frame = rainLines(state, state.nowMs / 1000, props.game.rendererLook().reducedMotion);
+  if (frame === null) {
+    cloud.count = 0;
+    return;
+  }
+  // The painter's own floor on the stroke: a hairline that rounds to nothing is nothing.
+  const width = Math.max(frame.widthUnits * unitWorld.value, pxToWorld(1));
+  let n = 0;
+  for (const line of frame.lines) {
+    if (n >= RAIN_CAPACITY) break;
+    const from = canvasToWorld({ x: line.x1, y: line.y1 }, box.value, aspect.value);
+    const to = canvasToWorld({ x: line.x2, y: line.y2 }, box.value, aspect.value);
+    const dx = to[0] - from[0];
+    const dy = to[1] - from[1];
+    dummy.position.set((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, RAIN_Z);
+    dummy.rotation.set(0, 0, Math.atan2(dy, dx));
+    dummy.scale.set(Math.hypot(dx, dy), width, 1);
+    dummy.updateMatrix();
+    cloud.setMatrixAt(n, dummy.matrix);
+    tint.setRGB(RAIN_TINT[0] / 255, RAIN_TINT[1] / 255, RAIN_TINT[2] / 255, THREE.SRGBColorSpace);
+    cloud.setColorAt(n, tint.multiplyScalar(frame.alpha));
+    n += 1;
+  }
+  cloud.count = n;
+  cloud.instanceMatrix.needsUpdate = true;
+  if (cloud.instanceColor !== null) cloud.instanceColor.needsUpdate = true;
+}
+
+/**
  * S2's ignition picture: the lighter's flame, from the same numbers the painted layer draws it
  * with (`flameMetrics`), the same two quadratics, the same three gradient stops — the gradient's
  * opacities ride a hue-free texture and its colours ride the vertices, because a mesh has only one
@@ -1320,6 +1388,22 @@ watch(vignetteAlphaNow, (next) => {
 
 let clockMs = 0;
 
+/**
+ * Where a particle of the pool sits on the scene's z ladder. `NEAR_DEPTH` is the painter's own
+ * far/near divide — `drawSmoke` draws the two halves around the props — and the pool's `depth` is
+ * simulation (0.25..1), not a z: handing it to the scene directly (the first version did) put the
+ * plume at 0.3..1.0, in front of the whole chrome ladder, so puffs painted over the HUD — a thing
+ * the canvas can never do, because the chrome is DOM above it. The two bands below are the plain
+ * reading of the same split: far puffs slide behind the props (the table's front face is −0.25,
+ * the props and the rod at 0), near puffs rise in front of the flame (0.02) and stay under the
+ * chrome's first plate (0.034).
+ */
+function particleZ(depth: number): number {
+  return depth >= NEAR_DEPTH
+    ? 0.021 + ((depth - NEAR_DEPTH) / (1 - NEAR_DEPTH)) * 0.009
+    : -0.2 + (depth / NEAR_DEPTH) * 0.16;
+}
+
 function step(deltaMs: number): void {
   const state = props.state;
   const dt = Math.max(0, Math.min(deltaMs, 64));
@@ -1341,6 +1425,7 @@ function step(deltaMs: number): void {
   placeAsh(state);
   placeFlame(state);
   placeDust(state);
+  placeRain(state);
   const lid = lighterLid.value;
   if (lid !== null) {
     lid.rotation.x = -clamp01(state?.lighter.lid ?? 0) * ((LID_THROW_DEG * Math.PI) / 180);
@@ -1375,13 +1460,16 @@ function step(deltaMs: number): void {
       // Sparks are streaks: they belong to this pass, and drawn as puffs they were blobs of smoke
       // where the picture promises a shower of light.
       const spark = sparksMesh.value;
-      if (spark !== null && sparkN < SPARK_CAPACITY) {
+      // A spark under `NEAR_DEPTH` is in the painter's far half, where it is never drawn — the
+      // canvas collects sparks only in its near pass, and the same gate here keeps the two
+      // pictures one shower.
+      if (spark !== null && sparkN < SPARK_CAPACITY && particle.depth >= NEAR_DEPTH) {
         const from = canvasToWorld({ x: particle.px, y: particle.py }, box.value, aspect.value);
         const to = canvasToWorld({ x: particle.x, y: particle.y }, box.value, aspect.value);
         const dx = to[0] - from[0];
         const dy = to[1] - from[1];
         const streak = sparkStreak(particle);
-        dummy.position.set((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, 0.02 + particle.depth);
+        dummy.position.set((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, particleZ(particle.depth));
         dummy.rotation.set(0, 0, Math.atan2(dy, dx));
         dummy.scale.set(
           Math.hypot(dx, dy),
@@ -1406,7 +1494,7 @@ function step(deltaMs: number): void {
     dummy.position.set(
       (particle.x - 0.5) * size.width,
       (0.5 - particle.y) * size.height,
-      0.02 + particle.depth,
+      particleZ(particle.depth),
     );
     // Diameter by the 2D layer's own rule (`radius * scale * size * depth * PUFF_SPREAD`, capped at
     // MAX_SMOKE_RADIUS_PX) rather than a factor of my own; the venue's 通风系数 widens it here and

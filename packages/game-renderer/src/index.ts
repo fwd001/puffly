@@ -8,6 +8,7 @@
 
 export {
   MAX_SMOKE_RADIUS_PX,
+  NEAR_DEPTH,
   PUFF_FLATTEN,
   PUFF_SPREAD,
   cartoonScale,
@@ -73,7 +74,16 @@ export {
 } from './props';
 export { drawBackground } from './background';
 export { drawEffects, EffectList, type EffectKind, type SceneEffect } from './effects';
-export { clearWeatherCache, drawDust, drawRain, dustMotes } from './weather';
+export {
+  RAIN_TINT,
+  clearWeatherCache,
+  drawDust,
+  drawRain,
+  dustMotes,
+  rainLines,
+  type RainFrame,
+  type RainLine,
+} from './weather';
 export {
   drawAffordanceHint,
   DIP_SHARE,

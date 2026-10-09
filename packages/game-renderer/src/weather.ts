@@ -92,6 +92,59 @@ function geometryFor(environmentId: string, weather: string) {
 export const rainGeometry = (environmentId: string, weather: 'rain' | 'storm'): Streak[] =>
   geometryFor(environmentId, weather).streaks;
 
+/** The stroke every rain line is drawn in, sRGB — one colour, two painters. */
+export const RAIN_TINT: [number, number, number] = [206, 218, 232];
+
+/** One streak of rain in stage fractions, top point to bottom point. */
+export interface RainLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+export interface RainFrame {
+  lines: RainLine[];
+  alpha: number;
+  widthUnits: number;
+}
+
+/**
+ * One frame of rain, in stage fractions — the one copy both painters read. `null` is the field's
+ * own answer to "this venue has no sky in frame or no weather to show", which is a state a venue
+ * change can leave standing for a whole session.
+ *
+ * `y` starts at −0.1 without the painted layer's `stage.y` term: `stageBoxFor` centres on x only,
+ * so `stage.y` is 0 in every box the game can make, and this is the same number that layer was
+ * adding.
+ */
+export function rainLines(
+  state: GameStateView,
+  seconds: number,
+  reducedMotion: boolean,
+): RainFrame | null {
+  if (state.world.weather !== 'rain' && state.world.weather !== 'storm') return null;
+  // Streaks are the sky seen from somewhere. A stairwell, a desk or a room has no sky in frame, so
+  // drawing water across it puts particles in a place they cannot be — which is exactly the thing a
+  // player ends up describing as "背景的抖动，我不知道是什么". Inside, the weather still arrives the
+  // other ways: the light drops, the wind still pushes the column, the room still sounds like rain.
+  if (!state.environment.background.weatherVisible) return null;
+  const { streaks } = geometryFor(state.environment.id, state.world.weather);
+  if (streaks.length === 0) return null;
+
+  const slant = Math.max(-0.5, Math.min(0.5, state.smoke.drift.x * 2.2));
+  const alpha = reducedMotion ? 0.1 : 0.16 + clamp01(state.world.ambientGain) * 0.16;
+  const lines: RainLine[] = [];
+  for (const streak of streaks) {
+    const travel = (seconds * streak.speed + streak.phase) % RAIN_TRAVEL;
+    const y = -0.1 + travel;
+    if (y > 1.05) continue;
+    const x = streak.x + slant * travel;
+    lines.push({ x1: x, y1: y, x2: x + slant * streak.length, y2: y + streak.length });
+  }
+  return { lines, alpha, widthUnits: 0.0016 };
+}
+
 /** Rain in front of the scene, angled by the wind the simulation is already using. */
 export function drawRain(
   ctx: CanvasRenderingContext2D,
@@ -99,31 +152,16 @@ export function drawRain(
   viewport: Viewport,
   reducedMotion: boolean,
 ): void {
-  if (state.world.weather !== 'rain' && state.world.weather !== 'storm') return;
-  // Streaks are the sky seen from somewhere. A stairwell, a desk or a room has no sky in frame, so
-  // drawing water across it puts particles in a place they cannot be — which is exactly the thing a
-  // player ends up describing as "背景的抖动，我不知道是什么". Inside, the weather still arrives the
-  // other ways: the light drops, the wind still pushes the column, the room still sounds like rain.
-  if (!state.environment.background.weatherVisible) return;
-  const { streaks } = geometryFor(state.environment.id, state.world.weather);
-  if (streaks.length === 0) return;
-
-  const { stage } = viewport;
-  const seconds = state.nowMs / 1000;
-  const slant = Math.max(-0.5, Math.min(0.5, state.smoke.drift.x * 2.2));
-  const alpha = reducedMotion ? 0.1 : 0.16 + clamp01(state.world.ambientGain) * 0.16;
+  const frame = rainLines(state, state.nowMs / 1000, reducedMotion);
+  if (frame === null) return;
 
   ctx.save();
-  ctx.strokeStyle = rgbToCss([206, 218, 232], alpha);
-  ctx.lineWidth = Math.max(1, viewport.len(0.0016));
+  ctx.strokeStyle = rgbToCss(RAIN_TINT, frame.alpha);
+  ctx.lineWidth = Math.max(1, viewport.len(frame.widthUnits));
   ctx.beginPath();
-  for (const streak of streaks) {
-    const travel = (seconds * streak.speed + streak.phase) % RAIN_TRAVEL;
-    const y = stage.y - 0.1 + travel;
-    if (y > 1.05) continue;
-    const x = streak.x + slant * travel;
-    const top = viewport.px({ x, y });
-    const bottom = viewport.px({ x: x + slant * streak.length, y: y + streak.length });
+  for (const line of frame.lines) {
+    const top = viewport.px({ x: line.x1, y: line.y1 });
+    const bottom = viewport.px({ x: line.x2, y: line.y2 });
     ctx.moveTo(top.x, top.y);
     ctx.lineTo(bottom.x, bottom.y);
   }

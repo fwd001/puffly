@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONTENT } from '@puffly/game-content';
 import { STEP_MS, type GameStateView } from '@puffly/game-core';
-import { drawDust, drawRain, rainGeometry } from '../weather';
+import { drawDust, drawRain, rainGeometry, rainLines } from '../weather';
 import { createViewport } from '../viewport';
 import { createFakeCanvas } from './fakeCanvas';
 import { harness } from '../../../game-core/src/__tests__/harness';
@@ -200,5 +200,47 @@ describe('rain belongs to a place that can see the sky (§25)', () => {
     const dust = createFakeCanvas();
     drawDust(dust.ctx, view, VIEWPORT, false);
     expect(dust.calls.filter((call) => call.name === 'arc').length).toBeGreaterThan(8);
+  });
+});
+
+/**
+ * The frame `rainLines` hands out is what both painters draw: the canvas maps it through
+ * `viewport.px`, the 3D layer through the camera. The pixel claims above exercise the same copy
+ * end-to-end, so these two only pin the fields the 3D side alone reads — its axis is depth, and a
+ * streak of the wrong slant or an alpha of the wrong band would never show up in the 2D pixels.
+ */
+describe('the frame the 3D layer reads (`rainLines`)', () => {
+  const stateFor = (environmentId: string, weather: 'rain' | 'storm' | 'clear'): GameStateView => {
+    const h = harness({ content: DEFAULT_CONTENT, environmentId });
+    const s = h.state() as GameStateView;
+    return {
+      ...s,
+      nowMs: 40000,
+      world: { ...s.world, weather, ambientGain: 0.6 },
+      smoke: { ...s.smoke, drift: { ...s.smoke.drift, x: 0.4 } },
+    } as GameStateView;
+  };
+
+  it('answers null where the painted layer paints nothing at all', () => {
+    expect(rainLines(stateFor('neon-street', 'clear'), 40, false)).toBeNull();
+    const indoors = DEFAULT_CONTENT.environments.find((e) => !e.background.weatherVisible);
+    expect(rainLines(stateFor(indoors!.id, 'rain'), 40, false)).toBeNull();
+  });
+
+  it('carries the slant, alpha and width the streaks are drawn in', () => {
+    const frame = rainLines(stateFor('neon-street', 'rain'), 40, false);
+    expect(frame).not.toBeNull();
+    expect(frame!.lines.length).toBeGreaterThan(20);
+    // drift.x 0.4 at the painter's ×2.2 is 0.88, and every line's own rise has to carry it.
+    const slant = Math.max(-0.5, Math.min(0.5, 0.4 * 2.2));
+    for (const line of frame!.lines) {
+      expect(line.y2 - line.y1).toBeGreaterThan(0);
+      expect(line.x2 - line.x1).toBeCloseTo(slant * (line.y2 - line.y1), 10);
+    }
+    expect(frame!.alpha).toBeCloseTo(0.16 + 0.6 * 0.16, 10);
+    expect(frame!.widthUnits).toBeCloseTo(0.0016, 10);
+    // Reduced motion dims the sheet to its measured floor, not to nothing.
+    const calm = rainLines(stateFor('neon-street', 'rain'), 40, true);
+    expect(calm!.alpha).toBeCloseTo(0.1, 10);
   });
 });

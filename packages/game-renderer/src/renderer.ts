@@ -80,8 +80,12 @@ export const cartoonScale = (realism: number): number => {
     ? (1 - level) / (1 - DECK_SPLIT)
     : 1 + (DECK_SPLIT - level) / DECK_SPLIT;
 };
-/** Particles at or past this depth draw in front of the props, the rest behind them. */
-const NEAR_DEPTH = 0.55;
+/**
+ * Particles at or past this depth draw in front of the props, the rest behind them. Exported
+ * because the 3D layer has to place the same two halves on its own z ladder — the pool's `depth`
+ * is simulation, not a z.
+ */
+export const NEAR_DEPTH = 0.55;
 /**
  * Grammes of ash that read as a full tray. Measured rather than picked: one flick of the shipped
  * default rod carries 0.026 g (`ash-mass.test.ts` prints it), so this is about fourteen columns —

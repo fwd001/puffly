@@ -2527,6 +2527,63 @@ try {
     !flameIdle.visible && flameLit.visible && flameLit.lid < -0.5 && sparksSeen,
     `idle=${String(flameIdle.visible)} lit=${String(flameLit.visible)} lid=${flameLit.lid.toFixed(2)} sparks=${String(sparksSeen)}`,
   );
+  // The plume's rung on the ladder: the pool's `depth` is simulation (0.25..1), not a z. The first
+  // version handed it to the scene right after 0.02, so every puff sat at 0.3..1.0 — in front of
+  // the whole chrome ladder (0.034..0.10), and a plume crossing the HUD painted over it, which the
+  // canvas can never do because the chrome is DOM above it. `particleZ` now keeps the near half at
+  // 0.021..0.03 (under the chrome's first plate, over the flame's 0.02) and sends the far half
+  // behind the props (table's front face is −0.25). |control|: putting `0.02 + depth` back reads
+  // ~1.0 here and reddens this.
+  const plumeZ = await page
+    .waitForFunction(
+      () => {
+        const ctx = window.__pufflyScene.context;
+        const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+        let node = null;
+        scene.traverse((o) => {
+          if (o.name === 'smoke') node = o;
+        });
+        if (node === null || node.count === 0) return null;
+        const arr = node.instanceMatrix.array;
+        let max = -Infinity;
+        let min = Infinity;
+        for (let i = 0; i < node.count; i += 1) {
+          const z = arr[i * 16 + 14];
+          if (z > max) max = z;
+          if (z < min) min = z;
+        }
+        return { count: node.count, min, max };
+      },
+      null,
+      { timeout: 8000, polling: 120 },
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(() => null);
+  check(
+    '3D: the plume sits on the ladder, under the chrome — depth is simulation, not a z',
+    plumeZ !== null && plumeZ.max < 0.032 && plumeZ.min >= -0.2,
+    `count ${String(plumeZ?.count ?? 'none')} z ${plumeZ === null ? 'none' : `${plumeZ.min.toFixed(3)}..${plumeZ.max.toFixed(3)}`}`,
+  );
+  // The rain pass is wired (`rainLines` shared with the canvas, one streak per instance) and obeys
+  // the field's own gate: this profile stands indoors (quiet-room declares no sky), so it draws
+  // nothing — the same answer the canvas gives. The positive arm lives in `rain-fall.test.ts`,
+  // where the same helper is measured through the same pixels; the nearest sky-visible venue is
+  // smoking-corner at unlock level 3 (balcony is 18, rainy-window 10) and this suite's profile
+  // cannot reach one — see §12.
+  const rainCount = await page.evaluate(() => {
+    const ctx = window.__pufflyScene.context;
+    const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+    let count = -1;
+    scene.traverse((o) => {
+      if (o.name === 'rain') count = o.count;
+    });
+    return count;
+  });
+  check(
+    '3D: the rain pass is wired and gated — an indoor profile draws no streaks',
+    rainCount === 0,
+    `rain count ${String(rainCount)}`,
+  );
   // The break sheet wears the same mirror: its root gives up its own paint (visibility, so the
   // surface's computed background stays readable), its mirrorable rows give up their ink inline,
   // and the rows the atlas cannot carry keep theirs. Two mutations measured: putting the root's
