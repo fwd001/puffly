@@ -2614,6 +2614,94 @@ try {
       ? 'no grain mesh'
       : `visible ${String(grain.visible)} opacity ${grain.opacity.toFixed(3)} repeatX ${grain.repeatX.toFixed(2)}`,
   );
+  // S5's standing ash: the core's two ends (`pose.tip` / `pose.ashTip`) plus `bend`, laid out in
+  // canvas pixels like the painter's eleven-segment band. Nothing before a few draws makes a
+  // column, so a draw goes first and the poll waits for the sim to grow one. |control|: hiding the
+  // mesh reads false here.
+  const drawBox = await page.locator('.stage').boundingBox();
+  if (drawBox !== null) {
+    await page.mouse.move(drawBox.x + drawBox.width * 0.3, drawBox.y + drawBox.height * 0.62);
+    await page.mouse.down();
+    await page.waitForTimeout(1400);
+    await page.mouse.up();
+  }
+  const columnSeen = await page
+    .waitForFunction(
+      () => {
+        const ctx = window.__pufflyScene.context;
+        const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+        let node = null;
+        scene.traverse((o) => {
+          if (o.name === 'ash-column') node = o;
+        });
+        return (
+          node !== null && node.visible && (node.geometry?.attributes?.position?.count ?? 0) > 0
+        );
+      },
+      null,
+      { timeout: 8000, polling: 120 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  check(
+    "3D: the rod wears its standing ash — two ends and a bend into the painter's band (S5)",
+    columnSeen,
+    `column seen ${String(columnSeen)}`,
+  );
+  // The rod, where the core says: the mesh's own mid sits at the true rod's middle and its built
+  // length is that rod's world length. The pair is (0.45-of-the-rod, tip), so the check extrapolates
+  // in plane space exactly like `rodEnds` does, then maps once (WORLD_HEIGHT 4, full-canvas box, so
+  // the aspect is the window's). Measured against the earlier build: mid off by 0.155 and length
+  // 0.735 vs 0.689 — the rod hanging past its ember, which is why the ash column read as floating.
+  // |control|: centring on the pair's midpoint again moves mid by ~0.15 and reddens this.
+  const rodFit = await page.evaluate(() => {
+    const stageEl = document.querySelector('.stage');
+    const aim = stageEl?.dataset.aim ?? '';
+    const parts = new Map();
+    for (const piece of aim.split(' ')) {
+      const [key, pair] = piece.split(':');
+      const [x, y] = (pair ?? '').split(',').map(Number);
+      if (key !== undefined && Number.isFinite(x) && Number.isFinite(y)) parts.set(key, [x, y]);
+    }
+    const body = parts.get('body');
+    const ember = parts.get('ember');
+    const ctx = window.__pufflyScene.context;
+    const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+    let built = -1;
+    let mid = null;
+    scene.traverse((o) => {
+      if (o.name === 'rod') {
+        built = o.geometry?.parameters?.height ?? -1;
+        mid = [o.position.x, o.position.y];
+      }
+    });
+    if (body === undefined || ember === undefined || mid === null)
+      return { built, mid, expected: null };
+    const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+    const world = (x, y) => [(x - 0.5) * 4 * aspect, (0.5 - y) * 4];
+    const pivot = [ember[0] - (ember[0] - body[0]) / 0.55, ember[1] - (ember[1] - body[1]) / 0.55];
+    const a = world(pivot[0], pivot[1]);
+    const b = world(ember[0], ember[1]);
+    return {
+      built,
+      mid,
+      expected: {
+        length: Math.hypot(b[0] - a[0], b[1] - a[1]),
+        mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+      },
+    };
+  });
+  check(
+    '3D: the rod is drawn where the core says (true ends, centred on the rod)',
+    rodFit.expected !== null &&
+      rodFit.built > 0 &&
+      Math.abs(rodFit.built - rodFit.expected.length) < 0.02 &&
+      Math.hypot(rodFit.mid[0] - rodFit.expected.mid[0], rodFit.mid[1] - rodFit.expected.mid[1]) <
+        0.02,
+    rodFit.expected === null
+      ? 'no aim or rod'
+      : `len ${rodFit.built.toFixed(3)}/${rodFit.expected.length.toFixed(3)} mid off ${Math.hypot(rodFit.mid[0] - rodFit.expected.mid[0], rodFit.mid[1] - rodFit.expected.mid[1]).toFixed(3)}`,
+  );
   // The break sheet wears the same mirror: its root gives up its own paint (visibility, so the
   // surface's computed background stays readable), its mirrorable rows give up their ink inline,
   // and the rows the atlas cannot carry keep theirs. Two mutations measured: putting the root's

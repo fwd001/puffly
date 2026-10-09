@@ -296,6 +296,10 @@ const rainMesh = shallowRef<THREE.InstancedMesh | null>(null);
 /** The film grain: one full-frame plane wearing the painted layer's own tile. */
 const grainMesh = shallowRef<THREE.Mesh | null>(null);
 let grainMaterial: THREE.MeshBasicMaterial | null = null;
+/** The rod's standing ash: the painter's own eleven-segment band, as one ribbon. */
+const columnMesh = shallowRef<THREE.Mesh | null>(null);
+let columnMaterial: THREE.MeshBasicMaterial | null = null;
+let columnSignature = '';
 /** The lighter's flame: its teardrop and the blue throat under it, both additive. */
 const flameBody = shallowRef<THREE.Mesh | null>(null);
 const flameThroat = shallowRef<THREE.Mesh | null>(null);
@@ -630,6 +634,20 @@ function onSceneReady(context: unknown): void {
     rigGroup.add(grainPlane);
     grainMesh.value = grainPlane;
   }
+  columnMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0.92,
+    vertexColors: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const columnRibbon = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), columnMaterial);
+  columnRibbon.name = 'ash-column';
+  columnRibbon.frustumCulled = false;
+  columnRibbon.visible = false;
+  columnRibbon.position.set(0, 0, COLUMN_Z);
+  rigGroup.add(columnRibbon);
+  columnMesh.value = columnRibbon;
   flameThroatMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(64),
     transparent: true,
@@ -1399,6 +1417,91 @@ function placeAsh(state: GameStateView | null): void {
   if (ashMesh.instanceColor !== null) ashMesh.instanceColor.needsUpdate = true;
 }
 
+/** The standing ash sits just over the rod's own cylinder, under everything else on the table. */
+const COLUMN_Z = 0.005;
+
+/**
+ * The rod's standing ash, from the painted layer's own `drawAshColumn`: the core publishes the two
+ * ends (`pose.tip` and `pose.ashTip`) and the column's `bend`, and the canvas draws an eleven-
+ * segment band that sags by `t² · bend · length · 0.55`, tapers to 75 % at the far end, and takes
+ * its colour per segment from `mixRgb(style, [40, 38, 40], grit · 0.35)`. This is that band as
+ * geometry — every station laid out in *canvas pixels* like the painter's, because the stage
+ * stretches x and y by different scales and the sag hangs off the rod, not off the screen — and
+ * then mapped through the camera. The rod itself has no charred segment yet (see §12), so this is
+ * the first piece of the burning end that is the painter's own geometry rather than a stand-in.
+ */
+function placeColumn(state: GameStateView | null): void {
+  const mesh = columnMesh.value;
+  if (mesh === null || columnMaterial === null) return;
+  const pose = state?.cigarette.pose;
+  const ash = state?.cigarette.ash;
+  const style = state?.style.cigarette.ash;
+  if (pose == null || ash == null || style == null || ash.length <= 0 || !pose.visible) {
+    mesh.visible = false;
+    return;
+  }
+  const stage = box.value;
+  const unitPx = Math.min(stage.width / 0.75, stage.height);
+  const pxOf = (p: { x: number; y: number }): { x: number; y: number } => ({
+    x: stage.x + p.x * stage.width,
+    y: stage.y + p.y * stage.height,
+  });
+  const pivot = pxOf(pose.pivot);
+  const tip = pxOf(pose.tip);
+  const ashTip = pxOf(pose.ashTip);
+  const thickness = pose.thickness * unitPx;
+  const rodAngle = Math.atan2(tip.y - pivot.y, tip.x - pivot.x);
+  // Screen-down perpendicular of the rod, in the painter's y-down frame.
+  const perp = { x: -Math.sin(rodAngle), y: Math.cos(rodAngle) };
+  const length = Math.hypot(ashTip.x - tip.x, ashTip.y - tip.y);
+  const signature = `${tip.x.toFixed(2)},${tip.y.toFixed(2)}|${length.toFixed(2)}|${thickness.toFixed(2)}|${ash.bend.toFixed(3)}|${style.join(',')}`;
+  if (signature !== columnSignature) {
+    columnSignature = signature;
+    const steps = 11;
+    const positions: number[] = [];
+    const colours: number[] = [];
+    const index: number[] = [];
+    const toWorld = (p: { x: number; y: number }): readonly [number, number, number] =>
+      canvasToWorld(
+        { x: (p.x - stage.x) / stage.width, y: (p.y - stage.y) / stage.height },
+        box.value,
+        aspect.value,
+      );
+    const along = { x: Math.cos(rodAngle), y: Math.sin(rodAngle) };
+    const at = (t: number, offset: number): { x: number; y: number } => {
+      const sag = t * t * ash.bend * length * 0.55;
+      const x = tip.x + along.x * length * t + perp.x * (sag + offset);
+      const y = tip.y + along.y * length * t + perp.y * (sag + offset);
+      return { x, y };
+    };
+    for (let i = 0; i < steps; i += 1) {
+      const t0 = i / steps;
+      const t1 = (i + 1) / steps;
+      const grit = 0.55 + ((i * 37) % 11) / 22;
+      const rgb = mixRgb(style, [40, 38, 40], grit * 0.35);
+      tint.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
+      const top0 = at(t0, -thickness * 0.5);
+      const top1 = at(t1, -thickness * 0.5);
+      const bottom0 = at(t0, thickness * (0.5 - t0 * 0.25));
+      const bottom1 = at(t1, thickness * (0.5 - t1 * 0.25));
+      for (const p of [top0, bottom0, top1, bottom1]) {
+        const world = toWorld(p);
+        positions.push(world[0], world[1], 0);
+        colours.push(tint.r, tint.g, tint.b);
+      }
+      const base = i * 4;
+      index.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+    }
+    mesh.geometry.dispose();
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+    geometry.setIndex(index);
+    mesh.geometry = geometry;
+  }
+  mesh.visible = true;
+}
+
 /**
  * The cherry, as the light source §17 calls it: a halo in the air and a spill where its light lands
  * on the table edge. Both are additive quads fed by the core's own `emberPresence` and `emberHeat`
@@ -1485,6 +1588,7 @@ function step(deltaMs: number): void {
   probe.frames += 1;
   placeCherry(state);
   placeAsh(state);
+  placeColumn(state);
   placeFlame(state);
   placeDust(state);
   placeRain(state);
@@ -2597,8 +2701,14 @@ function placeHintInk(): void {
       <TresMeshStandardMaterial color="#6b6b70" :metalness="0.3" :roughness="0.5" />
     </TresMesh>
 
-    <!-- The rod: a cylinder between the two published points, rotated by the angle it implies. -->
-    <TresMesh v-if="rod !== null" :position="rod.mid" :rotation="[0, 0, rod.angle - Math.PI / 2]">
+    <!-- The rod: a cylinder between the two published points (its true ends), rotated by the
+         angle they imply. -->
+    <TresMesh
+      v-if="rod !== null"
+      name="rod"
+      :position="rod.mid"
+      :rotation="[0, 0, rod.angle - Math.PI / 2]"
+    >
       <TresCylinderGeometry :args="[0.018, 0.018, rod.length, 12]" />
       <TresMeshStandardMaterial color="#e8e2d6" emissive="#ff5a1f" :emissive-intensity="0.6" />
     </TresMesh>

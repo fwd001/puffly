@@ -4,6 +4,7 @@ import {
   parseAim,
   parseStageBox,
   rodBetween,
+  rodEnds,
   stageWorldSize,
   toWorld,
   WORLD_HEIGHT,
@@ -35,7 +36,16 @@ describe('the scene reads the shell’s own mirror, and nothing else', () => {
   it('takes the rod’s angle from the two published points', () => {
     const straight = rodBetween({ x: 0.4, y: 0.5 }, { x: 0.6, y: 0.5 }, 1);
     expect(straight.angle).toBeCloseTo(0, 6);
-    expect(straight.mid[0]).toBeCloseTo(0, 6);
+    // The pair is (45 % of the rod, tip) and the mesh is the whole rod, so its centre is the rod's
+    // own middle. The first version centred it on the pair's midpoint and hung it ~0.15 world past
+    // the tip — measured live, the standing ash (anchored at the true ember) read as floating
+    // mid-rod. This pins both the centre and the tip end.
+    const pivot = rodEnds({ x: 0.4, y: 0.5 }, { x: 0.6, y: 0.5 }).pivot;
+    const a = toWorld(pivot, 1);
+    const b = toWorld({ x: 0.6, y: 0.5 }, 1);
+    expect(straight.mid[0]).toBeCloseTo((a[0] + b[0]) / 2, 6);
+    expect(straight.length).toBeCloseTo(Math.hypot(b[0] - a[0], b[1] - a[1]), 6);
+    expect(straight.mid[0] + Math.cos(straight.angle) * (straight.length / 2)).toBeCloseTo(b[0], 6);
     const rising = rodBetween({ x: 0.5, y: 0.6 }, { x: 0.5, y: 0.4 }, 1);
     expect(rising.angle).toBeCloseTo(Math.PI / 2, 6);
   });

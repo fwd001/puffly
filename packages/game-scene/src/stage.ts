@@ -48,18 +48,34 @@ export function rodBetween(
   readonly length: number;
   readonly angle: number;
 } {
-  const a = toWorld(body, aspect);
-  const b = toWorld(ember, aspect);
+  const { pivot, tip } = rodEnds(body, ember);
+  const a = toWorld(pivot, aspect);
+  const b = toWorld(tip, aspect);
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
-  // The two points are the middle and the lit end of a 0.26-unit rod, so the distance between them is
-  // a fraction of the rod: scale it back up by where they sit (body at 0.45 of the length).
-  const span = Math.hypot(dx, dy) || 1e-6;
-  const length = (span / 0.55) * 1.0;
   return {
     mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0],
-    length,
+    length: Math.hypot(dx, dy) || 1e-6,
     angle: Math.atan2(dy, dx),
+  };
+}
+
+/**
+ * The rod's two true ends from the published pair — (the point 45 % along the rod, the tip).
+ *
+ * The 0.55 is exact only in *stage plane* space; the first version scaled the already-mapped world
+ * span by it instead, which on a portrait phone stretched the rod ~6 % and — because the mesh was
+ * also still centred on the pair's midpoint rather than the rod's own — hung it ~0.15 world past
+ * the ember. The standing ash is anchored at the true ember, so that is where "floating mid-rod"
+ * came from. Extrapolate first, map once.
+ */
+export function rodEnds(body: AimPoint, ember: AimPoint): { pivot: AimPoint; tip: AimPoint } {
+  return {
+    pivot: {
+      x: ember.x - (ember.x - body.x) / 0.55,
+      y: ember.y - (ember.y - body.y) / 0.55,
+    },
+    tip: { x: ember.x, y: ember.y },
   };
 }
 
@@ -120,14 +136,14 @@ export function rodBetweenInBox(
   readonly length: number;
   readonly angle: number;
 } {
-  const a = canvasToWorld(body, box, viewportAspect);
-  const b = canvasToWorld(ember, box, viewportAspect);
+  const { pivot, tip } = rodEnds(body, ember);
+  const a = canvasToWorld(pivot, box, viewportAspect);
+  const b = canvasToWorld(tip, box, viewportAspect);
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
-  const span = Math.hypot(dx, dy) || 1e-6;
   return {
     mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0],
-    length: span / 0.55,
+    length: Math.hypot(dx, dy) || 1e-6,
     angle: Math.atan2(dy, dx),
   };
 }

@@ -21,6 +21,7 @@ export {
   stageUnitToWorld,
   parseAim,
   rodBetween,
+  rodEnds,
   toWorld,
   WORLD_HEIGHT,
   canvasToWorld,
