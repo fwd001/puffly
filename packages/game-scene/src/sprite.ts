@@ -76,18 +76,43 @@ export function roundedRect(
   radiusX = 0.5,
   radiusY = radiusX,
   feather = 1.5,
+  /**
+   * Per-corner radii in CSS order — top-left, top-right, bottom-right, bottom-left — each `[rx, ry]`
+   * normalised like the scalars above. Omitted means all four corners take `radiusX/radiusY`, which
+   * is what the stadium cards and the dials want. The sheet is why this exists: 22 px on its top two
+   * corners and square at the bottom, and a uniformly rounded bottom would show two corners the
+   * design does not have.
+   */
+  corners?: ReadonlyArray<readonly [number, number]>,
 ): THREE.DataTexture {
+  const radii = corners ?? [
+    [radiusX, radiusY],
+    [radiusX, radiusY],
+    [radiusX, radiusY],
+    [radiusX, radiusY],
+  ];
   const data = new Uint8Array(size * size * 4);
   const centre = (size - 1) / 2;
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
       const dx = Math.abs((x - centre) / centre);
       const dy = Math.abs((y - centre) / centre);
+      // The data's y=0 row is the card's bottom edge on screen (a DataTexture is not flipped and
+      // the card's uvs put v=0 at its lower edge), so the quadrants map onto CSS corners like this.
+      const corner =
+        y < centre
+          ? x < centre
+            ? (radii[3] ?? radii[0])
+            : (radii[2] ?? radii[0])
+          : x < centre
+            ? (radii[0] ?? radii[1])
+            : (radii[1] ?? radii[0]);
+      const [cornerX, cornerY] = corner ?? [radiusX, radiusY];
       // Distance to the inner rectangle whose corners the radii turn — per axis, so a card on a
       // wide quad keeps round corners instead of stretched ones.
-      const cx = Math.max(0, dx - Math.max(0, 1 - radiusX)) / Math.max(1e-6, radiusX);
-      const cy = Math.max(0, dy - Math.max(0, 1 - radiusY)) / Math.max(1e-6, radiusY);
-      const radius = Math.min(radiusX, radiusY);
+      const cx = Math.max(0, dx - Math.max(0, 1 - cornerX)) / Math.max(1e-6, cornerX);
+      const cy = Math.max(0, dy - Math.max(0, 1 - cornerY)) / Math.max(1e-6, cornerY);
+      const radius = Math.min(cornerX, cornerY);
       const distance = Math.hypot(cx, cy);
       const t =
         distance <= 1

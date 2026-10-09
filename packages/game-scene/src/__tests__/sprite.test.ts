@@ -79,6 +79,24 @@ describe('a card is a rounded rectangle, not a disc', () => {
     expect(alphaAt(square, 3, 3)).toBe(255);
     expect(alphaAt(stadium, 3, 3)).toBeLessThan(60);
   });
+
+  it('takes each corner its own radius — round at the top, square at the bottom', () => {
+    const size = 65;
+    // CSS order — top-left, top-right, bottom-right, bottom-left — which is the sheet's own shape.
+    // The data's y=0 row is the card's bottom edge (a DataTexture is not flipped and the card's uvs
+    // put v=0 there), so the square pair must sit at the low y.
+    const data = roundedRect(size, 0.5, 0.5, 1.5, [
+      [0.5, 0.5],
+      [0.5, 0.5],
+      [0, 0],
+      [0, 0],
+    ]).image.data as Uint8Array;
+    const alphaAt = (x: number, y: number): number => data[(y * size + x) * 4 + 3] as number;
+    expect(alphaAt(1, 63)).toBeLessThan(60);
+    expect(alphaAt(63, 63)).toBeLessThan(60);
+    expect(alphaAt(1, 1)).toBe(255);
+    expect(alphaAt(63, 1)).toBe(255);
+  });
 });
 
 describe('the vignette is clear in the middle and dark at the rim', () => {

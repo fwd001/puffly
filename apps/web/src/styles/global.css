@@ -495,3 +495,12 @@ html.scene3d-text .archive {
   animation: none;
   opacity: 0;
 }
+/* 四张面板的底也交场景：只关 root 自己的画（visibility 不动 computed 背景，卡面照读），
+   开着的那张把孩子放回来 —— 控件、图块、以及不在图集里的行（emoji）还是 DOM 的。
+   逐行藏字由场景写 inline，因为"这行字能不能进图集"只有拿着图集的那一层知道。 */
+html.scene3d-text .sheet {
+  visibility: hidden;
+}
+html.scene3d-text .sheet[data-open='true'] * {
+  visibility: visible;
+}

@@ -444,11 +444,11 @@ function onSceneReady(context: unknown): void {
     rigGroup.add(mesh);
     return { mesh, material, signature: '', baseY: 0, baseOpacity: 1 };
   };
-  pillCardRig.value = buildCard(-0.09);
-  railRig.value = buildCard(-0.072);
-  tabRigs.value = [buildCard(-0.07), buildCard(-0.07), buildCard(-0.07), buildCard(-0.07)];
-  catCardRig.value = buildCard(-0.08);
-  archiveCardRig.value = buildCard(-0.05);
+  pillCardRig.value = buildCard(0.05);
+  railRig.value = buildCard(0.068);
+  tabRigs.value = [buildCard(0.07), buildCard(0.07), buildCard(0.07), buildCard(0.07)];
+  catCardRig.value = buildCard(0.06);
+  archiveCardRig.value = buildCard(0.09);
 
   // The pill's line art (S4's scale, the wave, the tray flick) rides in front of its own card, so
   // the rigs hang off one group whose transform is the element's own screen transform.
@@ -467,6 +467,24 @@ function onSceneReady(context: unknown): void {
   }
   pillInk.value = inkGroup;
   rigGroup.add(inkGroup);
+
+  // The sheet's surface, and one rig per line of its text. The rigs carry the four clip planes
+  // from the start, so a scrolled row is cut at the panel's edge the moment it is drawn.
+  sheetCardRig.value = buildCard(0.095);
+  for (let i = 0; i < SHEET_POOL; i += 1) {
+    const sheetMaterial = new THREE.MeshBasicMaterial({
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      clippingPlanes: sheetClip,
+    });
+    const sheetMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sheetMaterial);
+    sheetMesh.frustumCulled = false;
+    sheetMesh.visible = false;
+    sheetMesh.position.z = RUN_TEXT_Z;
+    rigGroup.add(sheetMesh);
+    sheetRuns.push({ mesh: sheetMesh, material: sheetMaterial, signature: '' });
+  }
   badgeMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(32),
     transparent: true,
@@ -475,7 +493,7 @@ function onSceneReady(context: unknown): void {
   const badge = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), badgeMaterial);
   badge.frustumCulled = false;
   badge.visible = false;
-  badge.position.z = -0.078;
+  badge.position.z = 0.062;
   badgeQuad.value = badge;
   rigGroup.add(badge);
   pillGlowMaterial = new THREE.MeshBasicMaterial({
@@ -487,7 +505,7 @@ function onSceneReady(context: unknown): void {
   const pillGlowMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), pillGlowMaterial);
   pillGlowMesh.frustumCulled = false;
   pillGlowMesh.visible = false;
-  pillGlowMesh.position.z = -0.096;
+  pillGlowMesh.position.z = 0.044;
   pillGlow.value = pillGlowMesh;
   rigGroup.add(pillGlowMesh);
 
@@ -836,6 +854,12 @@ async function loadAtlas(): Promise<void> {
       material.map = texture;
       material.needsUpdate = true;
     }
+    // The sheet's own lines are meshes of their own (they carry clipping planes), so they are not in
+    // `runMaterials` — without this the first probe drew them as solid glyph-quads: no map, no ink.
+    for (const rig of sheetRuns) {
+      rig.material.map = texture;
+      rig.material.needsUpdate = true;
+    }
     document.documentElement.classList.add('scene3d-text');
   } catch (error) {
     console.warn('scene text: atlas unavailable, the DOM keeps its own words', error);
@@ -844,14 +868,24 @@ async function loadAtlas(): Promise<void> {
 
 /**
  * Where every run of text sits. Nearer the camera than any chrome plate: the archive card is the
- * closest one at −0.05, the pill's at −0.09. A plate drawn *after* its own words dims them by the
+ * closest one at 0.09, the pill's at 0.05. A plate drawn *after* its own words dims them by the
  * plate's alpha — measured on the archive name: 103 where the same glyph unplated reads 224.
+ *
+ * The whole chrome ladder (0.034…0.10) also sits in front of the stage itself: the props live at
+ * 0.01–0.03, and the sheet proved it matters — a panel at −0.045 had the rod and the tray's shadow
+ * painting straight through it, because in 2D the chrome is DOM over the canvas and here it is just
+ * another z.
  */
-const RUN_TEXT_Z = -0.04;
+const RUN_TEXT_Z = 0.1;
 
-function fillRunGeometry(mesh: THREE.Mesh, text: string, em: number): void {
+function fillRunGeometry(
+  mesh: THREE.Mesh,
+  text: string,
+  em: number,
+  laid?: ReturnType<typeof layoutText>,
+): void {
   if (atlas === null) return;
-  const layout = layoutText(text, atlas, em);
+  const layout = laid ?? layoutText(text, atlas, em);
   const positions: number[] = [];
   const uvs: number[] = [];
   const push = (x: number, y: number, u: number, v: number): void => {
@@ -1039,9 +1073,10 @@ function step(deltaMs: number): void {
   placeRail();
   placeCat();
   placeArchive();
+  placeSheet();
   const hudRing = hudRig.value;
   if (hudRing !== null) {
-    placeRingRig(hudRing, document.querySelector<SVGSVGElement>('.hud .ring svg'), -0.106, -0.105);
+    placeRingRig(hudRing, document.querySelector<SVGSVGElement>('.hud .ring svg'), 0.034, 0.035);
   }
   placePill();
   placePillInk();
@@ -1194,7 +1229,7 @@ function fillCard(rig: CardRig, element: HTMLElement | null, shrink: number): vo
   }
   const style = getComputedStyle(element);
   const gradient = style.backgroundImage.includes('gradient');
-  const signature = `${rect.left.toFixed(1)}|${rect.top.toFixed(1)}|${rect.width.toFixed(1)}|${rect.height.toFixed(1)}|${shrink}|${style.backgroundImage}|${style.backgroundColor}|${style.borderColor}`;
+  const signature = `${rect.left.toFixed(1)}|${rect.top.toFixed(1)}|${rect.width.toFixed(1)}|${rect.height.toFixed(1)}|${shrink}|${style.backgroundImage}|${style.backgroundColor}|${style.borderColor}|${style.borderRadius}`;
   if (signature !== rig.signature) {
     rig.signature = signature;
     const whole = rectWorld({
@@ -1272,10 +1307,33 @@ function fillCard(rig: CardRig, element: HTMLElement | null, shrink: number): vo
     );
     // The corner's own radii, per axis: 1/1 is a circle (the cat), ~1 on the short axis is the
     // stadium the pill and the rail ask for, and a big card's 16px stays 16px on both axes.
-    const radiusPx = Number.parseFloat(style.borderRadius) || 0;
-    const rx = Math.min(1, radiusPx / Math.max(1, rect.width / 2));
-    const ry = Math.min(1, radiusPx / Math.max(1, rect.height / 2));
-    material.map = rx >= 1 && ry >= 1 ? solidDisc(64) : roundedRect(128, rx, ry);
+    // The computed shorthand is expanded by CSS's own rules (1/2/3/4 values, `x / y` split first),
+    // so a sheet's "22px 22px 0 0" keeps its square bottom corners instead of rounding all four.
+    const [horizontal = ''] = style.borderRadius.split('/');
+    const radiusParts = horizontal.split(/\s+/).map((value) => Number.parseFloat(value) || 0);
+    const radiusAt = (index: number): number =>
+      radiusParts.length <= 1
+        ? (radiusParts[0] ?? 0)
+        : radiusParts.length === 2
+          ? (radiusParts[index % 2] ?? 0)
+          : radiusParts.length === 3
+            ? ([radiusParts[0], radiusParts[1], radiusParts[2], radiusParts[1]][index] ?? 0)
+            : (radiusParts[index] ?? 0);
+    const halfW = Math.max(1, rect.width / 2);
+    const halfH = Math.max(1, rect.height / 2);
+    const corners = [0, 1, 2, 3].map(
+      (index) =>
+        [Math.min(1, radiusAt(index) / halfW), Math.min(1, radiusAt(index) / halfH)] as const,
+    );
+    const [cornerX, cornerY] = corners[0] ?? [0, 0];
+    const uniform = corners.every(([x, y]) => x === cornerX && y === cornerY);
+    if (uniform && cornerX >= 1 && cornerY >= 1) {
+      material.map = solidDisc(64);
+    } else if (uniform) {
+      material.map = roundedRect(128, cornerX, cornerY);
+    } else {
+      material.map = roundedRect(128, cornerX, cornerY, 1.5, corners);
+    }
     material.needsUpdate = true;
     rig.baseOpacity = material.opacity;
   }
@@ -1291,7 +1349,7 @@ function placePill(): void {
   const held = pill?.closest('.cta')?.getAttribute('data-held') === 'true';
   fillCard(rig, pill, held === true ? 0.96 : 1);
   if (ring !== null) {
-    placeRingRig(ring, pill?.querySelector('svg') ?? null, -0.086, -0.085);
+    placeRingRig(ring, pill?.querySelector('svg') ?? null, 0.054, 0.055);
   }
   const glow = pillGlow.value;
   if (glow !== null && pillGlowMaterial !== null && pill !== null) {
@@ -1304,7 +1362,7 @@ function placePill(): void {
     });
     glow.visible = true;
     glow.scale.set(glowWorld.width, glowWorld.height, 1);
-    glow.position.set(glowWorld.centre[0], glowWorld.centre[1], -0.096);
+    glow.position.set(glowWorld.centre[0], glowWorld.centre[1], 0.044);
     pillGlowMaterial.color.set(
       getComputedStyle(document.documentElement).getPropertyValue('--ember-orange').trim() ||
         '#e2604a',
@@ -1355,7 +1413,7 @@ function placeCat(): void {
   });
   badge.visible = true;
   badge.scale.set(where.width, where.height, 1);
-  badge.position.set(where.centre[0], where.centre[1], -0.078);
+  badge.position.set(where.centre[0], where.centre[1], 0.062);
   badgeMaterial.color.set(
     getComputedStyle(document.documentElement).getPropertyValue('--ember-orange').trim() ||
       '#e2604a',
@@ -1415,6 +1473,158 @@ function placeArchive(): void {
       continue;
     mesh.position.y = base - rise;
     material.opacity *= eased;
+  }
+}
+
+// ------------------------------------------------------------ the sheets (S6 / S8 / S17 / S23 …)
+
+/**
+ * A sheet, mirrored: the surface, and every line of its text the atlas can carry.
+ *
+ * The sheet's own box is hidden under `html.scene3d-text .sheet { visibility: hidden }` — that takes
+ * only the root's *paint* (its background), and `visibility` leaves the computed background
+ * readable, which is where this surface comes from. The children are put back by the
+ * `[data-open='true'] *` rule: at this stage the controls, tiles and emoji are still the DOM's to
+ * paint. The mirrored lines have their ink taken away one node at a time, inline, because *which*
+ * lines are mirrorable is known only here — a line with characters the atlas does not carry (the
+ * header's ☀ 🌙 🔥, the mood faces) stays crisp DOM rather than being punched into a half-drawn
+ * copy. Scrolling needs no code: the rows' rects are read every frame, so the DOM's own scroll
+ * moves the mirror; the four clip planes are what keep the rows inside the panel while it does.
+ */
+const SHEET_POOL = 44;
+const sheetRuns: InkRig[] = [];
+const sheetCardRig = shallowRef<CardRig | null>(null);
+const sheetClip: THREE.Plane[] = [
+  new THREE.Plane(new THREE.Vector3(-1, 0, 0), -1e6),
+  new THREE.Plane(new THREE.Vector3(1, 0, 0), -1e6),
+  new THREE.Plane(new THREE.Vector3(0, -1, 0), -1e6),
+  new THREE.Plane(new THREE.Vector3(0, 1, 0), -1e6),
+];
+const maskedLeaves = new Set<HTMLElement>();
+let sheetClippingOn = false;
+
+/** Four half-spaces around the sheet's box, so a scrolled row is cut at the panel's own edge. */
+function updateSheetClip(rect: DOMRect): void {
+  const whole = rectWorld({
+    x: rect.left / Math.max(1, viewportWidthPx.value),
+    y: rect.top / Math.max(1, viewportHeightPx.value),
+    w: rect.width / Math.max(1, viewportWidthPx.value),
+    h: rect.height / Math.max(1, viewportHeightPx.value),
+  });
+  const left = whole.centre[0] - whole.width / 2;
+  const right = whole.centre[0] + whole.width / 2;
+  const top = whole.centre[1] + whole.height / 2;
+  const bottom = whole.centre[1] - whole.height / 2;
+  const [west, east, north, south] = sheetClip;
+  if (west !== undefined) west.constant = right;
+  if (east !== undefined) east.constant = -left;
+  if (north !== undefined) north.constant = top;
+  if (south !== undefined) south.constant = -bottom;
+}
+
+function clearLeafMask(node: HTMLElement): void {
+  if (!maskedLeaves.delete(node)) return;
+  node.style.removeProperty('-webkit-text-fill-color');
+}
+
+function maskLeaf(node: HTMLElement): void {
+  if (maskedLeaves.has(node)) return;
+  maskedLeaves.add(node);
+  node.style.setProperty('-webkit-text-fill-color', 'transparent');
+}
+
+function hideSheetMirror(): void {
+  const card = sheetCardRig.value;
+  if (card !== null) card.mesh.visible = false;
+  for (const rig of sheetRuns) rig.mesh.visible = false;
+  for (const node of [...maskedLeaves]) clearLeafMask(node);
+}
+
+function placeSheet(): void {
+  const card = sheetCardRig.value;
+  if (card === null) return;
+  const sheet = document.querySelector<HTMLElement>('.sheet[data-open="true"]');
+  const glyphs = atlas;
+  if (sheet === null || glyphs === null || atlasTexture === null) {
+    hideSheetMirror();
+    return;
+  }
+  if (!sheetClippingOn) {
+    const context = probe.context as { renderer?: unknown } | null;
+    const raw = context?.renderer;
+    const renderer = raw !== null && typeof raw === 'object' && 'value' in raw ? raw.value : raw;
+    if (renderer !== null && typeof renderer === 'object' && 'localClippingEnabled' in renderer) {
+      (renderer as { localClippingEnabled: boolean }).localClippingEnabled = true;
+      sheetClippingOn = true;
+    }
+  }
+  fillCard(card, sheet, 1);
+  const rootOpacity = Number.parseFloat(getComputedStyle(sheet).opacity);
+  const panelAlpha = Number.isFinite(rootOpacity) ? rootOpacity : 1;
+  card.material.opacity = card.baseOpacity * panelAlpha;
+  const panelBox = sheet.getBoundingClientRect();
+  updateSheetClip(panelBox);
+  const leaves = [...sheet.querySelectorAll<HTMLElement>('*')].filter(
+    (element) => element.childElementCount === 0 && (element.textContent ?? '').trim() !== '',
+  );
+  const wanted = new Set<HTMLElement>();
+  leaves.forEach((node, index) => {
+    const rig = sheetRuns[index];
+    if (rig === undefined) return;
+    const rect = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    const outside =
+      rect.width === 0 ||
+      rect.height === 0 ||
+      rect.bottom < panelBox.top - 4 ||
+      rect.top > panelBox.bottom + 4 ||
+      style.visibility === 'hidden' ||
+      style.display === 'none';
+    const text = node.textContent?.trim() ?? '';
+    const fontSize = Number.parseFloat(style.fontSize) || 15;
+    const signature = `${text}|${rect.left.toFixed(1)},${rect.top.toFixed(1)},${rect.width.toFixed(1)},${rect.height.toFixed(1)}|${fontSize}|${style.color}`;
+    const skipped = rig.signature.startsWith('skip|');
+    if ((skipped ? rig.signature.slice(5) : rig.signature) !== signature) {
+      const em = pxToWorld(fontSize);
+      const layout = layoutText(text, glyphs, em);
+      if (outside || layout.missing.length > 0) {
+        // Characters the atlas does not carry (the header's emoji): the whole line stays the DOM's.
+        rig.signature = `skip|${signature}`;
+      } else {
+        rig.signature = signature;
+        fillRunGeometry(rig.mesh, text, em, layout);
+        const colour = parseColour(style.color);
+        if (colour !== null) rig.material.color.copy(colour.colour);
+        const baselinePx = rect.top + (rect.height - fontSize) / 2 + fontSize;
+        const padding = Number.parseFloat(style.paddingLeft) || 0;
+        const world = canvasToWorld(
+          {
+            x: (rect.left + padding) / Math.max(1, viewportWidthPx.value),
+            y: baselinePx / Math.max(1, viewportHeightPx.value),
+          },
+          box.value,
+          aspect.value,
+        );
+        rig.mesh.position.set(world[0], world[1], RUN_TEXT_Z);
+      }
+    }
+    if (outside || rig.signature.startsWith('skip|')) {
+      rig.mesh.visible = false;
+      clearLeafMask(node);
+      return;
+    }
+    const nodeOpacity = Number.parseFloat(style.opacity);
+    rig.material.opacity = (Number.isFinite(nodeOpacity) ? nodeOpacity : 1) * panelAlpha;
+    rig.mesh.visible = true;
+    maskLeaf(node);
+    wanted.add(node);
+  });
+  for (let index = leaves.length; index < sheetRuns.length; index += 1) {
+    const rig = sheetRuns[index];
+    if (rig !== undefined) rig.mesh.visible = false;
+  }
+  for (const node of [...maskedLeaves]) {
+    if (!wanted.has(node)) clearLeafMask(node);
   }
 }
 
