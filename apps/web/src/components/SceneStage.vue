@@ -15,6 +15,7 @@ import {
   parseAim,
   rodBetween,
   toWorld,
+  WORLD_HEIGHT,
   type RendererChoice,
 } from '@puffly/game-scene';
 
@@ -51,7 +52,7 @@ const rod = computed(() => {
   return body === undefined || ember === undefined ? null : rodBetween(body, ember, aspect.value);
 });
 /** The table sits under the props: the lowest of the three, a touch below it. */
-const tableY = computed(() => -aspect.value * 1.1);
+const tableY = computed(() => -WORLD_HEIGHT * 0.42);
 </script>
 
 <template>
@@ -62,13 +63,29 @@ const tableY = computed(() => -aspect.value * 1.1);
     clear-color="#101010"
     @loop="probe.frames += 1"
   >
-    <TresPerspectiveCamera :position="[0, 0, 3]" :look-at="[0, 0, 0]" />
+    <!--
+      An orthographic stage box, not a perspective camera: the mirror's fractions are relative to the
+      canvas, so 1 world unit = 1 fraction of the viewport height is what makes a point land where the
+      core says it is. A perspective camera put the tray in the wrong place and at the wrong size.
+    -->
+    <TresOrthographicCamera
+      :args="[
+        (-WORLD_HEIGHT * aspect) / 2,
+        (WORLD_HEIGHT * aspect) / 2,
+        WORLD_HEIGHT / 2,
+        -WORLD_HEIGHT / 2,
+        0.1,
+        100,
+      ]"
+      :position="[0, 0, 3]"
+      :look-at="[0, 0, 0]"
+    />
     <TresDirectionalLight :position="[2, 3, 2]" :intensity="1.6" />
     <TresAmbientLight :intensity="0.5" />
 
     <!-- The table: a slab, not a plane, so it catches the key light the way the 2D one does. -->
     <TresMesh :position="[0, tableY, -0.4]">
-      <TresBoxGeometry :args="[aspect * 3.4, 3.4, 0.3]" />
+      <TresBoxGeometry :args="[WORLD_HEIGHT * aspect * 1.2, WORLD_HEIGHT * 0.6, 0.3]" />
       <TresMeshStandardMaterial color="#241c17" :roughness="0.85" />
     </TresMesh>
 
