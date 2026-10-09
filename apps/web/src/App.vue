@@ -1,10 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue';
 import { createPuffly } from './composables/usePuffly';
 import { isScenePress } from './dismiss';
 import { ANCHOR_LOCALE, STATE_KEYS } from './i18n';
 import type { Destination } from './rail';
 import type { ArchiveFacts } from './composables/usePuffly';
+// Loaded only when the URL asks for the 3D stage: three + TresJS are ~420 KB gzip and the shipped
+// app must not carry them until the scene replaces the canvas. `defineAsyncComponent` is what keeps
+// that promise — importing the component statically put all of it in the entry chunk.
+const SceneStage = defineAsyncComponent(() => import('./components/SceneStage.vue'));
 import HudBar from './components/HudBar.vue';
 import CtaPill from './components/CtaPill.vue';
 import TabRail from './components/TabRail.vue';
@@ -125,6 +129,9 @@ function jumpToSection(next: string): void {
  * convenience into a broken gesture behind the panel. One press may therefore do both jobs — the
  * panel steps away and the scene answers as it always has.
  */
+/** The 3D stage is opt-in while it grows: `?scene=3d` on the URL. Nothing ships behind it yet. */
+const useScene3d = new URLSearchParams(window.location.search).get('scene') === '3d';
+
 function dismissOnScene(event: PointerEvent): void {
   if (sheet.value === 'none') return;
   if (!isScenePress(canvas.value, event.target)) return;
@@ -150,6 +157,8 @@ function dismissOnScene(event: PointerEvent): void {
     @pointerdown.capture="dismissOnScene"
   >
     <canvas ref="canvas" tabindex="0" :aria-label="announced" />
+    <!-- 3D 层还在长，默认不开：URL 里带 ?scene=3d 才挂（&gl=1 强制走 WebGL2 那条）。 -->
+    <SceneStage v-if="useScene3d" />
 
     <p
       v-if="summary.hint !== null && sheet === 'none'"

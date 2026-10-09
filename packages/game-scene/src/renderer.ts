@@ -22,24 +22,31 @@ export interface RendererChoice {
  * device suite asserts both backends render, and a silent fallback would make "WebGPU works" and
  * "WebGPU was never used" look identical from the outside.
  */
+export interface RendererOptions {
+  onChoice?: (choice: RendererChoice) => void;
+  /** Ask for the WebGL2 backend even where a WebGPU adapter exists — the device gate's second pass. */
+  forceWebGL?: boolean;
+}
+
 export function createPufflyRenderer(
   ctx: TresRendererSetupContext,
-  onChoice?: (choice: RendererChoice) => void,
+  options: RendererOptions = {},
 ): WebGPURenderer {
   const renderer = new WebGPURenderer({
     canvas: ctx.canvas instanceof HTMLCanvasElement ? ctx.canvas : undefined,
     alpha: true,
     antialias: true,
+    forceWebGL: options.forceWebGL === true,
   });
   void renderer
     .init()
     .then(() => {
-      onChoice?.({ backend: backendOf(renderer) });
+      options.onChoice?.({ backend: backendOf(renderer) });
     })
     .catch(() => {
       // A renderer that never initialised is not a renderer: report the fallback, which is what the
       // device suite will exercise anyway.
-      onChoice?.({ backend: 'webgl2' });
+      options.onChoice?.({ backend: 'webgl2' });
     });
   return renderer;
 }
