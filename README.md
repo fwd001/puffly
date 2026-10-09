@@ -412,12 +412,13 @@ per-screen ledger live in
 [`docs/superpowers/specs/2026-10-09-scene3d-rewrite-design.md`](docs/superpowers/specs/2026-10-09-scene3d-rewrite-design.md),
 and the real-device suite covers it (`tests/smoke/touch-device.mjs`, the `3D:` checks).
 
-What already draws in the scene: the room and its furniture, the rod / smoke / ash, the head-up row
-and rails, the pill and its diagrams, the archive card, the four sheets' surfaces and lines, and the
-lighter with its flame, cap and flint sparks. Still 2D-only today: the sliders' native track and
-thumb (its pseudo-element styles cannot be read back — `getComputedStyle` returns element-level
-values, see §12 of the spec), the venues' rain / dust / grain, and the sheets' closing motion on
-their controls.
+What already draws in the scene: the room and its furniture, the rod with its char front and standing
+ash, the smoke / the falling ash / the flint sparks, the weather (rain gated by a venue that can see
+the sky, the film grain, and the air's dust), the head-up row and rails, the pill and its diagrams,
+the archive card, and the four sheets — surfaces, rows, controls and their closing motion — with the
+lighter's flame, cap and flint sparks. Still 2D-only today: the sliders' native track and thumb
+(their pseudo-element styles cannot be read back — `getComputedStyle` returns element-level values,
+see §12 of the spec), and the paper's dimple while drawing.
 
 ## Product boundaries
 
