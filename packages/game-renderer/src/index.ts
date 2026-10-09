@@ -86,6 +86,8 @@ export {
   type RainLine,
 } from './weather';
 export {
+  CHAR_BIT,
+  CHAR_GRAIN_SEED,
   drawAffordanceHint,
   DIP_SHARE,
   FLAME_BASE_FRACTION,

@@ -13,7 +13,7 @@
  */
 import { TresCanvas } from '@tresjs/core';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
-import { emberPresence, ventDraught } from '@puffly/game-core';
+import { emberHeat, emberPresence, ventDraught } from '@puffly/game-core';
 import type { GameStateView } from '@puffly/game-core';
 import { clamp01, mixRgb } from '@puffly/shared';
 import {
@@ -42,6 +42,9 @@ import {
   rainLines,
   createGrainTile,
   grainAlpha,
+  noise2,
+  CHAR_BIT,
+  CHAR_GRAIN_SEED,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -300,6 +303,15 @@ let grainMaterial: THREE.MeshBasicMaterial | null = null;
 const columnMesh = shallowRef<THREE.Mesh | null>(null);
 let columnMaterial: THREE.MeshBasicMaterial | null = null;
 let columnSignature = '';
+/** The rod's char front: the band, its additive hot core and the toothed grain row. */
+const charBand = shallowRef<THREE.Mesh | null>(null);
+const charHot = shallowRef<THREE.Mesh | null>(null);
+const charGrains = shallowRef<THREE.InstancedMesh | null>(null);
+let charMaterial: THREE.MeshBasicMaterial | null = null;
+let charHotMaterial: THREE.MeshBasicMaterial | null = null;
+let charSignature = '';
+/** The painted layer's own grain count: `max(9, min(38, round((thickness / size) * 5)))`. */
+const CHAR_GRAIN_CAPACITY = 38;
 /** The lighter's flame: its teardrop and the blue throat under it, both additive. */
 const flameBody = shallowRef<THREE.Mesh | null>(null);
 const flameThroat = shallowRef<THREE.Mesh | null>(null);
@@ -648,6 +660,45 @@ function onSceneReady(context: unknown): void {
   columnRibbon.position.set(0, 0, COLUMN_Z);
   rigGroup.add(columnRibbon);
   columnMesh.value = columnRibbon;
+  charMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const bandMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), charMaterial);
+  bandMesh.name = 'rod-char';
+  bandMesh.frustumCulled = false;
+  bandMesh.visible = false;
+  bandMesh.position.set(0, 0, 0.0185);
+  rigGroup.add(bandMesh);
+  charBand.value = bandMesh;
+  charHotMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  });
+  const hotMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), charHotMaterial);
+  hotMesh.frustumCulled = false;
+  hotMesh.visible = false;
+  hotMesh.position.set(0, 0, 0.0187);
+  rigGroup.add(hotMesh);
+  charHot.value = hotMesh;
+  const charGrainCloud = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide }),
+    CHAR_GRAIN_CAPACITY,
+  );
+  charGrainCloud.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  charGrainCloud.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(CHAR_GRAIN_CAPACITY * 3),
+    3,
+  );
+  charGrainCloud.frustumCulled = false;
+  charGrainCloud.visible = false;
+  charGrainCloud.position.set(0, 0, 0.0188);
+  rigGroup.add(charGrainCloud);
+  charGrains.value = charGrainCloud;
   flameThroatMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(64),
     transparent: true,
@@ -1421,6 +1472,39 @@ function placeAsh(state: GameStateView | null): void {
 const COLUMN_Z = 0.005;
 
 /**
+ * The painting frame: canvas pixels, because every formula copied out of `props.ts` is written in
+ * them — and because the canvas is the one space that is isotropic (`stage.width` and `stage.height`
+ * are different scales, so a sag laid out in stage fractions comes out skewed by the aspect). The
+ * feed-through to the world goes back through the same box, so `pxOf` → `toWorld` is the identity
+ * up to the mapping, whatever the box is.
+ */
+function canvasPx(): {
+  pxOf: (p: { x: number; y: number }) => { x: number; y: number };
+  unit: number;
+  toWorld: (p: { x: number; y: number }) => readonly [number, number, number];
+} {
+  const stage = box.value;
+  const vw = Math.max(1, viewportWidthPx.value);
+  const vh = Math.max(1, viewportHeightPx.value);
+  const px = {
+    x: stage.x * vw,
+    y: stage.y * vh,
+    width: stage.width * vw,
+    height: stage.height * vh,
+  };
+  return {
+    pxOf: (p: { x: number; y: number }) => ({
+      x: px.x + p.x * px.width,
+      y: px.y + p.y * px.height,
+    }),
+    // The renderer's own `unit`: lengths scale with the smaller edge.
+    unit: Math.min(px.width / 0.75, px.height),
+    toWorld: (p: { x: number; y: number }): readonly [number, number, number] =>
+      canvasToWorld({ x: p.x / vw, y: p.y / vh }, stage, aspect.value),
+  };
+}
+
+/**
  * The rod's standing ash, from the painted layer's own `drawAshColumn`: the core publishes the two
  * ends (`pose.tip` and `pose.ashTip`) and the column's `bend`, and the canvas draws an eleven-
  * segment band that sags by `t² · bend · length · 0.55`, tapers to 75 % at the far end, and takes
@@ -1440,16 +1524,11 @@ function placeColumn(state: GameStateView | null): void {
     mesh.visible = false;
     return;
   }
-  const stage = box.value;
-  const unitPx = Math.min(stage.width / 0.75, stage.height);
-  const pxOf = (p: { x: number; y: number }): { x: number; y: number } => ({
-    x: stage.x + p.x * stage.width,
-    y: stage.y + p.y * stage.height,
-  });
-  const pivot = pxOf(pose.pivot);
-  const tip = pxOf(pose.tip);
-  const ashTip = pxOf(pose.ashTip);
-  const thickness = pose.thickness * unitPx;
+  const frame = canvasPx();
+  const pivot = frame.pxOf(pose.pivot);
+  const tip = frame.pxOf(pose.tip);
+  const ashTip = frame.pxOf(pose.ashTip);
+  const thickness = pose.thickness * frame.unit;
   const rodAngle = Math.atan2(tip.y - pivot.y, tip.x - pivot.x);
   // Screen-down perpendicular of the rod, in the painter's y-down frame.
   const perp = { x: -Math.sin(rodAngle), y: Math.cos(rodAngle) };
@@ -1461,12 +1540,7 @@ function placeColumn(state: GameStateView | null): void {
     const positions: number[] = [];
     const colours: number[] = [];
     const index: number[] = [];
-    const toWorld = (p: { x: number; y: number }): readonly [number, number, number] =>
-      canvasToWorld(
-        { x: (p.x - stage.x) / stage.width, y: (p.y - stage.y) / stage.height },
-        box.value,
-        aspect.value,
-      );
+    const toWorld = frame.toWorld;
     const along = { x: Math.cos(rodAngle), y: Math.sin(rodAngle) };
     const at = (t: number, offset: number): { x: number; y: number } => {
       const sag = t * t * ash.bend * length * 0.55;
@@ -1500,6 +1574,175 @@ function placeColumn(state: GameStateView | null): void {
     mesh.geometry = geometry;
   }
   mesh.visible = true;
+}
+
+/**
+ * The char front, from the painted layer's own `drawHeatBleed` (§17, S12): the paper just behind
+ * the cherry chars and glows — `reach = min(rodLength · 0.4, len(0.05) · (1 + presence))` of the
+ * rod, the ramp [24,18,16] → [46,30,22] → `mixRgb([255,150,60], [255,240,200], heat)`, the last
+ * 55 % lit additively — and the toothed front at its edge: grains keyed to their index through the
+ * same `noise2` field, never to the clock, so the same millimetre of paper chars the same way in
+ * every frame. The painter's alphas become mixes toward the paper here, which is what they are —
+ * translucent paint over paper. Stations are laid out in canvas pixels like `placeColumn`'s.
+ */
+function placeChar(state: GameStateView | null): void {
+  const band = charBand.value;
+  const hot = charHot.value;
+  const grainCloud = charGrains.value;
+  if (
+    band === null ||
+    hot === null ||
+    grainCloud === null ||
+    charMaterial === null ||
+    charHotMaterial === null
+  ) {
+    return;
+  }
+  const pose = state?.cigarette.pose;
+  const ember = state?.cigarette.ember;
+  const style = state?.style.cigarette;
+  const total = ember === undefined ? 0 : emberPresence(ember);
+  if (pose == null || ember == null || style == null || total <= 0.05 || !pose.visible) {
+    band.visible = false;
+    hot.visible = false;
+    grainCloud.visible = false;
+    return;
+  }
+  const charFrame = canvasPx();
+  const pivot = charFrame.pxOf(pose.pivot);
+  const tip = charFrame.pxOf(pose.tip);
+  const rodLengthPx = Math.hypot(tip.x - pivot.x, tip.y - pivot.y);
+  if (rodLengthPx <= 1) {
+    band.visible = false;
+    hot.visible = false;
+    grainCloud.visible = false;
+    return;
+  }
+  const reachPx = Math.min(rodLengthPx * 0.4, charFrame.unit * 0.05 * (1 + total));
+  if (reachPx <= 0.5) {
+    band.visible = false;
+    hot.visible = false;
+    grainCloud.visible = false;
+    return;
+  }
+  const thickness = pose.thickness * charFrame.unit;
+  const along = { x: (tip.x - pivot.x) / rodLengthPx, y: (tip.y - pivot.y) / rodLengthPx };
+  const perp = { x: -along.y, y: along.x };
+  const paper = style.paper;
+  const hotColour = mixRgb([255, 150, 60], [255, 240, 200], emberHeat(ember.temperature));
+  const boundary = rodLengthPx - reachPx;
+  const signature = `${tip.x.toFixed(2)},${tip.y.toFixed(2)}|${reachPx.toFixed(2)}|${thickness.toFixed(2)}|${total.toFixed(3)}|${paper.join(',')}|${hotColour.join(',')}`;
+  if (signature !== charSignature) {
+    charSignature = signature;
+    const stations = 8;
+    const stopAt = (t: number): readonly [number, number, number] =>
+      t <= 0.6
+        ? mixRgb([24, 18, 16], [46, 30, 22], t / 0.6)
+        : mixRgb([46, 30, 22], hotColour, (t - 0.6) / 0.4);
+    const alphaAt = (t: number): number =>
+      t <= 0.6 ? 0.35 * total * (t / 0.6) : (0.35 + 0.2 * ((t - 0.6) / 0.4)) * total;
+    const toWorld = charFrame.toWorld;
+    const bandPositions: number[] = [];
+    const bandColours: number[] = [];
+    const bandIndex: number[] = [];
+    for (let i = 0; i <= stations; i += 1) {
+      const t = i / stations;
+      const s = boundary + reachPx * t;
+      const centre = { x: pivot.x + along.x * s, y: pivot.y + along.y * s };
+      const stop = stopAt(t);
+      const shown = mixRgb(paper, stop, alphaAt(t));
+      tint.setRGB(shown[0] / 255, shown[1] / 255, shown[2] / 255, THREE.SRGBColorSpace);
+      for (const side of [0.5, -0.5]) {
+        const world = toWorld({
+          x: centre.x + perp.x * thickness * side,
+          y: centre.y + perp.y * thickness * side,
+        });
+        bandPositions.push(world[0], world[1], 0);
+        bandColours.push(tint.r, tint.g, tint.b);
+      }
+      if (i > 0) {
+        const base = (i - 1) * 2;
+        bandIndex.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+      }
+    }
+    band.geometry.dispose();
+    const bandGeometry = new THREE.BufferGeometry();
+    bandGeometry.setAttribute('position', new THREE.Float32BufferAttribute(bandPositions, 3));
+    bandGeometry.setAttribute('color', new THREE.Float32BufferAttribute(bandColours, 3));
+    bandGeometry.setIndex(bandIndex);
+    band.geometry = bandGeometry;
+
+    // The hot core: the painter fills the last 55 % of the ramp again in `lighter`, so its colours
+    // arrive here premultiplied by their own alpha and the material adds them.
+    const hotStart = rodLengthPx - reachPx * 0.55;
+    const hotPositions: number[] = [];
+    const hotColours: number[] = [];
+    const hotIndex: number[] = [];
+    for (let i = 0; i <= stations; i += 1) {
+      const t = 0.45 + 0.55 * (i / stations);
+      const s = hotStart + reachPx * 0.55 * (i / stations);
+      const centre = { x: pivot.x + along.x * s, y: pivot.y + along.y * s };
+      const stop = stopAt(t);
+      const alpha = alphaAt(t);
+      tint.setRGB(
+        (stop[0] * alpha) / 255,
+        (stop[1] * alpha) / 255,
+        (stop[2] * alpha) / 255,
+        THREE.SRGBColorSpace,
+      );
+      for (const side of [0.42, -0.42]) {
+        const world = toWorld({
+          x: centre.x + perp.x * thickness * side,
+          y: centre.y + perp.y * thickness * side,
+        });
+        hotPositions.push(world[0], world[1], 0);
+        hotColours.push(tint.r, tint.g, tint.b);
+      }
+      if (i > 0) {
+        const base = (i - 1) * 2;
+        hotIndex.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+      }
+    }
+    hot.geometry.dispose();
+    const hotGeometry = new THREE.BufferGeometry();
+    hotGeometry.setAttribute('position', new THREE.Float32BufferAttribute(hotPositions, 3));
+    hotGeometry.setAttribute('color', new THREE.Float32BufferAttribute(hotColours, 3));
+    hotGeometry.setIndex(hotIndex);
+    hot.geometry = hotGeometry;
+  }
+  band.visible = true;
+  hot.visible = true;
+
+  // The toothed front: the painter's own grain count and offsets, index-keyed.
+  const size = Math.max(1, thickness * 0.16);
+  const count = Math.max(9, Math.min(CHAR_GRAIN_CAPACITY, Math.round((thickness / size) * 5)));
+  let n = 0;
+  for (let i = 0; i < count; i += 1) {
+    const across = noise2(i * 0.53, 0.5, CHAR_GRAIN_SEED);
+    const bite = noise2(i * 0.31, 1.7, CHAR_GRAIN_SEED);
+    const side = size * (0.6 + 0.8 * bite);
+    const s = boundary - bite * thickness * CHAR_BIT;
+    const centre = { x: pivot.x + along.x * s, y: pivot.y + along.y * s };
+    const offset = -thickness * 0.5 + across * thickness;
+    const world = charFrame.toWorld({
+      x: centre.x + perp.x * offset,
+      y: centre.y + perp.y * offset,
+    });
+    dummy.position.set(world[0], world[1], 0);
+    dummy.rotation.set(0, 0, 0);
+    const sideWorld = side * pxToWorld(1);
+    dummy.scale.set(sideWorld, sideWorld, 1);
+    dummy.updateMatrix();
+    grainCloud.setMatrixAt(n, dummy.matrix);
+    const shade = mixRgb(paper, [30, 21, 17], (0.26 + 0.5 * bite) * total);
+    tint.setRGB(shade[0] / 255, shade[1] / 255, shade[2] / 255, THREE.SRGBColorSpace);
+    grainCloud.setColorAt(n, tint);
+    n += 1;
+  }
+  grainCloud.count = n;
+  grainCloud.visible = n > 0;
+  grainCloud.instanceMatrix.needsUpdate = true;
+  if (grainCloud.instanceColor !== null) grainCloud.instanceColor.needsUpdate = true;
 }
 
 /**
@@ -1589,6 +1832,7 @@ function step(deltaMs: number): void {
   placeCherry(state);
   placeAsh(state);
   placeColumn(state);
+  placeChar(state);
   placeFlame(state);
   placeDust(state);
   placeRain(state);
@@ -2710,7 +2954,7 @@ function placeHintInk(): void {
       :rotation="[0, 0, rod.angle - Math.PI / 2]"
     >
       <TresCylinderGeometry :args="[0.018, 0.018, rod.length, 12]" />
-      <TresMeshStandardMaterial color="#e8e2d6" emissive="#ff5a1f" :emissive-intensity="0.6" />
+      <TresMeshStandardMaterial color="#e8e2d6" />
     </TresMesh>
 
     <!--

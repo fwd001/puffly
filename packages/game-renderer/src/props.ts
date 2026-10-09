@@ -624,8 +624,8 @@ export function drawCigarette(
  * 毛边」 — and neither number is free: the whole thickness would read as a second rod lying beside
  * the first, and a tenth would not be visible at the 8–10 px a phone draws this at.
  */
-const CHAR_BIT = 0.46;
-const CHAR_GRAIN_SEED = 1332;
+export const CHAR_BIT = 0.46;
+export const CHAR_GRAIN_SEED = 1332;
 
 /**
  * Fire travels: the paper just behind the cherry chars and glows, which is what sells the
