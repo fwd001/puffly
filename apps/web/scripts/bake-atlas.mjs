@@ -31,6 +31,12 @@ const CELL = 64;
  * into the JSON as well, so the coverage test checks this file's own claim about itself.
  */
 const READOUT = '0123456789%./:×≈°';
+/**
+ * The marks the HUD draws instead of a number — the ring's rod/lighter/tray/out signs, the
+ * over-limit diamond and the pill's strength tick. Shapes, not words, and just as absent from the
+ * copy table as `100%` is.
+ */
+const MARKS = '△○≡◇⌁';
 
 function fontCandidates() {
   const candidates = [];
@@ -61,7 +67,7 @@ if (!chosen.release) {
 const copy = readFileSync(join(web, 'src', 'i18n', 'copy.ts'), 'utf8');
 const values = [...copy.matchAll(/:\s*'((?:[^'\\]|\\.)*)'/g)].map((match) => match[1]);
 const glyphs = [
-  ...new Set([...(values.join(' ') + READOUT)].filter((char) => !/\s/.test(char))),
+  ...new Set([...(values.join(' ') + READOUT + MARKS)].filter((char) => !/\s/.test(char))),
 ].sort();
 if (glyphs.length < 300) {
   console.error(`only ${glyphs.length} glyphs found in the copy table — the extraction is broken`);
@@ -108,7 +114,7 @@ writeFileSync(join(OUT_DIR, 'glyphs.png'), png);
 // would be wrong on every other machine. The console line below is where it is reported.
 writeFileSync(
   join(OUT_DIR, 'glyphs.json'),
-  JSON.stringify({ cell: CELL, columns, rows, readout: READOUT, metrics }),
+  JSON.stringify({ cell: CELL, columns, rows, readout: READOUT + MARKS, metrics }),
 );
 
 console.log(

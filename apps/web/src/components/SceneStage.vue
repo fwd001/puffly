@@ -393,19 +393,42 @@ function onSceneReady(context: unknown): void {
   }
   backdrop.value = root;
 
-  // The two text runs the DOM's numbers mirror into. Their geometry is filled per change, not per
+  // The text runs the DOM's own words mirror into. Their geometry is filled per change, not per
   // frame — a run changes when a figure changes, which is nothing like 60 times a second.
   const words = new THREE.Group();
-  for (let i = 0; i < 2; i += 1) {
+  for (let i = 0; i < RUN_SELECTORS.length; i += 1) {
     const material = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
     const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
     mesh.frustumCulled = false;
     mesh.visible = false;
     runMaterials.push(material);
     runMeshes.push(mesh);
+    runSignatures.push('');
     words.add(mesh);
   }
   textRuns.value = words;
+
+  // The ring: a track and an arc, sized off the DOM ring's own box (r = 15 of a 36 box, stroke
+  // 2.4). The arc's geometry is rebuilt when the fraction moves, not per frame.
+  ringTrackMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
+  const track = new THREE.Mesh(
+    new THREE.RingGeometry((15 - 1.2) / (15 + 1.2), 1, 64),
+    ringTrackMaterial,
+  );
+  track.frustumCulled = false;
+  track.visible = false;
+  track.position.z = -0.106;
+  ringTrack.value = track;
+  ringArcMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
+  const arc = new THREE.Mesh(
+    new THREE.RingGeometry((15 - 1.2) / (15 + 1.2), 1, 64),
+    ringArcMaterial,
+  );
+  arc.frustumCulled = false;
+  arc.visible = false;
+  arc.position.z = -0.105;
+  ringArc.value = arc;
+
   void loadAtlas();
 }
 
@@ -591,6 +614,20 @@ let atlasTexture: THREE.Texture | null = null;
 const runMeshes: THREE.Mesh[] = [];
 const runMaterials: THREE.MeshBasicMaterial[] = [];
 const runSignatures: string[] = [];
+/**
+ * What each run mirrors: the two figures beside the ring, then whatever the ring is carrying —
+ * digits when it has a number and a mark when it does not. The DOM still lays all three out.
+ */
+const RUN_SELECTORS = [
+  '.hud > button.num',
+  '.hud > span.num.alt',
+  '.hud .ring .digits, .hud .ring .mark',
+];
+const ringTrack = shallowRef<THREE.Mesh | null>(null);
+const ringArc = shallowRef<THREE.Mesh | null>(null);
+let ringTrackMaterial: THREE.MeshBasicMaterial | null = null;
+let ringArcMaterial: THREE.MeshBasicMaterial | null = null;
+let ringSignature = '';
 
 async function loadAtlas(): Promise<void> {
   try {
@@ -655,15 +692,14 @@ function fillRunGeometry(mesh: THREE.Mesh, text: string, em: number): void {
   mesh.geometry = geometry;
 }
 
-/** The two phone-row figures, mirrored from the DOM every frame — the DOM is the layout's home. */
+/** The runs, mirrored from the DOM every frame — the DOM is the layout's home. */
 function placeText(): void {
   const group = textRuns.value;
   if (group === null || atlas === null || atlasTexture === null) return;
-  const nodes = document.querySelectorAll<HTMLElement>('.hud .num');
   runMeshes.forEach((mesh, index) => {
-    const node = nodes[index];
+    const node = document.querySelector<HTMLElement>(RUN_SELECTORS[index] ?? '');
     const material = runMaterials[index];
-    if (node === undefined || material === undefined) {
+    if (node === null || material === undefined) {
       mesh.visible = false;
       return;
     }
@@ -807,6 +843,7 @@ function step(deltaMs: number): void {
   placeAsh(state);
   applyBackdrop(state);
   placeText();
+  placeRing();
 
   const cloud = puffs.value;
   if (cloud === null) return;
@@ -848,6 +885,69 @@ function step(deltaMs: number): void {
   cloud.instanceMatrix.needsUpdate = true;
   if (cloud.instanceColor !== null) cloud.instanceColor.needsUpdate = true;
   probe.particles = n;
+}
+/**
+ * The ring: its track, and the arc that is the rod burning down.
+ *
+ * Both come off the DOM ring's own box — r = 15 of a 36 unit box, stroke 2.4 — and the arc's length
+ * is the `stroke-dasharray` the DOM already computed (`fraction × 94.25`), so the number driving
+ * the SVG is the number driving this. A circle has no round caps in three: the ends are square,
+ * and that is the one visible difference from the 2D chrome.
+ */
+function placeRing(): void {
+  const track = ringTrack.value;
+  const arc = ringArc.value;
+  const trackMaterial = ringTrackMaterial;
+  const arcMaterial = ringArcMaterial;
+  if (track === null || arc === null || trackMaterial === null || arcMaterial === null) return;
+  const ring = document.querySelector<HTMLElement>('.hud .ring');
+  if (ring === null) return;
+  const rect = ring.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) {
+    track.visible = false;
+    arc.visible = false;
+    return;
+  }
+  const arcStroke = ring.querySelector<SVGCircleElement>('circle.arc');
+  const dash = Number.parseFloat(arcStroke?.getAttribute('stroke-dasharray') ?? '0') || 0;
+  const fraction = Math.max(0, Math.min(1, dash / 94.25));
+  const arcColour = arcStroke === null ? '' : getComputedStyle(arcStroke).stroke;
+  const trackToken =
+    getComputedStyle(document.documentElement).getPropertyValue('--soft-white').trim() || '#f2ede6';
+  const signature = `${rect.left.toFixed(1)}|${rect.width.toFixed(1)}|${fraction.toFixed(2)}|${arcColour}|${trackToken}`;
+  if (signature !== ringSignature) {
+    ringSignature = signature;
+    const world = canvasToWorld(
+      {
+        x: (rect.left + rect.width / 2) / Math.max(1, viewportWidthPx.value),
+        y: (rect.top + rect.height / 2) / Math.max(1, viewportHeightPx.value),
+      },
+      box.value,
+      aspect.value,
+    );
+    track.position.set(world[0], world[1], -0.106);
+    arc.position.set(world[0], world[1], -0.105);
+    const outerWorld = pxToWorld((rect.width * (15 + 1.2)) / 36);
+    track.scale.set(outerWorld, outerWorld, 1);
+    arc.scale.set(outerWorld, outerWorld, 1);
+    trackMaterial.color.set(trackToken);
+    trackMaterial.opacity = 0.16;
+    if (arcColour !== '') arcMaterial.color.set(arcColour);
+    // The SVG rotates -90°, so the arc starts at twelve o'clock and runs the way the rod burns.
+    if (fraction > 0.005) {
+      arc.geometry.dispose();
+      arc.geometry = new THREE.RingGeometry(
+        (15 - 1.2) / (15 + 1.2),
+        1,
+        Math.max(2, Math.ceil(64 * fraction)),
+        1,
+        Math.PI / 2,
+        -fraction * Math.PI * 2,
+      );
+    }
+  }
+  track.visible = true;
+  arc.visible = fraction > 0.005;
 }
 </script>
 
@@ -959,6 +1059,10 @@ function step(deltaMs: number): void {
     <!-- The HUD's two figures, painted from the baked atlas; the DOM under them keeps the taps
          and the screen reader's line while `html.scene3d-text` hides their ink. -->
     <primitive v-if="textRuns !== null" :object="textRuns" />
+
+    <!-- The ring: track behind, arc in front, both off the DOM ring's own box. -->
+    <primitive v-if="ringTrack !== null" :object="ringTrack" />
+    <primitive v-if="ringArc !== null" :object="ringArc" />
   </TresCanvas>
 </template>
 

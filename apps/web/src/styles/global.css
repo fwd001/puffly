@@ -453,3 +453,12 @@ html {
 html.scene3d-text .hud .num {
   -webkit-text-fill-color: transparent;
 }
+html.scene3d-text .hud .ring svg,
+html.scene3d-text .hud .ring .digits,
+html.scene3d-text .hud .ring .mark {
+  -webkit-text-fill-color: transparent;
+}
+/* The SVG is strokes, not text: it keeps its box and gives up its ink. */
+html.scene3d-text .hud .ring svg {
+  visibility: hidden;
+}
