@@ -465,3 +465,6 @@ html.scene3d-text .hud .ring svg {
 html.scene3d-text .hud .desk .read {
   -webkit-text-fill-color: transparent;
 }
+/* 药丸还没切到场景：卡面在画布上画出来了，但它此刻的颜色还不对（材质状态查过是对的，画出来
+   不是那个色 —— 详见 SceneStage 的 placePill 注释），所以 DOM 这层先不藏，场景那份画在它底下。
+   等下一轮把颜色收口再挂 `opacity: 0` 那一条。 */

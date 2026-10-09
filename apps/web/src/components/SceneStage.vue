@@ -48,6 +48,7 @@ import {
   radialVignette,
   roomBackdrop,
   rodBetweenInBox,
+  roundedRect,
   softDisc,
   solidDisc,
   stageUnitToWorld,
@@ -408,33 +409,121 @@ function onSceneReady(context: unknown): void {
   }
   textRuns.value = words;
 
-  // The ring: a track and an arc, sized off the DOM ring's own box (r = 15 of a 36 box, stroke
-  // 2.4). The arc's geometry is rebuilt when the fraction moves, not per frame.
-  ringTrackMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
-  const track = new THREE.Mesh(
-    new THREE.RingGeometry((15 - 1.2) / (15 + 1.2), 1, 64),
-    ringTrackMaterial,
-  );
-  track.frustumCulled = false;
-  track.visible = false;
-  track.position.z = -0.106;
-  ringTrack.value = track;
-  ringArcMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
-  const arc = new THREE.Mesh(
-    new THREE.RingGeometry((15 - 1.2) / (15 + 1.2), 1, 64),
-    ringArcMaterial,
-  );
-  arc.frustumCulled = false;
-  arc.visible = false;
-  arc.position.z = -0.105;
-  ringArc.value = arc;
+  // The chrome: the HUD's ring and the pill's are the same mechanism (a track circle and a run
+  // arc), and the pill itself is a stadium card plus the glow its CSS shadow stands for.
+  const rigGroup = new THREE.Group();
+  const buildRig = (): RingRig => {
+    const rig: RingRig = {
+      track: new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 64)),
+      arc: new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 64)),
+      trackMaterial: new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }),
+      arcMaterial: new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false }),
+      signature: '',
+    };
+    rig.track.material = rig.trackMaterial;
+    rig.arc.material = rig.arcMaterial;
+    rig.track.frustumCulled = false;
+    rig.track.visible = false;
+    rig.arc.frustumCulled = false;
+    rig.arc.visible = false;
+    rigGroup.add(rig.track, rig.arc);
+    return rig;
+  };
+  hudRig.value = buildRig();
+  pillRig.value = buildRig();
 
+  pillMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
+  const card = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), pillMaterial);
+  card.frustumCulled = false;
+  card.visible = false;
+  card.position.z = -0.09;
+  pillCard.value = card;
+  rigGroup.add(card);
+  pillGlowMaterial = new THREE.MeshBasicMaterial({
+    map: roundedRect(128, 0.5),
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const pillGlowMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), pillGlowMaterial);
+  pillGlowMesh.frustumCulled = false;
+  pillGlowMesh.visible = false;
+  pillGlowMesh.position.z = -0.096;
+  pillGlow.value = pillGlowMesh;
+  rigGroup.add(pillGlowMesh);
+
+  chrome.value = rigGroup;
   void loadAtlas();
 }
 
 /** Screen pixels as world units, through the same stage box everything else uses. */
 function pxToWorld(px: number): number {
   return (px / Math.max(1, box.value.height * viewportHeightPx.value)) * frame.value.height;
+}
+
+/**
+ * A computed CSS colour as a THREE colour, in the space the rest of this file works in.
+ *
+ * Browsers hand computed colours back in three shapes — `rgb()`, `color(srgb …)` and, for anything
+ * that went through `color-mix()`, `oklab(…)`, which computed values preserve rather than
+ * normalising (measured: a hidden probe element reading the value back returns the same oklab
+ * string). All three are parsed here; the oklab conversion is Ottosson's own reference matrices.
+ * The first version of this only knew `rgb()` and the pill's whole gradient read as no stops at all
+ * (the card came out invisible and only its glow showed), which is what sent it here. Alpha rides
+ * along, because every caller needs it.
+ */
+function parseColour(text: string): { colour: THREE.Color; alpha: number } | null {
+  const alphaOf = (value: string | undefined): number => {
+    if (value === undefined) return 1;
+    return value.endsWith('%') ? Number.parseFloat(value) / 100 : Number.parseFloat(value);
+  };
+  const oklab =
+    /oklab\(\s*([\d.+-eE]+%?)\s+([\d.+-eE]+)\s+([\d.+-eE]+)\s*(?:\/\s*([\d.]+%?))?\s*\)/.exec(text);
+  if (oklab !== null) {
+    const lText = oklab[1] ?? '0';
+    const L = Number.parseFloat(lText) / (lText.endsWith('%') ? 100 : 1);
+    const a = Number.parseFloat(oklab[2] ?? '0');
+    const b = Number.parseFloat(oklab[3] ?? '0');
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    return {
+      colour: new THREE.Color().setRGB(
+        Math.max(0, 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+        Math.max(0, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+        Math.max(0, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+        THREE.LinearSRGBColorSpace,
+      ),
+      alpha: alphaOf(oklab[4]),
+    };
+  }
+  const rgb = /rgba?\(([^)]+)\)/.exec(text);
+  if (rgb !== null) {
+    const values = (rgb[1] ?? '').split(/[,\s/]+/).map(Number);
+    return {
+      colour: new THREE.Color().setRGB(
+        (values[0] ?? 0) / 255,
+        (values[1] ?? 0) / 255,
+        (values[2] ?? 0) / 255,
+        THREE.SRGBColorSpace,
+      ),
+      alpha: alphaOf(rgb[1]?.split(/[,\s/]+/)[3]),
+    };
+  }
+  const srgb = /color\(srgb\s+([^)]+)\)/.exec(text);
+  if (srgb !== null) {
+    const values = (srgb[1] ?? '').split(/[\s/]+/).map(Number);
+    return {
+      colour: new THREE.Color().setRGB(
+        values[0] ?? 0,
+        values[1] ?? 0,
+        values[2] ?? 0,
+        THREE.SRGBColorSpace,
+      ),
+      alpha: alphaOf(srgb[1]?.split(/[\s/]+/)[3]),
+    };
+  }
+  return null;
 }
 
 /** A canvas-fraction rect as world position and size, through the stage box the core published. */
@@ -622,15 +711,27 @@ const RUN_SELECTORS = [
   '.hud > button.num',
   '.hud > span.num.alt',
   '.hud .ring .digits, .hud .ring .mark',
+  '.pill .glyph',
+  '.pill .word',
 ];
 /** S11's desk row is five more runs, matched per element (they come and go with the width). */
 const DESK_RUNS = 5;
 const RUN_COUNT = RUN_SELECTORS.length + DESK_RUNS;
-const ringTrack = shallowRef<THREE.Mesh | null>(null);
-const ringArc = shallowRef<THREE.Mesh | null>(null);
-let ringTrackMaterial: THREE.MeshBasicMaterial | null = null;
-let ringArcMaterial: THREE.MeshBasicMaterial | null = null;
-let ringSignature = '';
+const chrome = shallowRef<THREE.Group | null>(null);
+interface RingRig {
+  track: THREE.Mesh;
+  arc: THREE.Mesh;
+  trackMaterial: THREE.MeshBasicMaterial;
+  arcMaterial: THREE.MeshBasicMaterial;
+  signature: string;
+}
+const hudRig = shallowRef<RingRig | null>(null);
+const pillRig = shallowRef<RingRig | null>(null);
+const pillCard = shallowRef<THREE.Mesh | null>(null);
+let pillMaterial: THREE.MeshBasicMaterial | null = null;
+const pillGlow = shallowRef<THREE.Mesh | null>(null);
+let pillGlowMaterial: THREE.MeshBasicMaterial | null = null;
+let pillSignature = '';
 
 async function loadAtlas(): Promise<void> {
   try {
@@ -723,14 +824,8 @@ function placeText(): void {
       runSignatures[index] = signature;
       const em = pxToWorld(fontSize);
       fillRunGeometry(mesh, text, em);
-      const parsed = /rgba?\(([^)]+)\)/.exec(style.color);
-      const parts = parsed?.[1]?.split(',').map(Number) ?? [255, 255, 255];
-      material.color.setRGB(
-        (parts[0] ?? 255) / 255,
-        (parts[1] ?? 255) / 255,
-        (parts[2] ?? 255) / 255,
-        THREE.SRGBColorSpace,
-      );
+      const colour = parseColour(style.color);
+      if (colour !== null) material.color.copy(colour.colour);
       // The DOM keeps its line box; the atlas puts the baseline at the em box's bottom, which is
       // where a cell's glyph sits too — so the run's origin is the bottom of the digits' box.
       const baselinePx = rect.top + (rect.height - fontSize) / 2 + fontSize;
@@ -850,7 +945,11 @@ function step(deltaMs: number): void {
   placeAsh(state);
   applyBackdrop(state);
   placeText();
-  placeRing();
+  const hudRing = hudRig.value;
+  if (hudRing !== null) {
+    placeRingRig(hudRing, document.querySelector<SVGSVGElement>('.hud .ring svg'), -0.106, -0.105);
+  }
+  placePill();
 
   const cloud = puffs.value;
   if (cloud === null) return;
@@ -894,37 +993,42 @@ function step(deltaMs: number): void {
   probe.particles = n;
 }
 /**
- * The ring: its track, and the arc that is the rod burning down.
- *
- * Both come off the DOM ring's own box — r = 15 of a 36 unit box, stroke 2.4 — and the arc's length
- * is the `stroke-dasharray` the DOM already computed (`fraction × 94.25`), so the number driving
- * the SVG is the number driving this. A circle has no round caps in three: the ends are square,
- * and that is the one visible difference from the 2D chrome.
+ * One SVG ring, as meshes: the track circle and the run arc. Everything comes off the element —
+ * radius, stroke and colours from its attributes and computed style, the arc's length from the
+ * `stroke-dasharray` the DOM already computed — so the HUD's ring and the pill's are the same
+ * mechanism with different numbers, which is why this serves both.
  */
-function placeRing(): void {
-  const track = ringTrack.value;
-  const arc = ringArc.value;
-  const trackMaterial = ringTrackMaterial;
-  const arcMaterial = ringArcMaterial;
-  if (track === null || arc === null || trackMaterial === null || arcMaterial === null) return;
-  const ring = document.querySelector<HTMLElement>('.hud .ring');
-  if (ring === null) return;
-  const rect = ring.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) {
-    track.visible = false;
-    arc.visible = false;
+function placeRingRig(rig: RingRig, svg: SVGSVGElement | null, zTrack: number, zArc: number): void {
+  const trackCircle = svg?.querySelector<SVGCircleElement>('circle.track') ?? null;
+  const runCircle = svg?.querySelector<SVGCircleElement>('circle.run, circle.arc') ?? null;
+  if (svg === null || trackCircle === null || runCircle === null) {
+    rig.track.visible = false;
+    rig.arc.visible = false;
     return;
   }
-  const arcStroke = ring.querySelector<SVGCircleElement>('circle.arc');
-  const dash = Number.parseFloat(arcStroke?.getAttribute('stroke-dasharray') ?? '0') || 0;
-  const fraction = Math.max(0, Math.min(1, dash / 94.25));
-  const arcColour = arcStroke === null ? '' : getComputedStyle(arcStroke).stroke;
-  const trackToken =
-    getComputedStyle(document.documentElement).getPropertyValue('--soft-white').trim() || '#f2ede6';
-  const signature = `${rect.left.toFixed(1)}|${rect.width.toFixed(1)}|${fraction.toFixed(2)}|${arcColour}|${trackToken}`;
-  if (signature !== ringSignature) {
-    ringSignature = signature;
-    const world = canvasToWorld(
+  const rect = svg.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) {
+    rig.track.visible = false;
+    rig.arc.visible = false;
+    return;
+  }
+  const radiusUser = Number.parseFloat(trackCircle.getAttribute('r') ?? '0') || 0;
+  const viewBox =
+    Number.parseFloat((svg.getAttribute('viewBox') ?? '').split(/[\s,]+/)[2] ?? '0') || 0;
+  const strokeUser = Number.parseFloat(getComputedStyle(trackCircle).strokeWidth) || 0;
+  if (radiusUser <= 0 || viewBox <= 0 || strokeUser <= 0) {
+    rig.track.visible = false;
+    rig.arc.visible = false;
+    return;
+  }
+  const dash = Number.parseFloat(runCircle.getAttribute('stroke-dasharray') ?? '0') || 0;
+  const fraction = Math.max(0, Math.min(1, dash / (2 * Math.PI * radiusUser)));
+  const trackColour = getComputedStyle(trackCircle).stroke;
+  const runColour = getComputedStyle(runCircle).stroke;
+  const signature = `${rect.left.toFixed(1)}|${rect.top.toFixed(1)}|${rect.width.toFixed(1)}|${fraction.toFixed(2)}|${trackColour}|${runColour}`;
+  if (signature !== rig.signature) {
+    rig.signature = signature;
+    const centre = canvasToWorld(
       {
         x: (rect.left + rect.width / 2) / Math.max(1, viewportWidthPx.value),
         y: (rect.top + rect.height / 2) / Math.max(1, viewportHeightPx.value),
@@ -932,19 +1036,29 @@ function placeRing(): void {
       box.value,
       aspect.value,
     );
-    track.position.set(world[0], world[1], -0.106);
-    arc.position.set(world[0], world[1], -0.105);
-    const outerWorld = pxToWorld((rect.width * (15 + 1.2)) / 36);
-    track.scale.set(outerWorld, outerWorld, 1);
-    arc.scale.set(outerWorld, outerWorld, 1);
-    trackMaterial.color.set(trackToken);
-    trackMaterial.opacity = 0.16;
-    if (arcColour !== '') arcMaterial.color.set(arcColour);
-    // The SVG rotates -90°, so the arc starts at twelve o'clock and runs the way the rod burns.
+    const outerWorld = pxToWorld((rect.width * (radiusUser + strokeUser / 2)) / viewBox);
+    rig.track.position.set(centre[0], centre[1], zTrack);
+    rig.arc.position.set(centre[0], centre[1], zArc);
+    rig.track.scale.set(outerWorld, outerWorld, 1);
+    rig.arc.scale.set(outerWorld, outerWorld, 1);
+    const trackParsed = parseColour(trackColour);
+    const runParsed = parseColour(runColour);
+    if (trackParsed !== null) {
+      rig.trackMaterial.color.copy(trackParsed.colour);
+      rig.trackMaterial.opacity = trackParsed.alpha;
+    }
+    if (runParsed !== null) {
+      rig.arcMaterial.color.copy(runParsed.colour);
+      rig.arcMaterial.opacity = runParsed.alpha;
+    }
+    rig.trackMaterial.opacity = 1;
+    rig.arcMaterial.opacity = 1;
     if (fraction > 0.005) {
-      arc.geometry.dispose();
-      arc.geometry = new THREE.RingGeometry(
-        (15 - 1.2) / (15 + 1.2),
+      const innerRatio = (radiusUser - strokeUser / 2) / (radiusUser + strokeUser / 2);
+      rig.arc.geometry.dispose();
+      // The SVG rotates -90°, so the arc starts at twelve o'clock and runs the way the rod burns.
+      rig.arc.geometry = new THREE.RingGeometry(
+        innerRatio,
         1,
         Math.max(2, Math.ceil(64 * fraction)),
         1,
@@ -953,8 +1067,137 @@ function placeRing(): void {
       );
     }
   }
-  track.visible = true;
-  arc.visible = fraction > 0.005;
+  rig.track.visible = true;
+  rig.arc.visible = fraction > 0.005;
+}
+
+/**
+ * The pill: a stadium card, its glow, and the state's own paint.
+ *
+ * **Not switched on yet.** The card builds correctly — its geometry carries the converted gradient
+ * stops, `vertexColors` is on, the uvs are there — but the shape on screen does not change when its
+ * material is repainted red or green, and it survives hiding both the card and the glow, so the
+ * brown shape at the pill's place belongs to something this file has not identified. The DOM pill
+ * stays visible (`global.css` says so) until that is closed.
+ *
+ * The sustained states carry a three-stop ember gradient; the quiet ones a flat mix. Both are read
+ * from what the browser resolved (`background-color`, and the `rgb(...)` stops inside
+ * `background-image`), so a state change moves this card because it moved the CSS. The card's
+ * gradient runs left-to-right here while the CSS tilts it 10°: that tilt is the one approximation
+ * in this file, and it is one line to fix when the pill's own art pass happens.
+ */
+function placePill(): void {
+  const card = pillCard.value;
+  const ring = pillRig.value;
+  const pill = document.querySelector<HTMLElement>('.pill');
+  if (card === null || pillMaterial === null) return;
+  if (pill === null) {
+    card.visible = false;
+    return;
+  }
+  const rect = pill.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) {
+    card.visible = false;
+    return;
+  }
+  const style = getComputedStyle(pill);
+  const held = pill.closest('.cta')?.getAttribute('data-held') === 'true';
+  const gradient = style.backgroundImage.includes('gradient');
+  const signature = `${rect.left.toFixed(1)}|${rect.top.toFixed(1)}|${rect.width.toFixed(1)}|${rect.height.toFixed(1)}|${held}|${style.backgroundImage}|${style.backgroundColor}`;
+  if (signature !== pillSignature) {
+    pillSignature = signature;
+    const whole = rectWorld({
+      x: rect.left / Math.max(1, viewportWidthPx.value),
+      y: rect.top / Math.max(1, viewportHeightPx.value),
+      w: rect.width / Math.max(1, viewportWidthPx.value),
+      h: rect.height / Math.max(1, viewportHeightPx.value),
+    });
+    const shrink = held ? 0.96 : 1;
+    card.position.set(whole.centre[0], whole.centre[1], -0.09);
+    const geometry = new THREE.BufferGeometry();
+    const stops = [
+      ...style.backgroundImage.matchAll(
+        /(?:rgba?|oklab|oklch|lab|lch|color)\([^)]*\)\s*([\d.]+%)?/g,
+      ),
+    ]
+      .map((match) => ({
+        colour: parseColour(match[0]),
+        at: match[1] === undefined ? null : Number.parseFloat(match[1]) / 100,
+      }))
+      .filter((stop) => stop.colour !== null);
+    const scale: [number, number] = [whole.width * shrink, whole.height * shrink];
+    if (gradient && stops.length >= 2) {
+      // A column per stop reproduces the painter's linear stops exactly along the card's length.
+      const positions: number[] = [];
+      const colours: number[] = [];
+      const uvs: number[] = [];
+      stops.forEach((stop, index) => {
+        const at = stop.at ?? index / (stops.length - 1);
+        const x = at - 0.5;
+        const colour = stop.colour;
+        if (colour === null) return;
+        for (const y of [-0.5, 0.5]) {
+          positions.push(x, y, 0);
+          colours.push(colour.colour.r, colour.colour.g, colour.colour.b);
+          // The card carries the stadium texture, so it needs real uvs — without them the
+          // sampler reads the texture's transparent corner and the card draws nothing at all.
+          uvs.push(at, y + 0.5);
+        }
+      });
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      const index: number[] = [];
+      for (let i = 0; i < stops.length - 1; i += 1) {
+        index.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 2, i * 2 + 1, i * 2 + 3);
+      }
+      geometry.setIndex(index);
+      // Vertex colours are what carry the stops; without this the card paints a flat white.
+      pillMaterial.vertexColors = true;
+      pillMaterial.color.set('#ffffff');
+      pillMaterial.opacity = held ? 0.92 : 1;
+    } else {
+      const flat = parseColour(style.backgroundColor);
+      geometry.setAttribute(
+        'position',
+        new THREE.Float32BufferAttribute(
+          [-0.5, -0.5, 0, 0.5, -0.5, 0, -0.5, 0.5, 0, 0.5, 0.5, 0],
+          3,
+        ),
+      );
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 1, 1], 2));
+      geometry.setIndex([0, 1, 2, 2, 1, 3]);
+      pillMaterial.vertexColors = false;
+      if (flat !== null) pillMaterial.color.copy(flat.colour);
+      pillMaterial.opacity = flat?.alpha ?? 1;
+    }
+    card.geometry.dispose();
+    card.geometry = geometry;
+    card.scale.set(scale[0], scale[1], 1);
+    pillMaterial.map = roundedRect(128, 0.5);
+    pillMaterial.needsUpdate = true;
+  }
+  card.visible = true;
+  if (ring !== null) {
+    placeRingRig(ring, pill.querySelector('svg'), -0.086, -0.085);
+  }
+  const glow = pillGlow.value;
+  if (glow !== null && pillGlowMaterial !== null) {
+    const glowWorld = rectWorld({
+      x: rect.left / Math.max(1, viewportWidthPx.value),
+      y: (rect.top + 10) / Math.max(1, viewportHeightPx.value),
+      w: (rect.width * 1.08) / Math.max(1, viewportWidthPx.value),
+      h: (rect.height * 1.25) / Math.max(1, viewportHeightPx.value),
+    });
+    glow.visible = true;
+    glow.scale.set(glowWorld.width, glowWorld.height, 1);
+    glow.position.set(glowWorld.centre[0], glowWorld.centre[1], -0.096);
+    pillGlowMaterial.color.set(
+      getComputedStyle(document.documentElement).getPropertyValue('--ember-orange').trim() ||
+        '#e2604a',
+    );
+    pillGlowMaterial.opacity = held ? 0.35 : 0.22;
+  }
 }
 </script>
 
@@ -1067,9 +1310,8 @@ function placeRing(): void {
          and the screen reader's line while `html.scene3d-text` hides their ink. -->
     <primitive v-if="textRuns !== null" :object="textRuns" />
 
-    <!-- The ring: track behind, arc in front, both off the DOM ring's own box. -->
-    <primitive v-if="ringTrack !== null" :object="ringTrack" />
-    <primitive v-if="ringArc !== null" :object="ringArc" />
+    <!-- The chrome: both rings and the pill's card and glow, all off their DOM boxes. -->
+    <primitive v-if="chrome !== null" :object="chrome" />
   </TresCanvas>
 </template>
 

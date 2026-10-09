@@ -66,6 +66,41 @@ export function solidDisc(size = 32, feather = 0.16): THREE.DataTexture {
 }
 
 /**
+ * A rounded rectangle: opaque inside, feathered at the edge, corners turned by `radius` (as a
+ * fraction of the half-height; 0.5 is a stadium, which is what the interface's pill is — its CSS
+ * asks for a 30px radius on a 58px box and the browser clamps it to exactly that).
+ */
+export function roundedRect(size = 128, radius = 0.5, feather = 1.5): THREE.DataTexture {
+  const data = new Uint8Array(size * size * 4);
+  const centre = (size - 1) / 2;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const dx = Math.abs((x - centre) / centre);
+      const dy = Math.abs((y - centre) / centre);
+      // Distance to the inner rectangle whose corners the radius turns.
+      const base = Math.max(0, 1 - radius);
+      const cx = Math.max(0, dx - base);
+      const cy = Math.max(0, dy - base);
+      const distance = Math.hypot(cx, cy) / Math.max(1e-6, radius);
+      const t =
+        distance <= 1
+          ? 1
+          : Math.max(0, (radius + feather / centre - distance) * (centre / feather));
+      const i = (y * size + x) * 4;
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = Math.round(Math.min(1, t) * 255);
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.needsUpdate = true;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
+
+/**
  * The room's vignette, as a texture: clear in the middle, opaque at the rim.
  *
  * The painted layer draws a radial gradient from the canvas centre out to `max(w, h) * 0.78`; the 3D

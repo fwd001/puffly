@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { radialVignette, softDisc, solidDisc } from '../sprite';
+import { radialVignette, roundedRect, softDisc, solidDisc } from '../sprite';
 
 describe('the puff sprite is soft, and it is generated rather than drawn', () => {
   it('is solid in the middle and clear at the rim', () => {
@@ -48,6 +48,36 @@ describe('the ash sprite is a shape, not a smudge', () => {
       expect(now).toBeLessThanOrEqual(previous);
       previous = now;
     }
+  });
+});
+
+describe('a card is a rounded rectangle, not a disc', () => {
+  it('is opaque through the body and at the middle of an edge', () => {
+    const size = 65;
+    const data = roundedRect(size).image.data as Uint8Array;
+    const alphaAt = (x: number, y: number): number => data[(y * size + x) * 4 + 3] as number;
+    expect(alphaAt(32, 32)).toBe(255);
+    expect(alphaAt(32, 3)).toBe(255);
+    expect(alphaAt(3, 32)).toBe(255);
+  });
+
+  it('turns the corners away', () => {
+    const size = 65;
+    const data = roundedRect(size).image.data as Uint8Array;
+    const alphaAt = (x: number, y: number): number => data[(y * size + x) * 4 + 3] as number;
+    expect(alphaAt(1, 1)).toBeLessThan(60);
+    expect(alphaAt(63, 63)).toBeLessThan(60);
+  });
+
+  it('a smaller radius keeps more of the corner than a stadium does', () => {
+    const size = 65;
+    const square = roundedRect(size, 0.2).image.data as Uint8Array;
+    const stadium = roundedRect(size, 0.5).image.data as Uint8Array;
+    const alphaAt = (data: Uint8Array, x: number, y: number): number =>
+      data[(y * size + x) * 4 + 3] as number;
+    // Diagonal distance from the corner: inside a 0.2 radius, outside a stadium's.
+    expect(alphaAt(square, 3, 3)).toBe(255);
+    expect(alphaAt(stadium, 3, 3)).toBeLessThan(60);
   });
 });
 
