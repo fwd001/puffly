@@ -2547,6 +2547,60 @@ try {
     !flameIdle.visible && flameLit.visible && flameLit.lid < -0.5 && sparksSeen,
     `idle=${String(flameIdle.visible)} lit=${String(flameLit.visible)} lid=${flameLit.lid.toFixed(2)} sparks=${String(sparksSeen)}`,
   );
+  // The paper pinches while the draw is held (S7/S15) — the painter's own `paperGive` at
+  // `WAIST = 0.78`. Placed right behind the strike, where the state is the one this was measured
+  // on (waist 0.0152/0.0180, 2026-10-09): hold the pill, then look across the draw's own ceiling
+  // for the pinched waist. It is also the standing guard for "the overlay canvas never swallows a
+  // sustained gesture" — its mask is scoped CSS that once never matched TresJS's canvas.
+  // |control|: a `Math.max(1, …)` floor in `placeRod` leaves every ring at the tube's radius.
+  // Two presses on purpose: the chrome folds itself away after ~2.6 s of quiet (the sparks wait
+  // just spent longer than that), and the first press only wakes it — the draw needs the one after.
+  await page
+    .locator('.pill')
+    .click()
+    .catch(() => {});
+  await page.waitForTimeout(300);
+  await page
+    .locator('.pill')
+    .hover({ timeout: 5000 })
+    .catch(() => {});
+  await page.mouse.down();
+  const puffLive = await page
+    .waitForFunction(
+      () => {
+        const ctx = window.__pufflyScene.context;
+        const scene = 'value' in ctx.scene ? ctx.scene.value : ctx.scene;
+        let waist = 0;
+        let ends = 0;
+        let found = false;
+        scene.traverse((o) => {
+          if (o.name === 'rod') {
+            found = true;
+            const pos = o.geometry.getAttribute('position');
+            const len = o.geometry.parameters.height;
+            for (let i = 0; i < pos.count; i += 1) {
+              const t = pos.getY(i) / len + 0.5;
+              const r = Math.hypot(pos.getX(i), pos.getZ(i));
+              if (Math.abs(t - 0.78) < 0.045) waist = Math.max(waist, r);
+              if (t < 0.1 || t > 0.9) ends = Math.max(ends, r);
+            }
+          }
+        });
+        return found && ends > 0 && waist < ends - 0.0005 ? { waist, ends } : null;
+      },
+      null,
+      { timeout: 12_000, polling: 120 },
+    )
+    .then((handle) => handle.jsonValue())
+    .catch(() => null);
+  check(
+    '3D: the paper pinches while the draw is held (S7/S15, at the painter’s WAIST)',
+    puffLive !== null,
+    puffLive === null
+      ? 'never pinched'
+      : `waist ${puffLive.waist.toFixed(4)} ends ${puffLive.ends.toFixed(4)}`,
+  );
+  await page.mouse.up();
   // The plume's rung on the ladder: the pool's `depth` is simulation (0.25..1), not a z. The first
   // version handed it to the scene right after 0.02, so every puff sat at 0.3..1.0 — in front of
   // the whole chrome ladder (0.034..0.10), and a plume crossing the HUD painted over it, which the
