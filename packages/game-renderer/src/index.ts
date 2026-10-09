@@ -18,7 +18,20 @@ export {
   puffSpread,
   puffTint,
 } from './renderer';
-export { SKY_COOL, SKY_WARM, skyPalette, vignetteAlpha } from './background';
+export {
+  SKY_COOL,
+  SKY_WARM,
+  backgroundStructure,
+  geometryFor,
+  interiorEdgeInk,
+  interiorNosing,
+  interiorWall,
+  skyPalette,
+  vignetteAlpha,
+  type BackgroundStructure,
+  type StageBoxFrac,
+  type StageGlowFrac,
+} from './background';
 export {
   createCanvasRenderer,
   type CanvasRendererOptions,

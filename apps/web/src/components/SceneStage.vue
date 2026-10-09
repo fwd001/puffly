@@ -17,9 +17,11 @@ import { emberPresence } from '@puffly/game-core';
 import type { GameStateView } from '@puffly/game-core';
 import { clamp01, mixRgb } from '@puffly/shared';
 import {
+  backgroundStructure,
   cherryHot,
   FIELD_SCALE,
   intakeBurst,
+  interiorEdgeInk,
   ParticlePool,
   plumeIntakeOptions,
   PUFF_FLATTEN,
@@ -28,6 +30,7 @@ import {
   puffSpread,
   puffTint,
   vignetteAlpha,
+  type StageBoxFrac,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -166,6 +169,16 @@ const skyColour = computed(() => {
     THREE.SRGBColorSpace,
   );
 });
+/**
+ * The table's own ink: everything below the edge, as the painted layer fills it — silhouette a
+ * quarter of the way to black. The slab and the band cannot disagree, because this is that mix.
+ */
+const tableInk = computed(() => {
+  const r = room.value;
+  if (r === null) return new THREE.Color('#241c17');
+  const ink = interiorEdgeInk(r.silhouette);
+  return new THREE.Color().setRGB(ink[0] / 255, ink[1] / 255, ink[2] / 255, THREE.SRGBColorSpace);
+});
 const keyLight = computed<{
   position: readonly [number, number, number];
   intensity: number;
@@ -194,8 +207,17 @@ const vignetteAlphaNow = computed(() =>
   room.value === null ? 0 : vignetteAlpha(room.value.ambient),
 );
 
-/** The table sits under the props: a touch below the stage's own middle. */
-const tableY = computed(() => -WORLD_HEIGHT * 0.42);
+/**
+ * The table slab's centre. Its top face is the core's own `tableEdgeY` — the same line the painted
+ * layer fills below and the nosing strip sits on — so the slab, the nosing and the band cannot
+ * disagree about where the table starts.
+ */
+const tableY = computed(() => {
+  const state = props.state;
+  if (state === null) return -WORLD_HEIGHT * 0.42;
+  const edge = canvasToWorld({ x: 0.5, y: state.stage.layout.tableEdgeY }, box.value, aspect.value);
+  return edge[1] - (WORLD_HEIGHT * 0.6) / 2;
+});
 
 // ------------------------------------------------------------------- the smoke
 
@@ -226,6 +248,27 @@ let spillMaterial: THREE.MeshBasicMaterial | null = null;
 /** Falling ash, one instance per fragment the core is carrying — a shape, hence `solidDisc`. */
 const ASH_CAPACITY = 64;
 const flakes = shallowRef<THREE.InstancedMesh | null>(null);
+
+/**
+ * The room itself, as meshes: the sky's three stops, the wall band, the table edge's nosing, the
+ * seeded clutter and the place's own furniture, and the two pools of light.
+ *
+ * Every number comes from `backgroundStructure`, which is the painted layer's own picture told as
+ * shapes — the sky stops, the wall mix, the five furniture tones, the pools' colours and reaches —
+ * so a venue change moves this room for the same reason it moves the painted one, and there is no
+ * second copy of a mix anywhere in this file.
+ */
+const backdrop = shallowRef<THREE.Group | null>(null);
+let skyMesh: THREE.Mesh | null = null;
+let skyColours: THREE.BufferAttribute | null = null;
+let wallMesh: THREE.Mesh | null = null;
+let wallMaterial: THREE.MeshBasicMaterial | null = null;
+let nosingMesh: THREE.Mesh | null = null;
+let nosingMaterial: THREE.MeshBasicMaterial | null = null;
+const poolMeshes: THREE.Mesh[] = [];
+const poolMaterials: THREE.MeshBasicMaterial[] = [];
+const boxMeshes: THREE.InstancedMesh[] = [];
+let boxSignature = '';
 
 function onSceneReady(context: unknown): void {
   probe.context = context;
@@ -292,6 +335,219 @@ function onSceneReady(context: unknown): void {
   ashMesh.frustumCulled = false;
   ashMesh.count = 0;
   flakes.value = ashMesh;
+
+  // The backdrop, one group of meshes fed by `backgroundStructure` every frame.
+  const root = new THREE.Group();
+  // The sky is a vertex-coloured strip with a row on each of the painter's own stops: the gradient
+  // it would create is linear, and three rows interpolate to exactly that.
+  const sky = new THREE.BufferGeometry();
+  const rows = [0.5, -0.12, -0.5];
+  const positions = new Float32Array(rows.length * 6);
+  let cursor = 0;
+  for (const y of rows) {
+    positions[cursor++] = -0.5;
+    positions[cursor++] = y;
+    positions[cursor++] = 0;
+    positions[cursor++] = 0.5;
+    positions[cursor++] = y;
+    positions[cursor++] = 0;
+  }
+  sky.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  skyColours = new THREE.BufferAttribute(new Float32Array(rows.length * 6), 3);
+  sky.setAttribute('color', skyColours);
+  sky.setIndex([0, 1, 2, 2, 1, 3, 2, 3, 4, 4, 3, 5]);
+  skyMesh = new THREE.Mesh(
+    sky,
+    new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }),
+  );
+  skyMesh.position.z = -1.4;
+  root.add(skyMesh);
+
+  wallMaterial = new THREE.MeshBasicMaterial({ transparent: true });
+  wallMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), wallMaterial);
+  wallMesh.position.z = -1.35;
+  root.add(wallMesh);
+
+  nosingMaterial = new THREE.MeshBasicMaterial({ transparent: true });
+  nosingMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), nosingMaterial);
+  nosingMesh.position.z = -0.24;
+  root.add(nosingMesh);
+
+  const poolMap = softDisc(64);
+  for (let i = 0; i < 2; i += 1) {
+    const material = new THREE.MeshBasicMaterial({
+      map: poolMap,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+    mesh.visible = false;
+    poolMaterials.push(material);
+    poolMeshes.push(mesh);
+    root.add(mesh);
+  }
+  backdrop.value = root;
+}
+
+/** A canvas-fraction rect as world position and size, through the stage box the core published. */
+function rectWorld(rect: { x: number; y: number; w: number; h: number }): {
+  centre: readonly [number, number, number];
+  width: number;
+  height: number;
+} {
+  const centre = canvasToWorld(
+    { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 },
+    box.value,
+    aspect.value,
+  );
+  return {
+    centre,
+    width: (rect.w / Math.max(0.0001, box.value.width)) * frame.value.width,
+    height: (rect.h / Math.max(0.0001, box.value.height)) * frame.value.height,
+  };
+}
+
+/** One instanced mesh per (colour, alpha) the structure uses — the painter's fills, as quads. */
+function rebuildBackdropBoxes(root: THREE.Group, boxes: readonly StageBoxFrac[]): void {
+  for (const mesh of boxMeshes) {
+    root.remove(mesh);
+    mesh.geometry.dispose();
+    (mesh.material as THREE.Material).dispose();
+  }
+  boxMeshes.length = 0;
+  const groups = new Map<
+    string,
+    { rgb: readonly [number, number, number]; alpha: number; items: StageBoxFrac[] }
+  >();
+  for (const part of boxes) {
+    const key = `${part.rgb[0]},${part.rgb[1]},${part.rgb[2]}|${part.alpha}`;
+    const group = groups.get(key) ?? { rgb: part.rgb, alpha: part.alpha, items: [] };
+    group.items.push(part);
+    groups.set(key, group);
+  }
+  let depth = 0;
+  for (const group of groups.values()) {
+    const material = new THREE.MeshBasicMaterial({ transparent: true });
+    material.color.setRGB(
+      group.rgb[0] / 255,
+      group.rgb[1] / 255,
+      group.rgb[2] / 255,
+      THREE.SRGBColorSpace,
+    );
+    material.opacity = group.alpha;
+    const mesh = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1, 1),
+      material,
+      group.items.length,
+    );
+    mesh.frustumCulled = false;
+    group.items.forEach((part, index) => {
+      const where = rectWorld(part);
+      dummy.position.set(where.centre[0], where.centre[1], -1.34 + depth * 0.004);
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(where.width, where.height, 1);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(index, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    root.add(mesh);
+    boxMeshes.push(mesh);
+    depth += 1;
+  }
+}
+
+/** The backdrop, from the state, every frame: colours move with the light, shapes with the room. */
+function applyBackdrop(state: GameStateView | null): void {
+  const root = backdrop.value;
+  if (root === null) return;
+  if (state === null) {
+    root.visible = false;
+    return;
+  }
+  root.visible = true;
+  const structure = backgroundStructure(
+    state,
+    box.value,
+    viewportWidthPx.value,
+    viewportHeightPx.value,
+  );
+  const size = frame.value;
+
+  if (skyMesh !== null && skyColours !== null) {
+    const whole = rectWorld({ x: 0, y: 0, w: 1, h: 1 });
+    skyMesh.scale.set(whole.width, whole.height, 1);
+    skyMesh.position.set(whole.centre[0], whole.centre[1], -1.4);
+    const array = skyColours.array as Float32Array;
+    structure.sky.forEach((stop, row) => {
+      tint.setRGB(stop.rgb[0] / 255, stop.rgb[1] / 255, stop.rgb[2] / 255, THREE.SRGBColorSpace);
+      array[row * 6] = tint.r;
+      array[row * 6 + 1] = tint.g;
+      array[row * 6 + 2] = tint.b;
+      array[row * 6 + 3] = tint.r;
+      array[row * 6 + 4] = tint.g;
+      array[row * 6 + 5] = tint.b;
+    });
+    skyColours.needsUpdate = true;
+  }
+
+  if (wallMesh !== null && wallMaterial !== null) {
+    const wall = structure.wall;
+    wallMesh.visible = wall !== null;
+    if (wall !== null) {
+      const band = rectWorld({ x: 0, y: 0, w: 1, h: 0.7 });
+      wallMesh.scale.set(band.width, band.height, 1);
+      wallMesh.position.set(band.centre[0], band.centre[1], -1.35);
+      wallMaterial.color.setRGB(
+        wall.rgb[0] / 255,
+        wall.rgb[1] / 255,
+        wall.rgb[2] / 255,
+        THREE.SRGBColorSpace,
+      );
+      wallMaterial.opacity = wall.alpha;
+    }
+  }
+
+  if (nosingMesh !== null && nosingMaterial !== null) {
+    const table = structure.table;
+    nosingMesh.visible = table !== null;
+    if (table !== null) {
+      const height = Math.max(1, viewportHeightPx.value * 0.004) / viewportHeightPx.value;
+      const strip = rectWorld({ x: 0, y: table.edgeY, w: 1, h: height });
+      nosingMesh.scale.set(strip.width, strip.height, 1);
+      nosingMesh.position.set(strip.centre[0], strip.centre[1], -0.24);
+      nosingMaterial.color.setRGB(
+        table.nosingRgb[0] / 255,
+        table.nosingRgb[1] / 255,
+        table.nosingRgb[2] / 255,
+        THREE.SRGBColorSpace,
+      );
+      nosingMaterial.opacity = table.nosingAlpha;
+    }
+  }
+
+  structure.glows.forEach((light, index) => {
+    const mesh = poolMeshes[index];
+    const material = poolMaterials[index];
+    if (mesh === undefined || material === undefined) return;
+    mesh.visible = true;
+    const world = canvasToWorld({ x: light.x, y: light.y }, box.value, aspect.value);
+    mesh.position.set(world[0], world[1], -1.36 + index * 0.002);
+    mesh.scale.set(light.rx * 2 * size.width, light.ry * 2 * size.height, 1);
+    material.color.setRGB(
+      light.rgb[0] / 255,
+      light.rgb[1] / 255,
+      light.rgb[2] / 255,
+      THREE.SRGBColorSpace,
+    );
+    material.opacity = light.alpha;
+  });
+
+  const signature = `${state.environment.id}|${state.progress.dayNumber}|${viewportWidthPx.value}x${viewportHeightPx.value}|${box.value.x},${box.value.y},${box.value.width},${box.value.height}`;
+  if (signature !== boxSignature) {
+    boxSignature = signature;
+    rebuildBackdropBoxes(root, structure.boxes);
+  }
 }
 
 /**
@@ -393,6 +649,7 @@ function step(deltaMs: number): void {
   probe.frames += 1;
   placeCherry(state);
   placeAsh(state);
+  applyBackdrop(state);
 
   const cloud = puffs.value;
   if (cloud === null) return;
@@ -475,12 +732,9 @@ function step(deltaMs: number): void {
     />
     <TresAmbientLight :intensity="0.35" />
 
-    <!-- The sky, at the room's exposure. A plane rather than the canvas' clear colour so it moves
-         with the venue like everything else, and greys out when nothing is lit. -->
-    <TresMesh :position="[0, 0, -1.4]">
-      <TresPlaneGeometry :args="[frame.width * 2.4, frame.height * 1.6]" />
-      <TresMeshBasicMaterial :color="skyColour" />
-    </TresMesh>
+    <!-- The room's own backdrop — the sky's stops, the wall, the place's furniture, the two pools
+         of light — one group, fed by `backgroundStructure` every frame. -->
+    <primitive v-if="backdrop !== null" :object="backdrop" />
     <!-- The vignette: the room's corners, before anything stands in them. Built at `ready` — see
          the note where it is made — so it arrives one tick late, via this v-if. -->
     <primitive
@@ -490,10 +744,11 @@ function step(deltaMs: number): void {
       :scale="[vignetteSize, vignetteSize, 1]"
     />
 
-    <!-- The table: a slab, not a plane, so it catches the key light the way the 2D one does. -->
+    <!-- The table: a slab, not a plane, so it catches the key light the way the 2D one does — and
+         in the room's own ink, so the slab and the painted band below the edge are one colour. -->
     <TresMesh :position="[0, tableY, -0.4]">
       <TresBoxGeometry :args="[frame.width * 1.2, WORLD_HEIGHT * 0.6, 0.3]" />
-      <TresMeshStandardMaterial color="#241c17" :roughness="0.85" />
+      <TresMeshStandardMaterial :color="tableInk" :roughness="0.85" />
     </TresMesh>
 
     <TresMesh :position="at('lighter')">

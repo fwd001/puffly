@@ -36,6 +36,9 @@ export interface RoomBackdrop {
   readonly key: { readonly x: number; readonly y: number };
   /** The pool of light the table sits in. */
   readonly pool: Rgb;
+  /** The two tones the interior's wall and its furniture are mixed from, exported palette included. */
+  readonly horizon: Rgb;
+  readonly silhouette: Rgb;
 }
 
 export function roomBackdrop(environment: RoomSource, style: StyleSource): RoomBackdrop {
@@ -49,5 +52,7 @@ export function roomBackdrop(environment: RoomSource, style: StyleSource): RoomB
     ambient: light.ambient,
     key: { x: Math.cos(radians), y: Math.sin(radians) },
     pool: style.scene.pool,
+    horizon: sky.horizon,
+    silhouette: sky.silhouette,
   };
 }
