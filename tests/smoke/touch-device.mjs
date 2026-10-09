@@ -2435,6 +2435,66 @@ try {
     card.name >= 170,
     `name max ${String(card.name)}`,
   );
+  // The break sheet wears the same mirror: its root gives up its own paint (visibility, so the
+  // surface's computed background stays readable), its mirrorable rows give up their ink inline,
+  // and the rows the atlas cannot carry keep theirs. Two mutations measured: putting the root's
+  // visibility back reads `visible` here, and hiding the scene's sheet ink drops the row pixels.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const handle = await page
+      .locator('.hud [data-hook="break"]')
+      .boundingBox()
+      .catch(() => null);
+    if (handle !== null) break;
+    await page.mouse.click(196, 280);
+    await page.waitForTimeout(420);
+  }
+  await page.locator('.hud [data-hook="break"]').click();
+  await page.waitForSelector('.sheet[data-open="true"]', {
+    state: 'attached',
+    timeout: 4000,
+    polling: 10,
+  });
+  await page.waitForTimeout(700);
+  const sheetShot = await page.screenshot();
+  const sheet = await page.evaluate(async (b64) => {
+    const element = document.querySelector('.sheet[data-open="true"]');
+    if (element === null) return { visibility: 'missing', fill: null, nameMax: 0 };
+    const img = new Image();
+    img.src = 'data:image/png;base64,' + b64;
+    await img.decode();
+    const c = document.createElement('canvas');
+    c.width = img.width;
+    c.height = img.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const row = element.querySelector('.stats .name');
+    const r = row.getBoundingClientRect();
+    const d = ctx.getImageData(
+      Math.round(r.left) - 2,
+      Math.round(r.top) - 2,
+      Math.round(r.width) + 4,
+      Math.round(r.height) + 4,
+    ).data;
+    let max = 0;
+    for (let i = 0; i < d.length; i += 4) max = Math.max(max, d[i], d[i + 1], d[i + 2]);
+    return {
+      visibility: getComputedStyle(element).visibility,
+      fill: row.style.getPropertyValue('-webkit-text-fill-color'),
+      nameMax: max,
+    };
+  }, sheetShot.toString('base64'));
+  await page.locator('.sheet[data-open="true"] .close').click();
+  await page.waitForTimeout(420);
+  check(
+    '3D: the open sheet hands its ink over (root hidden, the row fill taken)',
+    sheet.visibility === 'hidden' && sheet.fill === 'transparent',
+    JSON.stringify(sheet),
+  );
+  check(
+    '3D: a sheet row is painted by the scene',
+    sheet.nameMax >= 140,
+    `name max ${String(sheet.nameMax)}`,
+  );
   check('3D: none of it threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();
 }
