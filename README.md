@@ -402,6 +402,23 @@ address above is the one to share. Both were probed rather than assumed: the new
 A 404 at the live address after a push means Pages is not set to **GitHub Actions** as its
 source for this repository — the deploy job cannot change that setting itself.
 
+## The 3D rewrite (in progress, behind `?scene=3d`)
+
+A second interface layer is growing inside the same app: the chrome, the stage and the four sheets
+are being redrawn as scene objects (TresJS + `three/webgpu`, with WebGL2 as the automatic fallback),
+the DOM kept only for hit targets and the screen reader. It ships off by default — open
+`…/?scene=3d` to see it (`&gl=1` forces the WebGL2 backend). The contract, the measurements and the
+per-screen ledger live in
+[`docs/superpowers/specs/2026-10-09-scene3d-rewrite-design.md`](docs/superpowers/specs/2026-10-09-scene3d-rewrite-design.md),
+and the real-device suite covers it (`tests/smoke/touch-device.mjs`, the `3D:` checks).
+
+What already draws in the scene: the room and its furniture, the rod / smoke / ash, the head-up row
+and rails, the pill and its diagrams, the archive card, the four sheets' surfaces and lines, and the
+lighter with its flame, cap and flint sparks. Still 2D-only today: the sliders' native track and
+thumb (its pseudo-element styles cannot be read back — `getComputedStyle` returns element-level
+values, see §12 of the spec), the venues' rain / dust / grain, and the sheets' closing motion on
+their controls.
+
 ## Product boundaries
 
 Puffly is an entertainment and stress-relief object: a substitute ritual. It does not claim to treat
