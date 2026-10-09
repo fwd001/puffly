@@ -1339,6 +1339,10 @@ try {
     wide.frames > 30 && wide.backend !== 'pending' && wide.rod,
     `backend ${String(wide.backend)} frames ${String(wide.frames)} rod ${String(wide.rod)}`,
   );
+  // The wide 3D mouse path (S13) is owed, not asserted: two recipes here — pill click then the
+  // lighter's aim point with retries, with and without the affordance wait — both stayed unlit in
+  // three attempts, while the same geometry lights in the 2D desktop block. Symptom recorded in
+  // #113 rather than a red or a soft skip. The sidebar below still answers the mouse here.
   const entries = await page.locator('.data-rail [data-entry]').count();
   await page
     .locator('.data-rail [data-entry]')
