@@ -314,7 +314,14 @@ whatever URL you point it at:
    changes the pixels, the interface folding under a swipe down over nothing while the rod keeps
    burning, and the two ways the operating system takes a phone away: frames that stop (it wakes to
    a rod that kept burning) and a page that is reloaded (it comes back to the same break, at the
-   minute the clock says).
+   minute the clock says). **96 checks** as of this writing, and the readings it makes are of the
+   chrome agreeing with the state rather than of pixels that look nice: the digits inside the ring
+   against the knob position of the 力度对照图 under the pill, the wordless tier's hint strip
+   carrying a drawing rather than a word, the vibration row's waveform bar count against the number
+   the same row prints, and the fact that wearing a skin which names a room never leaves a locked
+   room selected. It runs on a developer machine too (`PUFFLY_PLAYWRIGHT` + `PUFFLY_CHROME`, headless
+   Brave here), and against the build the gate produced rather than the dev server, so what it
+   measures is what ships.
 
 ## Deliberately not built
 
