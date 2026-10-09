@@ -1249,18 +1249,44 @@ try {
   const box = await page.locator('.pill').boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(900);
+  // Wait for the row's OWN clock before letting go: `advance()` runs one step per frame, so on a
+  // loaded machine (this session: load 14–20) 900 ms of wall time can be a handful of simulated
+  // milliseconds, and a press plus a release that land in the same frame buy no draw at all. The row
+  // prints the hold as `3.2s`, which is the draw's own time — so that is what this waits on. If it
+  // never appears, the checks below fail on their own numbers rather than on a guessed duration.
+  try {
+    await page.waitForFunction(
+      () => {
+        const text = (document.querySelector('.hud .num.alt')?.textContent ?? '').trim();
+        return /\d+(\.\d+)?s$/.test(text) && Number(text.replace('s', '')) >= 1;
+      },
+      null,
+      { timeout: 20_000, polling: 'raf' },
+    );
+  } catch {
+    // No hold ever registered: leave it to the checks below to name that, with the values they read.
+  }
   const drawing = await chrome();
   const heldForce = await readForce();
   await page.mouse.up();
   // The window is finite (`restSettleMs`), so this polls for the sample the deck is about rather than
   // sleeping a guessed number of milliseconds and reading whatever happens to be on screen.
-  const samples = [];
-  for (let step = 0; step < 8 && !samples.some((sample) => sample.threads >= 0); step += 1) {
-    await page.waitForTimeout(120);
-    samples.push(await readForce());
+  // The bar lives exactly as long as the settle window, which is simulated time: on a loaded machine
+  // (this session measured load 12–16) a 900 ms window stretches over several seconds of wall clock, so
+  // the wait is Playwright's own in-page raf poll rather than a Node loop of CDP round trips — each
+  // round trip was itself eating the wall clock it was measuring. The read after it is a single
+  // round trip inside a window that is several times longer than one.
+  let exhale = null;
+  let sighted = true;
+  try {
+    await page.waitForFunction(() => document.querySelector('.cta .art.force') !== null, null, {
+      timeout: 10_000,
+      polling: 'raf',
+    });
+  } catch {
+    sighted = false;
   }
-  const exhale = samples.find((sample) => sample.threads >= 0);
+  if (sighted) exhale = await readForce();
   check(
     'holding the pill draws, and the row says so in seconds',
     /\d+\.\d+s/.test(drawing.alt) && drawing.arc !== lit.arc,
@@ -1281,7 +1307,7 @@ try {
       Math.abs(
         exhale.knob - (exhale.x1 + (Number(exhale.digits) / 100) * (exhale.x2 - exhale.x1)),
       ) <= 0.7,
-    `held=${JSON.stringify(heldForce)} samples=${String(samples.length)} ` +
+    `held=${JSON.stringify(heldForce)} sighted=${String(sighted)} ` +
       `exhale=${JSON.stringify(exhale ?? null)}`,
   );
 
@@ -1293,6 +1319,14 @@ try {
   // Polled rather than timed: the ceiling is this rod's own draw window × 1.6, and the shipped rods
   // roll anywhere from 2.2 s to 4.2 s — a fixed wait would be measuring a guess. (The first version
   // waited 3.6 s and reported 1 → 1, which was the *rod* being wrong rather than the code.)
+  //
+  // 2026-10-09, known and unfixed here: this bound is 6 s of WALL clock while the thing it waits for
+  // is up to 6.72 s of SIMULATED hold (4.2 × 1.6), so it cannot cover the longest rod even at a clean
+  // 60 fps, and it reddens outright when frames drop (measured load 12–14.5 on this machine). Widening
+  // it was tried and is the wrong shape of fix: the extra hold pushed a later tap past the 2.6 s idle
+  // fold, and the suite died on an invisible element instead of reporting. The right fix is to stop
+  // racing a held finger at all — set the player's own 单口时长 to its shortest detent first, so the
+  // ceiling lands at ~1.6 s and the whole press fits inside one idle window. Tracked as #99.
   const countOf = (text) => Number(/^(\d+)\s*\//.exec(text)?.[1] ?? -1);
   const beforeCeiling = await chrome();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -1312,8 +1346,8 @@ try {
     countOf(stillHeld.primary) > countOf(beforeCeiling.primary) &&
       stillHeld.phase === 'puff' &&
       countOf(afterRelease.primary) === countOf(stillHeld.primary),
-    `held=${beforeCeiling.primary} → ${stillHeld.primary} after ${String(waitedMs)}ms of the same ` +
-      `press, released=${afterRelease.primary}`,
+    `held=${beforeCeiling.primary} → ${stillHeld.primary} after ${String(waitedMs)}ms of wall clock ` +
+      `(the row's own clock read ${stillHeld.alt}), released=${afterRelease.primary}`,
   );
 
   // S17 and S19 read together: 按住 0.6 秒 opens the card, 松手只收卡片 closes it again, and the
@@ -1501,12 +1535,51 @@ try {
         .filter((card) => card.dataset.selected === 'true')
         .map((card) => card.dataset.skin),
       locked: cards.filter((card) => card.dataset.locked === 'true').length,
+      presets: cards.map((card) => card.dataset.preset ?? '').filter((preset) => preset !== ''),
+      selectedRoom: [...document.querySelectorAll('.room')]
+        .filter((room) => room.dataset.selected === 'true')
+        .map((room) => room.dataset.room ?? room.textContent.trim()),
     };
   });
   check(
     'a skin is four colour layers, and exactly one is worn',
     skins.cards === 6 && skins.layers === 4 && skins.worn.length === 1 && skins.locked === 5,
     JSON.stringify(skins),
+  );
+
+  // S17's 环境预设 (2026-10-08 拍板): one skin brings a place. What the browser can prove is that the
+  // card says so, that wearing it is not an error, and that it cannot open a room the ladder has not
+  // opened — so the claim is written as the space of allowed endings rather than one fixed outcome.
+  const presetSkin = await page.evaluate(() => {
+    const card = [...document.querySelectorAll('.skin')].find(
+      (entry) => (entry.dataset.preset ?? '') !== '',
+    );
+    card?.click();
+    return { id: card?.dataset.skin ?? '', preset: card?.dataset.preset ?? '' };
+  });
+  await page.waitForTimeout(420);
+  const afterPreset = await page.evaluate(() => ({
+    worn: [...document.querySelectorAll('.skin')]
+      .filter((card) => card.dataset.selected === 'true')
+      .map((card) => card.dataset.skin),
+    // A room that is both selected and locked is the failure this exists to catch: it would mean a
+    // colour opened a door the ladder had not.
+    selectedLocked: [...document.querySelectorAll('.room')].filter(
+      (room) => room.dataset.selected === 'true' && room.dataset.locked === 'true',
+    ).length,
+    selected: [...document.querySelectorAll('.room')].filter(
+      (room) => room.dataset.selected === 'true',
+    ).length,
+  }));
+  check(
+    'S17: the skin that brings a place says which one, and wearing it never opens a locked door',
+    skins.presets.length === 1 &&
+      presetSkin.id !== '' &&
+      presetSkin.preset !== '' &&
+      afterPreset.worn.join() === presetSkin.id &&
+      afterPreset.selected === 1 &&
+      afterPreset.selectedLocked === 0,
+    JSON.stringify({ ...skins, presetSkin, afterPreset }),
   );
 
   await page.locator('.skin[data-locked="true"]').first().click();

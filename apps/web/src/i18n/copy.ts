@@ -153,6 +153,8 @@ export const EN = {
   'a11y.boxEmpty': 'not found yet',
   'shelf.skins': 'skins',
   'a11y.skin': 'skin {name}',
+  // S17's 环境预设: the card says out loud which place wearing it would walk you into.
+  'a11y.skin.preset': 'brings {place}',
   'shelf.rods': 'the ladder',
   'shelf.kit': 'the rest of the table',
   /**
@@ -403,6 +405,7 @@ const ZH: Table = {
   'a11y.boxEmpty': '还没捡到',
   'shelf.skins': '皮肤',
   'a11y.skin': '皮肤 {name}',
+  'a11y.skin.preset': '带来：{place}',
   'shelf.rods': '烟种',
   'shelf.kit': '桌上其余',
   'shelf.scenes': '场景',

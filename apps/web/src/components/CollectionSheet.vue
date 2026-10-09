@@ -24,6 +24,8 @@ import ArchiveTile from './ArchiveTile.vue';
 import { PACKS, SKINS } from '@puffly/game-content';
 import { nextRodGate, shelfCount, shelvesOf } from '../shelf';
 import { byRung, cardLabel, rungCount, rungShown, rungShownFor } from '../scenes';
+import { presetForSkin } from '../skinPreset';
+import type { SkinContent } from '@puffly/game-core';
 import { rodMinutes } from '../archiveModel';
 
 const props = defineProps<{
@@ -79,12 +81,30 @@ const fresh = computed(() => new Set(props.game.summary.value.fresh));
 const packs = PACKS;
 const collected = computed(() => new Set(props.game.progressPacks.value));
 
-/** S18: a skin is four bars, and that is the whole of what a card can show about it. */
+/** S18: a skin's card is four bars; the place it may bring is spoken and machine-read, not drawn. */
 const skins = SKINS;
 const worn = computed(() => props.game.settings.value.skin ?? 'night');
 const unlockedSkins = computed(
   () => new Set(props.game.summary.value.state?.collection.unlockedSkins ?? []),
 );
+
+/**
+ * S17's 环境预设, released by 2026-10-08 拍板: wearing a skin may also walk you into the place it was
+ * named for — and only into one the ladder has already opened. A colour is not a key, and the four
+ * numbers (时长 / 口数 / 温度 / 灰重) are not in this transaction at all.
+ */
+function wearSkin(skin: SkinContent): void {
+  props.game.setSettings({ skin: skin.id });
+  const place = presetForSkin(skin, props.game.unlocked.value.environments ?? []);
+  if (place !== null) props.game.select({ environment: place });
+}
+
+/** The place a card brings, named from the content that defines it. `''` when it brings none. */
+function presetName(skin: SkinContent): string {
+  const id = skin.environmentId;
+  if (id === undefined) return '';
+  return DEFAULT_CONTENT.environments.find((place) => place.id === id)?.name ?? id;
+}
 
 /**
  * The rooms as a set with a ladder: every one the content defines, in the order a player meets
@@ -274,16 +294,20 @@ watch(
           :data-skin="skin.id"
           :data-locked="!unlockedSkins.has(skin.id)"
           :data-selected="worn === skin.id"
+          :data-preset="skin.environmentId ?? ''"
           :aria-pressed="worn === skin.id"
           :aria-label="
             cardLabel(
               copy,
-              copy.say('a11y.skin', { name: skin.name }),
+              copy.say('a11y.skin', { name: skin.name }) +
+                (skin.environmentId === undefined
+                  ? ''
+                  : ` · ${copy.say('a11y.skin.preset', { place: presetName(skin) })}`),
               skin.unlock,
               !unlockedSkins.has(skin.id),
             )
           "
-          @click="unlockedSkins.has(skin.id) && game.setSettings({ skin: skin.id })"
+          @click="unlockedSkins.has(skin.id) && wearSkin(skin)"
         >
           <span class="layers" aria-hidden="true">
             <span

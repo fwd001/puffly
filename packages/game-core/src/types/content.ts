@@ -227,7 +227,7 @@ export interface Environment {
    * a draught over it. It is not a look — it decides how thick the smoke stays and how far it
    * spreads, which is why the same rod is four times more visible in one place than another. The
    * deck calls this the one reason the venue system exists: it builds presence better than a skin
-   * ever could, because a skin is allowed to change nothing else.
+   * ever could, because a skin may repaint four layers and name one place, and nothing besides.
    */
   ventilation: number;
   emberModifier: EmberModifier;
@@ -411,10 +411,14 @@ export interface PackContent {
 }
 
 /**
- * A skin is four colours and nothing else (§ redlines.skinIsCosmetic). The four layers are the
- * only thing it may touch — paper, ember, plume and the pool of light on the table — because a
- * palette that could also move a duration would turn cosmetics into difficulty, which is the
- * single easiest way to ruin this product.
+ * A skin is four colours and, at most, the place it puts you in (§ redlines.skinIsCosmetic, and
+ * 2026-10-08 拍板: 「允许皮肤带一个环境」). The four layers are the only thing it may repaint — paper,
+ * ember, plume and the pool of light on the table — and the optional `environmentId` only *chooses a
+ * place the player has already reached*, which is a thing they could have tapped anyway.
+ *
+ * What it still may not do is move a number: no duration, no puffs, no temperature, no ash weight.
+ * A palette that could also move a duration would turn cosmetics into difficulty, which is the single
+ * easiest way to ruin this product.
  */
 /** The four layers a skin may repaint, and the whole of what it may do. */
 export type SkinPalette = SkinContent['palette'];
@@ -424,6 +428,12 @@ export interface SkinContent {
   name: string;
   palette: { paper: Rgb; ember: Rgb; smoke: Rgb; pool: Rgb };
   unlock: UnlockRule;
+  /**
+   * 稿子 S17: 「外加一个环境预设」. An existing environment's id, or absent for a skin that brings no
+   * place. It is a *pointer*, not a copy: the place keeps its own light, wind and 通风系数, and a skin
+   * that names a place nobody has unlocked yet simply leaves them where they were.
+   */
+  environmentId?: string;
 }
 
 export interface ContentBundle {

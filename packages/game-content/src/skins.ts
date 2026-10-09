@@ -1,11 +1,15 @@
 /**
  * The six skins — S15 and S18 of the brief, with its own numbers.
  *
- * Each one is four colours and nothing else: the paper, the cherry, the plume and the pool of
- * light the table sits in. That is the whole interface a skin has with the simulation, and it is
- * the redline made physical — a palette that could also move a duration would turn cosmetics into
- * difficulty. The last one is gated on the collection rather than on volume, so it cannot be
- * ground out; it has to be looked for.
+ * Each one is four colours and, if it brings a place at all, the place it is named for: the paper,
+ * the cherry, the plume and the pool of light the table sits in. That is the whole of what a skin has
+ * with the simulation, and it is the redline made physical — a palette that could also move a duration
+ * would turn cosmetics into difficulty. The last one is gated on the collection rather than on volume,
+ * so it cannot be ground out; it has to be looked for.
+ *
+ * Only 夜航 names a place, because only its own name says one (`night-city` is the night skyline the
+ * word points at). 雪夜 would want snow, and this build's weather has no snow — inventing a pairing to
+ * fill the row would be putting my content into the deck's mouth, so the other five bring colours only.
  */
 
 import { rgb } from '@puffly/shared';
@@ -23,6 +27,8 @@ export const SKINS: SkinContent[] = [
       pool: rgb(255, 217, 160),
     },
     unlock: { kind: 'default' },
+    // 夜航 is the skin the deck lets bring a place: its own name points at the night skyline.
+    environmentId: 'night-city',
   },
   {
     id: 'copper',
