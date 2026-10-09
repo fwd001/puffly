@@ -452,9 +452,9 @@ html {
    扫描器不看 `-webkit-text-fill-color`，两边互不打扰。图集没落地时这个类不会挂上来。 */
 /* 场景那张画布对指针完全失聪：手势全部属于它下面的 DOM（§5，P3 起就是设计意图）。
    这条原来写在 SceneStage.vue 的 scoped 样式里，而 TresJS 渲染的是它自己的 canvas ——
-   scoped 属性没落到那个元素上，量出来 `pointer-events: auto`：整块画布盖着页面把**持续手势**
-   吞掉（按住的吸入从来没有在 ?scene=3d 里生效过；点按侥幸能过）。掩膜搬到全局，和别的几条
-   在一起，并由真机的「吸入时纸面塌陷」那一格看住它。 */
+   scoped 属性没落到那个元素上（量出 `pointer-events: auto`，掩膜错位是实测事实）。因果更正
+   见 §12：把它改回 auto 重跑，套件今天不红 —— 所以这条按"设计意图+错位就该修"留在这里，
+   不把当时的吸入失灵记在它头上。 */
 html.scene3d-text canvas.scene3d {
   pointer-events: none;
 }

@@ -1308,6 +1308,56 @@ try {
   await context.close();
 }
 
+// -------------------------------------- 宽屏（1280×800）+ ?scene=3d，此前没有任何判据的一档
+{
+  // The second audit found the ledger claiming the wide sidebar was "in the scene" while the whole
+  // wide 3D had no coverage at all. Baseline here: it renders, the stage reaches its rod, and the
+  // sidebar — deliberately still DOM (#113) — keeps answering clicks, because the mask fix that
+  // gave the phone its gestures back is global and must hold at this width too.
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    deviceScaleFactor: 1,
+  });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (event) => errors.push(String(event).slice(0, 120)));
+  await page.goto(`${URL_ARG}?scene=3d`, { waitUntil: 'networkidle' });
+  await page
+    .waitForFunction(() => (window.__pufflyScene?.frames ?? 0) > 30, null, { timeout: 20000 })
+    .catch(() => {});
+  const wide = await page.evaluate(() => {
+    const ctx = window.__pufflyScene;
+    const scene = 'value' in ctx.context.scene ? ctx.context.scene.value : ctx.context.scene;
+    let rod = false;
+    scene.traverse((o) => {
+      if (o.name === 'rod') rod = true;
+    });
+    return { backend: ctx.backend, frames: ctx.frames, rod };
+  });
+  check(
+    '3D wide: the scene renders through the wide stage box, rod and all',
+    wide.frames > 30 && wide.backend !== 'pending' && wide.rod,
+    `backend ${String(wide.backend)} frames ${String(wide.frames)} rod ${String(wide.rod)}`,
+  );
+  const entries = await page.locator('.data-rail [data-entry]').count();
+  await page
+    .locator('.data-rail [data-entry]')
+    .first()
+    .click()
+    .catch(() => {});
+  await page.waitForTimeout(520);
+  const opened = await page.evaluate(
+    () => document.querySelector('.sheet[data-open="true"]')?.dataset.sheet ?? '',
+  );
+  check(
+    '3D wide: the sidebar is still DOM here, and its clicks open their sheet (#113)',
+    entries === 8 && opened !== '',
+    `entries ${String(entries)} opened "${opened}"`,
+  );
+  check('3D wide: nothing threw', errors.length === 0, errors.slice(0, 2).join(' | '));
+  await context.close();
+}
+
 // ------------------------------------------------------------------ with no sound
 {
   // §63: sound is allowed to be absent, and the game is not allowed to go quiet with it. The
@@ -2579,8 +2629,9 @@ try {
   // The paper pinches while the draw is held (S7/S15) — the painter's own `paperGive` at
   // `WAIST = 0.78`. Placed right behind the strike, where the state is the one this was measured
   // on (waist 0.0152/0.0180, 2026-10-09): hold the pill, then look across the draw's own ceiling
-  // for the pinched waist. It is also the standing guard for "the overlay canvas never swallows a
-  // sustained gesture" — its mask is scoped CSS that once never matched TresJS's canvas.
+  // for the pinched waist. (An earlier comment here claimed it also guarded "the canvas never
+  // swallows a sustained gesture" — its own control showed restoring `pointer-events: auto` reddens
+  // nothing, so the guard claim came out; see §12's correction.)
   // |control|: a `Math.max(1, …)` floor in `placeRod` leaves every ring at the tube's radius.
   // Two presses on purpose: the chrome folds itself away after ~2.6 s of quiet (the sparks wait
   // just spent longer than that), and the first press only wakes it — the draw needs the one after.
@@ -2722,7 +2773,7 @@ try {
   // column, so a draw goes first and the poll waits for the sim to grow one. |control|: hiding the
   // mesh reads false here.
   // A draw first, so the standing ash and the char front grow: the pill's hold is the draw, and it
-  // is the one gesture the overlay canvas used to swallow (its mask was scoped CSS on a canvas
+  // is the gesture that needs the wake-first press (its mask was scoped CSS on a canvas
   // TresJS renders itself — `pointer-events` computed `auto`, fixed into global.css). The pinch
   // this drill used to assert needs a longer look at the live draw than this slot gives — its own
   // criterion is owed (task #112).
