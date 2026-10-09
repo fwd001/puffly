@@ -13,7 +13,7 @@
  */
 import { TresCanvas } from '@tresjs/core';
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
-import { emberPresence } from '@puffly/game-core';
+import { emberPresence, ventDraught } from '@puffly/game-core';
 import type { GameStateView } from '@puffly/game-core';
 import { clamp01, mixRgb } from '@puffly/shared';
 import {
@@ -35,6 +35,7 @@ import {
   flameMetrics,
   LID_THROW_DEG,
   sparkStreak,
+  cartoonScale,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
@@ -1271,9 +1272,18 @@ function step(deltaMs: number): void {
   const state = props.state;
   const dt = Math.max(0, Math.min(deltaMs, 64));
   clockMs += dt;
-  // Sparks belong to the lighter's burst, which this layer does not draw yet; a null floor means the
-  // pool simply does not do its bounce pass.
-  pool.update(dt, state?.smoke.drift ?? { x: 0, y: 0 }, FIELD_SCALE, clockMs / 1000, null, 1, 0);
+  // The same seven inputs the painted layer's own call carries — the sparks' floor is the table's
+  // own line (so the burst bounces where the picture says the table is), the bounce wears the same
+  // realism dial, and the venue's draught reaches the plume's *structure*, not only its paint.
+  pool.update(
+    dt,
+    state?.smoke.drift ?? { x: 0, y: 0 },
+    FIELD_SCALE,
+    clockMs / 1000,
+    state?.stage.layout.table.y ?? null,
+    cartoonScale(props.game.rendererLook().realism),
+    ventDraught(state?.environment.ventilation ?? 1),
+  );
   probe.frames += 1;
   placeCherry(state);
   placeAsh(state);
