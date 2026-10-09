@@ -19,6 +19,11 @@ import {
   intakeBurst,
   ParticlePool,
   plumeIntakeOptions,
+  PUFF_FLATTEN,
+  puffAlpha,
+  puffHeat,
+  puffSpread,
+  puffTint,
   vignetteAlpha,
 } from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
@@ -236,6 +241,11 @@ function onSceneReady(context: unknown): void {
     CAPACITY,
   );
   cloud.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  // The colour buffer has to exist *before* the first frame compiles the material. Measured: an
+  // `instanceColor` that is only born in the first `setColorAt` arrives after the compile, the
+  // instances draw in the material's own white, and every puff is a white blob — which is exactly
+  // what the plume looked like.
+  cloud.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 3), 3);
   cloud.frustumCulled = false;
   cloud.count = 0;
   puffs.value = cloud;
@@ -258,6 +268,12 @@ function step(deltaMs: number): void {
   const cloud = puffs.value;
   if (cloud === null) return;
   const size = frame.value;
+  // Every look input is the state's, through the same functions the 2D layer draws with: none is
+  // this file's opinion, which is what keeps a venue change moving both pictures at once.
+  const visibility = state?.smoke.visibility ?? 0.5;
+  const opacity = state?.style.smoke.opacity ?? 1;
+  const highContrast = props.game.rendererLook().contrast === 'high';
+  const spread = puffSpread(state?.environment.ventilation ?? 1);
   let n = 0;
   pool.forEachActive((particle) => {
     if (n >= CAPACITY) return;
@@ -268,13 +284,18 @@ function step(deltaMs: number): void {
       0.02 + particle.depth,
     );
     // Diameter by the 2D layer's own rule (`radius * scale * size * depth * PUFF_SPREAD`, capped at
-    // MAX_SMOKE_RADIUS_PX) rather than a factor of my own.
-    const d = puffDiameterWorld(particle, unitWorld.value, viewportHeightPx.value);
-    dummy.scale.set(d, d, 1);
+    // MAX_SMOKE_RADIUS_PX) rather than a factor of my own; the venue's 通风系数 widens it here and
+    // the ellipse is flattened and turned exactly as that layer's `drawImage` does.
+    const d = puffDiameterWorld(particle, unitWorld.value, viewportHeightPx.value) * spread;
+    dummy.rotation.set(0, 0, particle.rotation);
+    dummy.scale.set(d, d * PUFF_FLATTEN, 1);
     dummy.updateMatrix();
     cloud.setMatrixAt(n, dummy.matrix);
-    const a = Math.max(0, Math.min(1, particle.alpha));
-    tint.setRGB(particle.tint[0], particle.tint[1], particle.tint[2]);
+    const a = puffAlpha(particle.alpha, opacity, visibility, highContrast);
+    const rgb = puffTint(particle.tint, puffHeat(particle), visibility);
+    // The tint arrives 0–255 sRGB and per-instance colours are linear, so saying the colour space
+    // is not decoration: skipping it is what made the plume a white column.
+    tint.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
     // Colour carries the alpha: the sprite is soft, so a puff fades by going darker, not by
     // changing shape — and an instanced cloud has no per-instance opacity of its own.
     cloud.setColorAt(n, tint.multiplyScalar(a));

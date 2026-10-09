@@ -6,7 +6,17 @@
  * touching a line of game logic (§79, §86).
  */
 
-export { MAX_SMOKE_RADIUS_PX, PUFF_SPREAD, plumeIntakeOptions, cartoonScale } from './renderer';
+export {
+  MAX_SMOKE_RADIUS_PX,
+  PUFF_FLATTEN,
+  PUFF_SPREAD,
+  cartoonScale,
+  plumeIntakeOptions,
+  puffAlpha,
+  puffHeat,
+  puffSpread,
+  puffTint,
+} from './renderer';
 export { SKY_COOL, SKY_WARM, skyPalette, vignetteAlpha } from './background';
 export {
   createCanvasRenderer,

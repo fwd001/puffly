@@ -92,7 +92,58 @@ const TRAY_FULL_GRAMS = 0.36;
 /** Overlap instead of opacity: see `drawSmoke`. */
 export const PUFF_SPREAD = 1.34;
 const PUFF_ALPHA = 0.62;
-const PUFF_FLATTEN = 0.74;
+/** A puff is not a circle: the drawn ellipse is this much shorter than it is wide. */
+export const PUFF_FLATTEN = 0.74;
+
+/**
+ * One puff's four drawn numbers — heat, tint, spread, alpha — as functions instead of as locals
+ * inside `drawSmoke`, because the 3D layer draws the same pool from the same state and a second
+ * copy of a formula is how this repository's picture grew a second, different picture.
+ */
+/** How hot a puff still is: full at birth, gone by a fifth of its life. */
+export function puffHeat(particle: { heat: number; age: number }): number {
+  return particle.heat * clamp01(1 - particle.age * 5);
+}
+
+/** A puff's colour: the core's tint, whitened by how visible smoke is here, warmed while hot (§24). */
+export function puffTint(rgb: Rgb, heat: number, visibility: number): Rgb {
+  const lit = mixRgb(rgb, [255, 255, 255], (visibility - 0.5) * 0.12);
+  return mixRgb(lit, [255, 176, 96], heat * 0.55);
+}
+
+/**
+ * The venue's share of the puff's width (S21 通风系数): a sealed place lets the ribbon hang, a
+ * forecourt tears it out sideways. Anchored at 1 and only ever adding, because the core's
+ * `smoke.dispersion` also carries the rod and the ashtray — taking that straight into the radius
+ * would shrink the calibrated picture of every room at once. The brightness half of the same
+ * coefficient arrives through `field.visibility`.
+ */
+export function puffSpread(ventilation: number): number {
+  return 1 + ventDraught(ventilation) * 0.45;
+}
+
+/**
+ * What one puff's authored alpha becomes on screen.
+ *
+ * `far` is the 2D layer's depth split (§16): the half of the cloud it draws behind the props is
+ * dimmed to 0.72. The 3D layer has real depth and does not use it.
+ */
+export function puffAlpha(
+  particleAlpha: number,
+  styleOpacity: number,
+  visibility: number,
+  highContrast: boolean,
+  far = false,
+): number {
+  return clamp01(
+    particleAlpha *
+      styleOpacity *
+      (0.35 + visibility * 0.8) *
+      (highContrast ? 1.35 : 1) *
+      PUFF_ALPHA *
+      (far ? 0.72 : 1),
+  );
+}
 
 export interface RendererSettings {
   reducedMotion: boolean;
@@ -358,10 +409,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     const key = `${base[0]}|${base[1]}|${base[2]}|${Math.round(particleHeat * 8)}|${Math.round(visibility * 8)}`;
     const cached = tintCache.get(key);
     if (cached) return cached;
-    // Night smoke reads brighter against a dark room (§24), and hot particles keep the
-    // cherry's colour for their first moments instead of jumping straight to grey.
-    const lit = mixRgb(base, [255, 255, 255], (visibility - 0.5) * 0.12);
-    const tinted = mixRgb(lit, [255, 176, 96], particleHeat * 0.55);
+    const tinted = puffTint(base, particleHeat, visibility);
     if (tintCache.size > TINT_CACHE_LIMIT) tintCache.clear();
     tintCache.set(key, tinted);
     return tinted;
@@ -375,13 +423,9 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
     const field = state.smoke;
     const style = state.style.smoke;
     const stage = viewport.stage;
-    const lift = settings.contrast === 'high' ? 1.35 : 1;
-    // The venue's share of the width (S21 通风系数): a sealed place lets the ribbon hang, a forecourt
-    // tears it out sideways. Anchored at 1 and only ever adding, because the core's `smoke.dispersion`
-    // also carries the rod and the ashtray — taking that straight into the radius would shrink the
-    // calibrated picture of every room at once, which is what §57 says the smoke cannot afford. The
-    // brightness half of the same coefficient arrives through `field.visibility` below.
-    const spread = 1 + ventDraught(state.environment.ventilation) * 0.45;
+    // The brightness half of the venue's 通风系数 arrives through `field.visibility`; the width half
+    // is `puffSpread`, which is where the anchoring rule lives.
+    const spread = puffSpread(state.environment.ventilation);
     const sparks: Particle[] = [];
 
     ctx.save();
@@ -395,11 +439,7 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
         return;
       }
 
-      // Heat is a moment, not a property of the particle: a puff leaves the cherry hot and is
-      // only warm air for the first fifth of its life. Held open for the whole life, additive
-      // blending turns a ribbon of smoke into a string of lights — which is what the design's
-      // frames do not have.
-      const hot = particle.heat * clamp01(1 - particle.age * 5);
+      const hot = puffHeat(particle);
       const tint = tintFor(particle.tint, hot, field.visibility);
       const sprite = sprites.soft(tint, style.blur);
       const depthScale = 0.72 + particle.depth * 0.5;
@@ -415,13 +455,12 @@ export function createCanvasRenderer(options: CanvasRendererOptions): PufflyRend
       if (!sprite || radiusPx <= 0.4) return;
 
       const centre = viewport.px(particle);
-      const alpha = clamp01(
-        particle.alpha *
-          style.opacity *
-          (0.35 + field.visibility * 0.8) *
-          lift *
-          PUFF_ALPHA *
-          (near ? 1 : 0.72),
+      const alpha = puffAlpha(
+        particle.alpha,
+        style.opacity,
+        field.visibility,
+        settings.contrast === 'high',
+        !near,
       );
       if (alpha <= 0.004) return;
 
