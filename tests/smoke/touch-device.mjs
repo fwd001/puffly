@@ -2576,7 +2576,10 @@ try {
       () => document.querySelector('.stage')?.dataset.affordance ?? '',
     );
     if (affordance === 'lighter') break;
-    await page.locator('.pill').click();
+    await page
+      .locator('.pill')
+      .click({ timeout: 5000 })
+      .catch(() => {});
     await page.waitForTimeout(650);
   }
   // Read it here, before the strike: only the pick-up transition can have emitted a ring yet, so a
@@ -2601,7 +2604,10 @@ try {
       return { visible, lid };
     });
   const flameIdle = await flameRead();
-  await page.locator('.pill').click();
+  await page
+    .locator('.pill')
+    .click({ timeout: 5000 })
+    .catch(() => {});
   await page.waitForTimeout(220);
   const flameLit = await flameRead();
   // The flint's sparks arrive on the sim's own clock (~1 s after the strike here), so this waits
@@ -2905,12 +2911,35 @@ try {
     await page.mouse.click(196, 280);
     await page.waitForTimeout(420);
   }
-  await page.locator('.hud [data-hook="break"]').click();
-  await page.waitForSelector('.sheet[data-open="true"]', {
-    state: 'attached',
-    timeout: 4000,
-    polling: 10,
-  });
+  // #114: a raw click here waited the 30 s default on a folded chrome and then threw, aborting the
+  // whole run instead of failing one check. Bounded wait for a real target, bounded click, and the
+  // sheet wait reports its miss as a red downstream rather than a crash.
+  const breakReady = await page
+    .waitForFunction(
+      () => {
+        const el = document.querySelector('.hud [data-hook="break"]');
+        if (el === null) return false;
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      },
+      null,
+      { timeout: 6000, polling: 100 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (breakReady) {
+    await page
+      .locator('.hud [data-hook="break"]')
+      .click({ timeout: 4000 })
+      .catch(() => {});
+  }
+  await page
+    .waitForSelector('.sheet[data-open="true"]', {
+      state: 'attached',
+      timeout: 4000,
+      polling: 10,
+    })
+    .catch(() => null);
   await page.waitForTimeout(700);
   const sheetShot = await page.screenshot();
   const sheet = await page.evaluate(async (b64) => {
@@ -2948,7 +2977,10 @@ try {
       closeFill: close === null ? '' : close.style.getPropertyValue('-webkit-text-fill-color'),
     };
   }, sheetShot.toString('base64'));
-  await page.locator('.sheet[data-open="true"] .close').click();
+  await page
+    .locator('.sheet[data-open="true"] .close')
+    .click({ timeout: 4000 })
+    .catch(() => {});
   await page.waitForTimeout(420);
   check(
     '3D: the open sheet hands its ink over (root hidden, the row fill taken)',
