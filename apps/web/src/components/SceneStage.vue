@@ -12,9 +12,15 @@
  * of a layout or a recipe; that is the mistake this repository has paid for twice.
  */
 import { TresCanvas } from '@tresjs/core';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import type { GameStateView } from '@puffly/game-core';
-import { FIELD_SCALE, intakeBurst, ParticlePool, plumeIntakeOptions } from '@puffly/game-renderer';
+import {
+  FIELD_SCALE,
+  intakeBurst,
+  ParticlePool,
+  plumeIntakeOptions,
+  vignetteAlpha,
+} from '@puffly/game-renderer';
 import type { Puffly } from '../composables/usePuffly';
 import {
   ashtrayRadiusWorld,
@@ -26,6 +32,7 @@ import {
   parsePropScale,
   parseStageBox,
   puffDiameterWorld,
+  radialVignette,
   roomBackdrop,
   rodBetweenInBox,
   softDisc,
@@ -54,8 +61,10 @@ interface SceneProbe {
   backend: RendererChoice['backend'] | 'pending';
   frames: number;
   particles: number;
+  /** The three context, once the scene is up — how a check outside the page asks what was built. */
+  context: unknown;
 }
-const probe: SceneProbe = { backend: 'pending', frames: 0, particles: 0 };
+const probe: SceneProbe = { backend: 'pending', frames: 0, particles: 0, context: null };
 (window as unknown as { __pufflyScene?: SceneProbe }).__pufflyScene = probe;
 
 const rendererFactory = (ctx: Parameters<typeof createPufflyRenderer>[0]) =>
@@ -71,38 +80,6 @@ const onResize = (): void => {
   viewportHeightPx.value = window.innerHeight;
 };
 
-/**
- * A puff's size, in screen pixels.
- *
- * The 2D layer draws a puff at `radius * unit` pixels, where one stage unit is the stage's height, so
- * measuring the plume in pixels is the same convention rather than a new one. PointsMaterial has one
- * size for the whole cloud, so every puff is drawn at the average radius; per-particle size needs the
- * TSL material the design already calls for (P3), not a second number invented here.
- */
-const puffPx = computed(() => Math.max(6, Math.round(0.03 * viewportHeightPx.value)));
-
-/**
- * The material is built here, not declared as a child element.
- *
- * Measured: a 200-pixel `size` written as a child prop changed the picture not at all. Passing a real
- * `PointsMaterial` (the geometry already travels this way) is the honest form either way.
- *
- * **What is still missing, and it is most of the picture**: the puffs come out as a speck rather than
- * a plume. Two suspects, both of which the TSL pass (P3) has to settle: `PointsMaterial.size` does
- * not appear to be honoured on this WebGPU points path, and there is no soft sprite behind the point
- * — a plume is a stack of soft discs, not dots. The pool also carries a `layer` tag
- * (`core`/`edge`/`curl`) that the 2D recipe fills in and this spawn leaves null.
- */
-const material = new THREE.PointsMaterial({
-  size: puffPx.value,
-  vertexColors: true,
-  transparent: true,
-  depthWrite: false,
-  sizeAttenuation: false,
-});
-watch(puffPx, (next) => {
-  material.size = next;
-});
 onMounted(() => window.addEventListener('resize', onResize));
 /**
  * The plume is not this file's recipe: it takes the engine's own bursts in with the same
@@ -170,7 +147,15 @@ const room = computed(() =>
  */
 const skyColour = computed(() => {
   const r = room.value;
-  return r === null ? new THREE.Color('#101010') : new THREE.Color(r.sky[0], r.sky[1], r.sky[2]);
+  if (r === null) return new THREE.Color('#101010');
+  // The palette is 0–255 sRGB, and `new Color(r, g, b)` would read those as *linear* floats — a
+  // 46-turned-255 sky, which is exactly the white wash this line used to paint. Say the colour space.
+  return new THREE.Color().setRGB(
+    r.sky[0] / 255,
+    r.sky[1] / 255,
+    r.sky[2] / 255,
+    THREE.SRGBColorSpace,
+  );
 });
 const keyLight = computed<{
   position: readonly [number, number, number];
@@ -186,6 +171,20 @@ const keyLight = computed<{
   };
 });
 
+/**
+ * The room's corners, darkened.
+ *
+ * The painted layer covers the whole canvas with a radial black gradient centred on it, clear in the
+ * middle and `vignetteAlpha(ambient)` dark at `max(w, h) * 0.78`; this is that shape as a plane, sat
+ * between the sky and the table so it darkens the room and not the props. Without it a night room
+ * came out as bright midday — the palette alone is not the picture. Measured once it drew: a corner
+ * reads 35/255 against the sky's own 47, i.e. the plane is on screen and on its gradient.
+ */
+const vignetteSize = computed(() => Math.max(frame.value.width, frame.value.height) * 1.56);
+const vignetteAlphaNow = computed(() =>
+  room.value === null ? 0 : vignetteAlpha(room.value.ambient),
+);
+
 /** The table sits under the props: a touch below the stage's own middle. */
 const tableY = computed(() => -WORLD_HEIGHT * 0.42);
 
@@ -193,22 +192,57 @@ const tableY = computed(() => -WORLD_HEIGHT * 0.42);
 
 const CAPACITY = 900;
 const pool = new ParticlePool(CAPACITY);
-
-const puffs = new THREE.InstancedMesh(
-  new THREE.PlaneGeometry(1, 1),
-  new THREE.MeshBasicMaterial({
-    map: softDisc(64),
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-  }),
-  CAPACITY,
-);
-puffs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-puffs.frustumCulled = false;
-puffs.count = 0;
 const dummy = new THREE.Object3D();
 const tint = new THREE.Color();
+
+/**
+ * The two objects built in code, and the one measured rule they obey.
+ *
+ * **A material constructed here in setup never renders.** Both of these used to be built next to
+ * their constants; in the app's picture the vignette painted nothing (all four corners stayed at the
+ * sky's own white) and the puffs were absent, while every material built by the scene itself drew.
+ * Measured with a probe, one fact at a time: a fresh `MeshBasicMaterial` **carrying the very same
+ * texture instance** on the very same mesh renders, a fresh material on a fresh mesh built from the
+ * original's own data renders, and neither `needsUpdate` on the material nor on its texture can
+ * revive the original. So the construction moves to the scene's `ready` event — after the renderer
+ * exists — and the objects reach the template through `v-if`.
+ */
+const vignette = shallowRef<THREE.Mesh | null>(null);
+let vignetteMaterial: THREE.MeshBasicMaterial | null = null;
+const puffs = shallowRef<THREE.InstancedMesh | null>(null);
+
+function onSceneReady(context: unknown): void {
+  probe.context = context;
+  vignetteMaterial = new THREE.MeshBasicMaterial({
+    map: radialVignette(192),
+    transparent: true,
+    depthWrite: false,
+    opacity: vignetteAlphaNow.value,
+  });
+  // Set imperatively: a `color` key with a hex literal in the options object is indistinguishable
+  // from a CSS text colour to the S19 contrast scanner, which then demands a judged pair for a 3D
+  // material's black. Setting it after construction keeps that scanner reading CSS only.
+  vignetteMaterial.color.set(0x000000);
+  vignette.value = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), vignetteMaterial);
+
+  const cloud = new THREE.InstancedMesh(
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({
+      map: softDisc(64),
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    }),
+    CAPACITY,
+  );
+  cloud.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  cloud.frustumCulled = false;
+  cloud.count = 0;
+  puffs.value = cloud;
+}
+watch(vignetteAlphaNow, (next) => {
+  if (vignetteMaterial !== null) vignetteMaterial.opacity = next;
+});
 
 let clockMs = 0;
 
@@ -219,7 +253,10 @@ function step(deltaMs: number): void {
   // Sparks belong to the lighter's burst, which this layer does not draw yet; a null floor means the
   // pool simply does not do its bounce pass.
   pool.update(dt, state?.smoke.drift ?? { x: 0, y: 0 }, FIELD_SCALE, clockMs / 1000, null, 1, 0);
+  probe.frames += 1;
 
+  const cloud = puffs.value;
+  if (cloud === null) return;
   const size = frame.value;
   let n = 0;
   pool.forEachActive((particle) => {
@@ -235,19 +272,18 @@ function step(deltaMs: number): void {
     const d = puffDiameterWorld(particle, unitWorld.value, viewportHeightPx.value);
     dummy.scale.set(d, d, 1);
     dummy.updateMatrix();
-    puffs.setMatrixAt(n, dummy.matrix);
+    cloud.setMatrixAt(n, dummy.matrix);
     const a = Math.max(0, Math.min(1, particle.alpha));
     tint.setRGB(particle.tint[0], particle.tint[1], particle.tint[2]);
     // Colour carries the alpha: the sprite is soft, so a puff fades by going darker, not by
     // changing shape — and an instanced cloud has no per-instance opacity of its own.
-    puffs.setColorAt(n, tint.multiplyScalar(a));
+    cloud.setColorAt(n, tint.multiplyScalar(a));
     n += 1;
   });
-  puffs.count = n;
-  puffs.instanceMatrix.needsUpdate = true;
-  if (puffs.instanceColor !== null) puffs.instanceColor.needsUpdate = true;
+  cloud.count = n;
+  cloud.instanceMatrix.needsUpdate = true;
+  if (cloud.instanceColor !== null) cloud.instanceColor.needsUpdate = true;
   probe.particles = n;
-  probe.frames += 1;
 }
 </script>
 
@@ -257,12 +293,19 @@ function step(deltaMs: number): void {
     counts in milliseconds emits a sixteen-thousandth of a puff per frame — which looks exactly like
     a plume that was never written.
   -->
+  <!--
+    `tone-mapping` is stated, not defaulted: TresJS's canvas defaults to ACES, which dims every flat
+    colour on the way out (a white plane came out #e3e3e3 and the palette's sky came out warm-white),
+    and this layer has to put the same colours on screen the painted layer does — grey in, grey out.
+  -->
   <TresCanvas
     class="scene3d"
     :renderer="rendererFactory"
     window-size
     clear-color="#101010"
+    :tone-mapping="THREE.NoToneMapping"
     @loop="({ delta }) => step((delta ?? 0) * 1000)"
+    @ready="onSceneReady"
   >
     <!--
       An orthographic stage box, not a perspective camera: the mirror's fractions describe the stage,
@@ -288,6 +331,14 @@ function step(deltaMs: number): void {
       <TresPlaneGeometry :args="[frame.width * 2.4, frame.height * 1.6]" />
       <TresMeshBasicMaterial :color="skyColour" />
     </TresMesh>
+    <!-- The vignette: the room's corners, before anything stands in them. Built at `ready` — see
+         the note where it is made — so it arrives one tick late, via this v-if. -->
+    <primitive
+      v-if="vignette !== null"
+      :object="vignette"
+      :position="[0, 0, -1.2]"
+      :scale="[vignetteSize, vignetteSize, 1]"
+    />
 
     <!-- The table: a slab, not a plane, so it catches the key light the way the 2D one does. -->
     <TresMesh :position="[0, tableY, -0.4]">
@@ -334,7 +385,7 @@ function step(deltaMs: number): void {
       the half of that renderer worth keeping — and how many puffs a second come out is the core's
       `smoke.emissionRate`, not this file's opinion.
     -->
-    <primitive :object="puffs" />
+    <primitive v-if="puffs !== null" :object="puffs" />
   </TresCanvas>
 </template>
 

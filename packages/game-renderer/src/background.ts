@@ -212,9 +212,18 @@ export function drawBackground(
     Math.max(w, h) * 0.78,
   );
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, `rgba(0,0,0,${(0.55 + (1 - light.ambient) * 0.3).toFixed(3)})`);
+  vignette.addColorStop(1, `rgba(0,0,0,${vignetteAlpha(light.ambient).toFixed(3)})`);
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, w, h);
+}
+
+/**
+ * How dark the room's corners get: `0.55` at full exposure, `0.85` in the dark. The 3D layer paints
+ * the same vignette as a soft black plane, which is why this is a function and not a literal inside
+ * the fill.
+ */
+export function vignetteAlpha(ambient: number): number {
+  return 0.55 + (1 - ambient) * 0.3;
 }
 
 /**

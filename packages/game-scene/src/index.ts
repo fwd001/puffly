@@ -11,7 +11,7 @@ export {
   toWorldSize,
 } from './props';
 export { roomBackdrop, type RoomBackdrop } from './room';
-export { softDisc } from './sprite';
+export { radialVignette, softDisc } from './sprite';
 export { puffDiameterWorld } from './plume';
 export { createPufflyRenderer, type RendererChoice } from './renderer';
 export {

@@ -34,3 +34,33 @@ export function softDisc(size = 64, power = 2.2): THREE.DataTexture {
   texture.magFilter = THREE.LinearFilter;
   return texture;
 }
+
+/**
+ * The room's vignette, as a texture: clear in the middle, opaque at the rim.
+ *
+ * The painted layer draws a radial gradient from the canvas centre out to `max(w, h) * 0.78`; the 3D
+ * layer lays the same shape over the backdrop as a plane. `inner` is the fraction of the radius that
+ * stays clear, `outer` where it is fully dark — one stop each, like the two colour stops it replaced.
+ */
+export function radialVignette(size = 128, inner = 0.25, outer = 1): THREE.DataTexture {
+  const data = new Uint8Array(size * size * 4);
+  const centre = (size - 1) / 2;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const dx = (x - centre) / centre;
+      const dy = (y - centre) / centre;
+      const r = Math.hypot(dx, dy);
+      const t = Math.max(0, Math.min(1, (r - inner) / Math.max(1e-6, outer - inner)));
+      const i = (y * size + x) * 4;
+      data[i] = 255;
+      data[i + 1] = 255;
+      data[i + 2] = 255;
+      data[i + 3] = Math.round(t * 255);
+    }
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.needsUpdate = true;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  return texture;
+}
