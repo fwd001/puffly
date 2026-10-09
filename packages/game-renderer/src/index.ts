@@ -6,7 +6,7 @@
  * touching a line of game logic (§79, §86).
  */
 
-export { MAX_SMOKE_RADIUS_PX } from './renderer';
+export { MAX_SMOKE_RADIUS_PX, PUFF_SPREAD } from './renderer';
 export {
   createCanvasRenderer,
   type CanvasRendererOptions,
@@ -20,6 +20,7 @@ export { ParticlePool, type Particle, type PlumeLayer, type SpawnInit } from './
 export {
   budgetFor as defaultParticleBudget,
   FIELD_SCALE,
+  SMOKE_DRAG,
   intakeBurst,
   type IntakeOptions,
 } from './intake';

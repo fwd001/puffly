@@ -26,8 +26,11 @@ import {
   parsePropScale,
   parseStageBox,
   plumeSpawn,
+  puffDiameterWorld,
   rodBetweenInBox,
+  softDisc,
   stageToWorld,
+  stageUnitToWorld,
   stageWorldSize,
   toWorldSize,
   TRAY_FLATTEN,
@@ -60,9 +63,11 @@ const rendererFactory = (ctx: Parameters<typeof createPufflyRenderer>[0]) =>
 
 /** The canvas fills the viewport, so the viewport's own aspect is the canvas aspect. */
 const aspect = ref(window.innerWidth / Math.max(1, window.innerHeight));
+const viewportWidthPx = ref(window.innerWidth);
 const viewportHeightPx = ref(window.innerHeight);
 const onResize = (): void => {
   aspect.value = window.innerWidth / Math.max(1, window.innerHeight);
+  viewportWidthPx.value = window.innerWidth;
   viewportHeightPx.value = window.innerHeight;
 };
 
@@ -122,17 +127,21 @@ const rod = computed(() => {
  * Sizes in world units. One stage unit is the stage's own height (see `props.ts`), so every number
  * the core or the 2D props module owns multiplies `WORLD_HEIGHT` and nothing is re-invented here.
  */
+/** One stage unit in world units: the renderer's own `unit`, not the stage's height. */
+const unitWorld = computed(() =>
+  stageUnitToWorld(box.value, viewportWidthPx.value, viewportHeightPx.value, WORLD_HEIGHT),
+);
 const lighter = computed(() => ({
-  w: toWorldSize(LIGHTER_SIZE.width, WORLD_HEIGHT),
-  h: toWorldSize(LIGHTER_SIZE.height, WORLD_HEIGHT),
+  w: toWorldSize(LIGHTER_SIZE.width, unitWorld.value),
+  h: toWorldSize(LIGHTER_SIZE.height, unitWorld.value),
 }));
 const pack = computed(() => ({
-  w: toWorldSize(PACK_SIZE.width, WORLD_HEIGHT),
-  h: toWorldSize(PACK_SIZE.height, WORLD_HEIGHT),
+  w: toWorldSize(PACK_SIZE.width, unitWorld.value),
+  h: toWorldSize(PACK_SIZE.height, unitWorld.value),
 }));
 const FALLBACK_TRAY_RADIUS = 0.1;
 const trayRadius = computed(() =>
-  ashtrayRadiusWorld(parsePropScale(props.propScale) ?? FALLBACK_TRAY_RADIUS, WORLD_HEIGHT),
+  ashtrayRadiusWorld(parsePropScale(props.propScale) ?? FALLBACK_TRAY_RADIUS, unitWorld.value),
 );
 /** The table sits under the props: a touch below the stage's own middle. */
 const tableY = computed(() => -WORLD_HEIGHT * 0.42);
@@ -152,18 +161,31 @@ const spread = (): number => {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
 
-const positions = new Float32Array(CAPACITY * 3);
-const colours = new Float32Array(CAPACITY * 3);
-const geometry = new THREE.BufferGeometry();
-geometry.setAttribute(
-  'position',
-  new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage),
+/**
+ * Each puff is a soft disc, not a point.
+ *
+ * Points were tried first and measured: `PointsMaterial.size` written as a child prop changed the
+ * picture not at all, and even as a real object the plume came out as a ten-pixel speck — a puff is
+ * a stack of soft discs, and this renderer's points path was not going to draw them. An
+ * `InstancedMesh` of quads is what every engine uses for this, gives each puff its own size through
+ * its instance matrix, and takes the falloff from a generated texture (`softDisc`) instead of a
+ * canvas.
+ */
+const puffs = new THREE.InstancedMesh(
+  new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({
+    map: softDisc(64),
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  }),
+  CAPACITY,
 );
-geometry.setAttribute(
-  'color',
-  new THREE.BufferAttribute(colours, 3).setUsage(THREE.DynamicDrawUsage),
-);
-geometry.setDrawRange(0, 0);
+puffs.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+puffs.frustumCulled = false;
+puffs.count = 0;
+const dummy = new THREE.Object3D();
+const tint = new THREE.Color();
 
 let clockMs = 0;
 let carry = 0;
@@ -200,18 +222,27 @@ function step(deltaMs: number): void {
   pool.forEachActive((particle) => {
     if (n >= CAPACITY) return;
     // The pool works in stage units; the camera's frame is the only conversion from here on.
-    positions[n * 3] = (particle.x - 0.5) * size.width;
-    positions[n * 3 + 1] = (0.5 - particle.y) * size.height;
-    positions[n * 3 + 2] = 0.02 + particle.depth;
+    dummy.position.set(
+      (particle.x - 0.5) * size.width,
+      (0.5 - particle.y) * size.height,
+      0.02 + particle.depth,
+    );
+    // Diameter by the 2D layer's own rule (`radius * scale * size * depth * PUFF_SPREAD`, capped at
+    // MAX_SMOKE_RADIUS_PX) rather than a factor of my own.
+    const d = puffDiameterWorld(particle, unitWorld.value, viewportHeightPx.value);
+    dummy.scale.set(d, d, 1);
+    dummy.updateMatrix();
+    puffs.setMatrixAt(n, dummy.matrix);
     const a = Math.max(0, Math.min(1, particle.alpha));
-    colours[n * 3] = particle.tint[0] * a;
-    colours[n * 3 + 1] = particle.tint[1] * a;
-    colours[n * 3 + 2] = particle.tint[2] * a;
+    tint.setRGB(particle.tint[0], particle.tint[1], particle.tint[2]);
+    // Colour carries the alpha: the sprite is soft, so a puff fades by going darker, not by
+    // changing shape — and an instanced cloud has no per-instance opacity of its own.
+    puffs.setColorAt(n, tint.multiplyScalar(a));
     n += 1;
   });
-  geometry.setDrawRange(0, n);
-  geometry.getAttribute('position').needsUpdate = true;
-  geometry.getAttribute('color').needsUpdate = true;
+  puffs.count = n;
+  puffs.instanceMatrix.needsUpdate = true;
+  if (puffs.instanceColor !== null) puffs.instanceColor.needsUpdate = true;
   probe.particles = n;
   probe.frames += 1;
 }
@@ -288,7 +319,7 @@ function step(deltaMs: number): void {
       the half of that renderer worth keeping — and how many puffs a second come out is the core's
       `smoke.emissionRate`, not this file's opinion.
     -->
-    <TresPoints :geometry="geometry" :material="material" />
+    <primitive :object="puffs" />
   </TresCanvas>
 </template>
 

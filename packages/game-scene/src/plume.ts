@@ -9,14 +9,19 @@
  * up with a browser layer that reported a working game as eight broken ones.
  */
 import type { GameStateView } from '@puffly/game-core';
-import type { SpawnInit } from '@puffly/game-renderer';
+import {
+  MAX_SMOKE_RADIUS_PX,
+  PUFF_SPREAD,
+  SMOKE_DRAG,
+  type SpawnInit,
+} from '@puffly/game-renderer';
 
 /**
- * How hard still air drags a puff back to rest, per second. The aerosol's own number, not the ash's
- * 0.9/s: with the ash figure an exhaled cloud crosses the whole stage in about two seconds, which
- * the README records as the defect that turned the plume into 烟会到左上角.
+ * How hard still air drags a puff back to rest, per second. Not a number invented here: it is the
+ * renderer's own `SMOKE_DRAG` (6), and the ash's separate 0.9 is why the two do not share one.
  */
-export const PLUME_DRAG = 12;
+/** The pool's drag for smoke, re-exported under the name this layer speaks. */
+export const PLUME_DRAG = SMOKE_DRAG;
 
 /**
  * Is the rod making smoke at all?
@@ -62,11 +67,30 @@ export function plumeSpawn(state: GameStateView, at: PlumePlace, spread: () => n
     turbulence: smoke.turbulence * 0.5,
     rise: rise * 0.5,
     gravity: 0,
-    drag: PLUME_DRAG,
+    drag: SMOKE_DRAG,
     layer: null,
     tint: [smoke.tint[0], smoke.tint[1], smoke.tint[2]],
     heat: 0,
     depth: 0,
     spark: false,
   };
+}
+
+/**
+ * How wide to draw one puff, in world units.
+ *
+ * The 2D layer draws a puff at `radius * scale * size * depthScale * PUFF_SPREAD` pixels, clamped to
+ * `MAX_SMOKE_RADIUS_PX`; a disc of side 2r in world units is the same shape, so the formula travels
+ * and only the unit changes. Copying the *values* would be a second source; using the same rule is
+ * the point.
+ */
+export function puffDiameterWorld(
+  particle: { radius: number; scale: number; size: number; depth: number },
+  worldHeight: number,
+  worldHeightPx: number,
+): number {
+  const radiusWorld =
+    particle.radius * particle.scale * particle.size * (0.72 + particle.depth * 0.5) * PUFF_SPREAD;
+  const cappedWorld = (MAX_SMOKE_RADIUS_PX / Math.max(1, worldHeightPx)) * worldHeight;
+  return Math.min(radiusWorld * worldHeight * 2, cappedWorld * 2);
 }

@@ -10,11 +10,13 @@ export {
   parsePropScale,
   toWorldSize,
 } from './props';
-export { PLUME_DRAG, isAlight, plumeSpawn, type PlumePlace } from './plume';
+export { softDisc } from './sprite';
+export { PLUME_DRAG, puffDiameterWorld, isAlight, plumeSpawn, type PlumePlace } from './plume';
 export { createPufflyRenderer, type RendererChoice } from './renderer';
 export {
   AIM_KEYS,
   stageToWorld,
+  stageUnitToWorld,
   parseAim,
   rodBetween,
   toWorld,

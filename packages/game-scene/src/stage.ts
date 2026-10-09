@@ -144,3 +144,23 @@ export function stageToWorld(
 ): readonly [number, number, number] {
   return [(point.x - 0.5) * frame.width, (0.5 - point.y) * frame.height, 0];
 }
+
+/**
+ * How many world units one *stage unit* is worth.
+ *
+ * The renderer's `unit` — the scale every sprite and prop size in this repository is written in — is
+ * `min(stageWidth / 0.75, stageHeight)` pixels, not the stage's height. Treating the stage's height
+ * as one unit made every prop 1.63× too big on a 393×852 phone (852 / 524), which is exactly how a
+ * plume came out as one soft ball. Sizes use the renderer's own rule; positions keep using the box.
+ */
+export function stageUnitToWorld(
+  box: StageBox,
+  viewportWidthPx: number,
+  viewportHeightPx: number,
+  worldHeight: number,
+): number {
+  const stageWidthPx = box.width * viewportWidthPx;
+  const stageHeightPx = Math.max(1, box.height * viewportHeightPx);
+  const unitPx = Math.min(stageWidthPx / 0.75, stageHeightPx);
+  return (unitPx / stageHeightPx) * worldHeight;
+}
