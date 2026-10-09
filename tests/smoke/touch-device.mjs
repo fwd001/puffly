@@ -2383,15 +2383,35 @@ try {
     c.height = img.height;
     const ctx = c.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0);
-    const d = ctx.getImageData(100, 16, 55, 24).data;
+    const box = [100, 16, 55, 24];
+    const d = ctx.getImageData(box[0], box[1], box[2], box[3]).data;
     let max = 0;
-    for (let i = 0; i < d.length; i += 4) max = Math.max(max, d[i], d[i + 1], d[i + 2]);
-    return max;
+    const inked = new Set();
+    for (let i = 0; i < d.length; i += 4) {
+      const level = Math.max(d[i], d[i + 1], d[i + 2]);
+      max = Math.max(max, level);
+      if (level > 120) inked.add(Math.floor(i / 4 / box[2]));
+    }
+    const clock = document.querySelector('.hud .num');
+    return {
+      max,
+      rows: inked.size,
+      fontSize: clock === null ? -1 : Number.parseFloat(getComputedStyle(clock).fontSize),
+    };
   }, shot.toString('base64'));
   check(
     '3D: the clock is drawn by the scene (bright pixels inside its box)',
-    digits >= 180,
-    `max ${String(digits)}`,
+    digits.max >= 180,
+    `max ${String(digits.max)}`,
+  );
+  // §8's 字号换算: S19's old "数字 ≥15px" was a DOM reading; under the rewrite the digits' *ink*
+  // has to land at that size on the glass. The clock's font is 15 px and its ink measures 12 rows
+  // (0.8 life-size — digit figures); the bounds are that measurement with slack for anti-aliasing.
+  // |control|: halving every run mesh's y scale drops this to ~6 and must redden it.
+  check(
+    "3D: the clock's ink lands at the DOM font's own size (the ≥15 px conversion)",
+    digits.rows >= 9 && digits.rows <= 15 && digits.fontSize >= 15,
+    `ink rows ${String(digits.rows)} of a ${String(digits.fontSize)}px font (max ${String(digits.max)})`,
   );
   // S19's card, held open: the runs sit nearer than every chrome plate (`RUN_TEXT_Z`) and the DOM
   // copy gives up its ink — `animation: none` first, because the card's own 220 ms arrival outranks
