@@ -5607,3 +5607,10 @@ README 那段"四组"的话也补上了这条条。
 `npm ls --depth=0` 全树 0.2.1 且没有 missing / invalid，`yocto-queue@0.1.0` 是依赖没被碰。
 运行时没有任何地方读版本（`grep` 过 `package.json` / `__VERSION__` / `npm_package` 三条，零命中），
 所以这次提号不动产物、只动账。
+
+
+**版本号跟着走 0.2.1 → 0.3.0**（3D 界面层这一段收口）：十处 `package.json`（game-scene 这轮第一次
+进名单）加 lock 里 11 行；`npm ls --depth=0` 全树 0.3.0 且没有 missing / invalid。运行时没有
+任何地方读版本（`grep` 过 `package.json` / `__VERSION__` / `npm_package` 三条，仍零命中），
+所以这次提号同样不动产物、只动账。提 minor 而不是 patch：这一轮是整层界面（`?scene=3d` 后的
+TresJS 场景 + 直点舞台的修复），比"看得见的小东西"大一级。
