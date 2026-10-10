@@ -1,5 +1,6 @@
+import type * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { frameRect, radialVignette, roundedRect, softDisc, solidDisc } from '../sprite';
+import { frameRect, radialVignette, roundedRect, softDisc, solidDisc, stadiumBar } from '../sprite';
 
 describe('the puff sprite is soft, and it is generated rather than drawn', () => {
   it('is solid in the middle and clear at the rim', () => {
@@ -112,6 +113,32 @@ describe('a control border is a frame, not a fill', () => {
     const alphaAt = (x: number, y: number): number => data[(y * size + x) * 4 + 3] as number;
     expect(alphaAt(32, 32)).toBeLessThan(60);
     expect(alphaAt(32, 2)).toBeGreaterThan(180);
+  });
+});
+
+describe('the slider track is a stadium, built in its own pixels', () => {
+  const alphaAt = (bar: THREE.DataTexture, w: number, x: number, y: number): number =>
+    (bar.image.data as Uint8Array)[(y * w + x) * 4 + 3] as number;
+
+  it('carries the bar’s width and height, not a square', () => {
+    const bar = stadiumBar(20, 6);
+    expect(bar.image.width).toBe(20);
+    expect(bar.image.height).toBe(6);
+  });
+
+  it('is opaque along the spine, both ends included', () => {
+    const bar = stadiumBar(20, 6);
+    expect(alphaAt(bar, 20, 10, 3)).toBe(255);
+    expect(alphaAt(bar, 20, 0, 3)).toBe(255);
+    expect(alphaAt(bar, 20, 19, 3)).toBe(255);
+  });
+
+  it('turns the corners away — the caps are half-discs, not square ends', () => {
+    const bar = stadiumBar(20, 6);
+    // The left cap's circle: centre (3, 3), radius 3 (half the height).
+    expect(alphaAt(bar, 20, 0, 0)).toBeLessThan(60); // hypot(2.5, 2.5) ≈ 3.5, outside
+    expect(alphaAt(bar, 20, 2, 1)).toBe(255); // texel centre (2.5, 1.5), hypot ≈ 1.6, inside
+    expect(alphaAt(bar, 20, 19, 5)).toBeLessThan(60);
   });
 });
 

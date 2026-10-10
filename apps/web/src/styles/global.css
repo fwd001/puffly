@@ -300,7 +300,21 @@ body {
   }
 }
 
+/*
+ * The slider's paint lives in ::-webkit-slider-* pseudo-elements, which `getComputedStyle` will not
+ * report on (it answers with the element's own box). So every number and colour the track and thumb
+ * are drawn from is declared here as a custom property: the rules below consume them, and the 3D
+ * mirror reads them back off the element — the browser resolves the cascade and the media queries,
+ * and the scene reads computed values like it does for every other piece of chrome.
+ */
 input[type='range'] {
+  --slider-track-h: 3px;
+  --slider-track-colour: var(--chrome-line);
+  --slider-thumb-size: 22px;
+  --slider-thumb-lift: -10px;
+  --slider-thumb-colour: var(--smoke-gray);
+  --slider-thumb-edge: 1px;
+  --slider-thumb-edge-colour: var(--chrome-line);
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -310,19 +324,19 @@ input[type='range'] {
 }
 
 input[type='range']::-webkit-slider-runnable-track {
-  height: 3px;
-  border-radius: 3px;
-  background: var(--chrome-line);
+  height: var(--slider-track-h);
+  border-radius: calc(var(--slider-track-h) / 2);
+  background: var(--slider-track-colour);
 }
 
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  margin-top: -10px;
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  margin-top: var(--slider-thumb-lift);
   border-radius: 50%;
-  background: var(--smoke-gray);
-  border: 1px solid var(--chrome-line);
+  background: var(--slider-thumb-colour);
+  border: var(--slider-thumb-edge) solid var(--slider-thumb-edge-colour);
 }
 
 input[type='range']:focus-visible::-webkit-slider-thumb {
@@ -395,12 +409,8 @@ input[type='range']:focus-visible::-webkit-slider-thumb {
 
   input[type='range'] {
     height: 40px;
-  }
-
-  input[type='range']::-webkit-slider-thumb {
-    width: 30px;
-    height: 30px;
-    margin-top: -14px;
+    --slider-thumb-size: 30px;
+    --slider-thumb-lift: -14px;
   }
 
   /* The date field is the one native control on the sheet; at 38px it is a miss. */
@@ -523,6 +533,17 @@ html.scene3d-text .sheet * {
 html.scene3d-text .sheet[data-open='true'] * {
   visibility: visible;
   transition: visibility 0s;
+}
+/* 滑块的两截画（track / thumb）住在伪元素里，逐帧的 inline 遮罩够不着它们 —— 这一步只能写在
+   样式表里。几何与颜色全部由 `--slider-*` 变量供出，场景读的就是那些变量，所以遮罩不碰
+   "读取面"；只撤 background 与 border-color（都不挡命中），focus 的描边留在 DOM（键盘用户的
+   环）。给关闭态的面板也遮：孩子随 380ms 收场还在台上时不得把 DOM 那截画回来。 */
+html.scene3d-text .sheet input[type='range']::-webkit-slider-runnable-track {
+  background: transparent;
+}
+html.scene3d-text .sheet input[type='range']::-webkit-slider-thumb {
+  background: transparent;
+  border-color: transparent;
 }
 /* 控件自己的画（底与边）由场景 inline 拿走 —— 不能用 visibility：它会把元素从命中测试里
    摘掉，按钮就不能点了（真机套件抓到的）。底/边不挡命中，所以只撤这两样。 */

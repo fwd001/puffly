@@ -91,7 +91,7 @@ export function roundedRect(
     [radiusX, radiusY],
     [radiusX, radiusY],
   ];
-  return maskTexture(size, roundedMask(size, 1, 1, radii, feather));
+  return maskTexture(size, size, roundedMask(size, 1, 1, radii, feather));
 }
 
 /**
@@ -122,7 +122,7 @@ export function frameRect(
   for (let i = 0; i < coverage.length; i += 1) {
     coverage[i] = Math.max(0, (whole[i] ?? 0) - (hole[i] ?? 0));
   }
-  return maskTexture(size, coverage);
+  return maskTexture(size, size, coverage);
 }
 
 /**
@@ -201,20 +201,49 @@ function roundedMask(
   return mask;
 }
 
-function maskTexture(size: number, coverage: ArrayLike<number>): THREE.DataTexture {
-  const data = new Uint8Array(size * size * 4);
-  for (let i = 0; i < size * size; i += 1) {
+function maskTexture(
+  width: number,
+  height: number,
+  coverage: ArrayLike<number>,
+): THREE.DataTexture {
+  const data = new Uint8Array(width * height * 4);
+  for (let i = 0; i < width * height; i += 1) {
     const base = i * 4;
     data[base] = 255;
     data[base + 1] = 255;
     data[base + 2] = 255;
     data[base + 3] = Math.round(Math.min(1, Math.max(0, coverage[i] ?? 0)) * 255);
   }
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
   texture.needsUpdate = true;
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   return texture;
+}
+
+/**
+ * The slider's track: a horizontal stadium whose round caps stay circular on screen.
+ *
+ * Unlike the other helpers this one is built in its own pixel space (the size it will be drawn at)
+ * on purpose — a stretched texture would oval the two caps, and the DOM's are 1.5 px half-discs.
+ * `feather` is in texture pixels, so one texel of softness stays one small step whatever the bar's
+ * size. The DOM's own geometry this mirrors: `border-radius: 3px` on a 3 px bar (the browser clamps
+ * it to half the height), track spanning the input's full width.
+ */
+export function stadiumBar(width: number, height: number, feather = 1): THREE.DataTexture {
+  const w = Math.max(2, Math.round(width));
+  const h = Math.max(2, Math.round(height));
+  const radius = Math.min(h / 2, w / 2);
+  const coverage = new Float32Array(w * h);
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const across = Math.max(0, Math.abs(x + 0.5 - w / 2) - (w / 2 - radius));
+      const along = Math.abs(y + 0.5 - h / 2);
+      const distance = Math.hypot(across, along) - radius;
+      coverage[y * w + x] = distance <= 0 ? 1 : Math.max(0, Math.min(1, -distance / feather));
+    }
+  }
+  return maskTexture(w, h, coverage);
 }
 
 /**

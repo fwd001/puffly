@@ -62,6 +62,7 @@ import {
   PACK_SIZE,
   parseAim,
   parseAtlas,
+  parseColour,
   parsePropScale,
   parseStageBox,
   puffDiameterWorld,
@@ -71,6 +72,7 @@ import {
   roundedRect,
   softDisc,
   solidDisc,
+  stadiumBar,
   stageUnitToWorld,
   stageWorldSize,
   toWorldSize,
@@ -810,6 +812,33 @@ function onSceneReady(context: unknown): void {
     rigGroup.add(frameMesh);
     sheetFrames.push({ mesh: frameMesh, material: frameMaterial, signature: '', skipped: false });
   }
+  // The slider pools: track, thumb fill, thumb ring, each on its own rung between the frames
+  // (0.0985) and the sheet's text (RUN_TEXT_Z). The fill shares one circle texture — a disc scales;
+  // the track's caps cannot (stretched they would oval), so its texture is rebuilt per size.
+  const sliderPools: ReadonlyArray<[SliderRig[], number, string]> = [
+    [sheetSliderTracks, 0.0986, 'slider-track'],
+    [sheetSliderThumbs, 0.0987, 'slider-thumb'],
+    [sheetSliderRings, 0.0988, 'slider-thumb-ring'],
+  ];
+  const sliderCircle = roundedRect(64, 1, 1);
+  for (let i = 0; i < SHEET_SLIDER_POOL; i += 1) {
+    for (const [pool, z, name] of sliderPools) {
+      const sliderMaterial = new THREE.MeshBasicMaterial({
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        clippingPlanes: sheetClip,
+      });
+      const sliderMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), sliderMaterial);
+      sliderMesh.name = name;
+      sliderMesh.frustumCulled = false;
+      sliderMesh.visible = false;
+      sliderMesh.position.z = z;
+      if (pool === sheetSliderThumbs) sliderMaterial.map = sliderCircle;
+      rigGroup.add(sliderMesh);
+      pool.push({ mesh: sliderMesh, material: sliderMaterial, signature: '' });
+    }
+  }
   badgeMaterial = new THREE.MeshBasicMaterial({
     map: solidDisc(32),
     transparent: true,
@@ -841,71 +870,6 @@ function onSceneReady(context: unknown): void {
 /** Screen pixels as world units, through the same stage box everything else uses. */
 function pxToWorld(px: number): number {
   return (px / Math.max(1, box.value.height * viewportHeightPx.value)) * frame.value.height;
-}
-
-/**
- * A computed CSS colour as a THREE colour, in the space the rest of this file works in.
- *
- * Browsers hand computed colours back in three shapes — `rgb()`, `color(srgb …)` and, for anything
- * that went through `color-mix()`, `oklab(…)`, which computed values preserve rather than
- * normalising (measured: a hidden probe element reading the value back returns the same oklab
- * string). All three are parsed here; the oklab conversion is Ottosson's own reference matrices.
- * The first version of this only knew `rgb()` and the pill's whole gradient read as no stops at all
- * (the card came out invisible and only its glow showed), which is what sent it here. Alpha rides
- * along, because every caller needs it.
- */
-function parseColour(text: string): { colour: THREE.Color; alpha: number } | null {
-  const alphaOf = (value: string | undefined): number => {
-    if (value === undefined) return 1;
-    return value.endsWith('%') ? Number.parseFloat(value) / 100 : Number.parseFloat(value);
-  };
-  const oklab =
-    /oklab\(\s*([\d.+-eE]+%?)\s+([\d.+-eE]+)\s+([\d.+-eE]+)\s*(?:\/\s*([\d.]+%?))?\s*\)/.exec(text);
-  if (oklab !== null) {
-    const lText = oklab[1] ?? '0';
-    const L = Number.parseFloat(lText) / (lText.endsWith('%') ? 100 : 1);
-    const a = Number.parseFloat(oklab[2] ?? '0');
-    const b = Number.parseFloat(oklab[3] ?? '0');
-    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
-    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
-    const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
-    return {
-      colour: new THREE.Color().setRGB(
-        Math.max(0, 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-        Math.max(0, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-        Math.max(0, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
-        THREE.LinearSRGBColorSpace,
-      ),
-      alpha: alphaOf(oklab[4]),
-    };
-  }
-  const rgb = /rgba?\(([^)]+)\)/.exec(text);
-  if (rgb !== null) {
-    const values = (rgb[1] ?? '').split(/[,\s/]+/).map(Number);
-    return {
-      colour: new THREE.Color().setRGB(
-        (values[0] ?? 0) / 255,
-        (values[1] ?? 0) / 255,
-        (values[2] ?? 0) / 255,
-        THREE.SRGBColorSpace,
-      ),
-      alpha: alphaOf(rgb[1]?.split(/[,\s/]+/)[3]),
-    };
-  }
-  const srgb = /color\(srgb\s+([^)]+)\)/.exec(text);
-  if (srgb !== null) {
-    const values = (srgb[1] ?? '').split(/[\s/]+/).map(Number);
-    return {
-      colour: new THREE.Color().setRGB(
-        values[0] ?? 0,
-        values[1] ?? 0,
-        values[2] ?? 0,
-        THREE.SRGBColorSpace,
-      ),
-      alpha: alphaOf(srgb[1]?.split(/[\s/]+/)[3]),
-    };
-  }
-  return null;
 }
 
 /** A canvas-fraction rect as world position and size, through the stage box the core published. */
@@ -2531,6 +2495,21 @@ const maskedLeaves = new Set<HTMLElement>();
 /** The sheet's painted controls: one fill rig each, plus a frame rig for the bordered ones. */
 const SHEET_SURFACE_POOL = 40;
 const SHEET_FRAME_POOL = 36;
+/**
+ * The slider trio. Track and thumb paint lives in `::-webkit-slider-*` pseudo-elements — invisible
+ * to `getComputedStyle` and to inline masking — so `global.css` declares the geometry and colours
+ * as `--slider-*` custom properties and masks the pseudo-elements, and these three quads draw what
+ * the browser resolved: the stadium track, the thumb's fill and its ring.
+ */
+const SHEET_SLIDER_POOL = 8;
+interface SliderRig {
+  mesh: THREE.Mesh;
+  material: THREE.MeshBasicMaterial;
+  signature: string;
+}
+const sheetSliderTracks: SliderRig[] = [];
+const sheetSliderThumbs: SliderRig[] = [];
+const sheetSliderRings: SliderRig[] = [];
 const sheetSurfaces: CardRig[] = [];
 const sheetFrames: InkRig[] = [];
 const markedSurfaces = new Set<HTMLElement>();
@@ -2595,6 +2574,9 @@ function hideSheetMirror(): void {
   for (const rig of sheetRuns) rig.mesh.visible = false;
   for (const rig of sheetSurfaces) rig.mesh.visible = false;
   for (const rig of sheetFrames) rig.mesh.visible = false;
+  for (const rig of sheetSliderTracks) rig.mesh.visible = false;
+  for (const rig of sheetSliderThumbs) rig.mesh.visible = false;
+  for (const rig of sheetSliderRings) rig.mesh.visible = false;
   for (const node of [...maskedLeaves]) clearLeafMask(node);
   for (const node of [...markedSurfaces]) clearSurfacePaint(node);
 }
@@ -2785,6 +2767,120 @@ function placeSheet(): void {
   for (let index = frameSlot; index < sheetFrames.length; index += 1) {
     const rig = sheetFrames[index];
     if (rig !== undefined) rig.mesh.visible = false;
+  }
+  // The sliders. Their paint lives in `::-webkit-slider-*` pseudo-elements — invisible to
+  // getComputedStyle and to inline masking — so global.css declares geometry and colours as
+  // `--slider-*` custom properties and masks the pseudo-elements, and this loop draws what the
+  // browser resolved. The layout is Chromium's own, measured off the 2D build in both directions:
+  // the track spans the whole box on its centre line, the thumb rides that line starting half a
+  // thumb in from either end, and `dir=rtl` mirrors the mapping — min sits at the right edge there.
+  let sliderSlot = 0;
+  const sliders = elements.filter((element): element is HTMLInputElement => {
+    if (!(element instanceof HTMLInputElement) || element.type !== 'range') return false;
+    const style = getComputedStyle(element);
+    if (style.display === 'none') return false;
+    const rect = element.getBoundingClientRect();
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      rect.bottom >= panelBox.top - 4 &&
+      rect.top <= panelBox.bottom + 4
+    );
+  });
+  for (const input of sliders) {
+    const track = sheetSliderTracks[sliderSlot];
+    const fill = sheetSliderThumbs[sliderSlot];
+    const ring = sheetSliderRings[sliderSlot];
+    sliderSlot += 1;
+    if (track === undefined || fill === undefined || ring === undefined) break;
+    const style = getComputedStyle(input);
+    const rect = input.getBoundingClientRect();
+    const trackH = Number.parseFloat(style.getPropertyValue('--slider-track-h'));
+    const thumbSize = Number.parseFloat(style.getPropertyValue('--slider-thumb-size'));
+    const lift = Number.parseFloat(style.getPropertyValue('--slider-thumb-lift'));
+    const edge = Number.parseFloat(style.getPropertyValue('--slider-thumb-edge')) || 0;
+    const trackPaint = parseColour(style.getPropertyValue('--slider-track-colour'));
+    const fillPaint = parseColour(style.getPropertyValue('--slider-thumb-colour'));
+    const ringPaint = parseColour(style.getPropertyValue('--slider-thumb-edge-colour'));
+    if (
+      !(trackH > 0) ||
+      !(thumbSize > 0) ||
+      !Number.isFinite(lift) ||
+      trackPaint === null ||
+      fillPaint === null ||
+      ringPaint === null
+    ) {
+      track.mesh.visible = false;
+      fill.mesh.visible = false;
+      ring.mesh.visible = false;
+      continue;
+    }
+    const place = (rig: SliderRig, left: number, top: number, width: number, height: number) => {
+      const whole = rectWorld({
+        x: left / Math.max(1, viewportWidthPx.value),
+        y: top / Math.max(1, viewportHeightPx.value),
+        w: width / Math.max(1, viewportWidthPx.value),
+        h: height / Math.max(1, viewportHeightPx.value),
+      });
+      rig.mesh.position.set(whole.centre[0], whole.centre[1], rig.mesh.position.z);
+      quadScale(rig.mesh, { width, height }, 1);
+      rig.mesh.visible = true;
+    };
+    const trackTop = rect.top + (rect.height - trackH) / 2;
+    const min = Number(input.min);
+    const max = Number(input.max);
+    const span = max - min;
+    const fraction =
+      Number.isFinite(span) && span > 0
+        ? Math.min(1, Math.max(0, (Number(input.value) - min) / span))
+        : 0;
+    const travel = Math.max(0, rect.width - thumbSize);
+    const thumbCx =
+      style.direction === 'rtl'
+        ? rect.right - thumbSize / 2 - fraction * travel
+        : rect.left + thumbSize / 2 + fraction * travel;
+    const thumbCy = trackTop + lift + thumbSize / 2;
+    const trackSignature = `${rect.width.toFixed(1)}x${trackH.toFixed(1)}`;
+    if (trackSignature !== track.signature) {
+      track.signature = trackSignature;
+      track.material.map = stadiumBar(rect.width, trackH);
+      track.material.needsUpdate = true;
+    }
+    track.material.color.copy(trackPaint.colour);
+    track.material.opacity = trackPaint.alpha * panelAlpha;
+    place(track, rect.left, trackTop, rect.width, trackH);
+    fill.material.color.copy(fillPaint.colour);
+    fill.material.opacity = fillPaint.alpha * panelAlpha;
+    place(fill, thumbCx - thumbSize / 2, thumbCy - thumbSize / 2, thumbSize, thumbSize);
+    const ringSignature = `${thumbSize.toFixed(1)}x${edge.toFixed(1)}`;
+    if (ringSignature !== ring.signature) {
+      ring.signature = ringSignature;
+      const inset = edge / Math.max(1, thumbSize / 2);
+      ring.material.map = frameRect(
+        64,
+        [
+          [1, 1],
+          [1, 1],
+          [1, 1],
+          [1, 1],
+        ],
+        inset,
+        inset,
+      );
+      ring.material.needsUpdate = true;
+    }
+    ring.material.color.copy(ringPaint.colour);
+    ring.material.opacity = ringPaint.alpha * panelAlpha;
+    place(ring, thumbCx - thumbSize / 2, thumbCy - thumbSize / 2, thumbSize, thumbSize);
+  }
+  for (let index = sliderSlot; index < SHEET_SLIDER_POOL; index += 1) {
+    for (const rig of [
+      sheetSliderTracks[index],
+      sheetSliderThumbs[index],
+      sheetSliderRings[index],
+    ]) {
+      if (rig !== undefined) rig.mesh.visible = false;
+    }
   }
   for (const node of wantedSurfaces) maskSurfacePaint(node);
 }

@@ -1721,9 +1721,33 @@ try {
 
   // S8: the cabinet is the ladder. Close the card first, then reach the shelf the way a player
   // does — through the mark, which means waking the chrome that had folded itself away by now.
-  await page.locator('[data-hook="archive"] .close').click();
+  await page
+    .locator('[data-hook="archive"] .close')
+    .click({ timeout: 4000 })
+    .catch(() => {});
+  // Wait for the card to actually be gone before reaching past it: a close still in flight lets a
+  // stray press land on the card instead of the mark, and the mark is a toggle — one consumed tap
+  // and the sheet never opens. (Run of 2026-10-10: exactly that, read as `sheet: none`.)
+  await page
+    .waitForFunction(() => document.querySelector('[data-hook="archive"]') === null, null, {
+      timeout: 3000,
+      polling: 100,
+    })
+    .catch(() => {});
   await page.waitForTimeout(260);
   await openSheet(page, 'shelf');
+  if ((await page.locator('.sheet[data-open="true"]').count()) === 0) {
+    // Bounded second ask: only when the first tap demonstrably opened nothing (asking again on an
+    // open sheet would toggle it shut).
+    await page
+      .locator(SHEET_HANDLE.shelf)
+      .tap()
+      .catch(() => {});
+    await page
+      .waitForSelector('.sheet[data-open="true"]', { state: 'attached', timeout: 4000 })
+      .catch(() => {});
+    await page.waitForTimeout(460);
+  }
   await page.waitForTimeout(420);
   const cabinet = await page.evaluate(() => {
     const sheet = document.querySelector('.sheet[data-open="true"]');
@@ -1793,7 +1817,8 @@ try {
   // a colour look the same in a source file and different in a browser.
   check(
     '图鉴: a locked cell dims its colour chip, not its name',
-    cabinet.roomLook.roomOpacity === 1 &&
+    cabinet.roomLook !== null &&
+      cabinet.roomLook.roomOpacity === 1 &&
       Math.abs(cabinet.roomLook.chipOpacity - 0.45) < 0.02 &&
       cabinet.roomLook.colour === 'rgb(126, 126, 130)',
     JSON.stringify(cabinet.roomLook),
@@ -3041,6 +3066,51 @@ try {
       closeFill: close === null ? '' : close.style.getPropertyValue('-webkit-text-fill-color'),
     };
   }, sheetShot.toString('base64'));
+  // The sliders — the last control whose paint lived in `::-webkit-slider-*` pseudo-elements. The
+  // stylesheet declares their geometry and colours as `--slider-*` custom properties and masks the
+  // pseudo-elements; the scene draws track / thumb fill / ring from those values. This reads the
+  // meshes off the scene graph and carries the real value to both ends, because a painted-once
+  // picture would sit still and still pass everything else. Mutation to run when distrusting it:
+  // freezing the fraction at 0.5 leaves min and max at the same x, and this check goes red.
+  const sliderRow = page.locator('.sheet[data-open="true"] input[type="range"]').first();
+  await sliderRow.scrollIntoViewIfNeeded().catch(() => {});
+  await page.waitForTimeout(300);
+  const sliderMeshes = () =>
+    page.evaluate(() => {
+      const ctx = window.__pufflyScene;
+      const scene = 'value' in ctx.context.scene ? ctx.context.scene.value : ctx.context.scene;
+      let track = 0;
+      let thumb = 0;
+      let thumbX = null;
+      scene.traverse((o) => {
+        if (!o.visible) return;
+        if (o.name === 'slider-track') track += 1;
+        if (o.name === 'slider-thumb') {
+          thumb += 1;
+          if (thumbX === null) thumbX = o.position.x;
+        }
+      });
+      return { track, thumb, thumbX };
+    });
+  const sliderStart = await sliderMeshes();
+  const moveSlider = async (key) => {
+    await sliderRow.focus().catch(() => {});
+    await page.keyboard.press(key);
+    await page.waitForTimeout(280);
+    return sliderMeshes();
+  };
+  const sliderRight = await moveSlider('End');
+  const sliderLeft = await moveSlider('Home');
+  check(
+    '3D: the slider track and thumb are in the scene, and the thumb follows the value',
+    sliderStart.track >= 1 &&
+      sliderStart.thumb >= 1 &&
+      sliderLeft.thumbX !== null &&
+      sliderRight.thumbX !== null &&
+      sliderRight.thumbX - sliderLeft.thumbX > 0.15,
+    `meshes=${JSON.stringify(sliderStart)} right=${JSON.stringify(sliderRight)} ` +
+      `left=${JSON.stringify(sliderLeft)}`,
+  );
   await page
     .locator('.sheet[data-open="true"] .close')
     .click({ timeout: 4000 })
