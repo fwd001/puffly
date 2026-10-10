@@ -243,7 +243,7 @@ export function drawPack(
 
 /**
  * How far a flip-top actually throws: past vertical, short of lying flat along the tank. Exported
- * because `lid-hinge.test.ts` checks the drawn shell against `cos` of this angle, and a second copy
+ * because lid-hinge.test.ts（2026-10-10 随 2D 光栅套件退役） checks the drawn shell against `cos` of this angle, and a second copy
  * of the number in a test file is two numbers the day someone tunes one of them.
  */
 export const LID_THROW_DEG = 78;

@@ -14,7 +14,7 @@
  *
  * What the layering deliberately did *not* buy is a different cloud. Measured against the same table
  * collapsed to one layer: footprint 22.2% → 23.0% of the stage, the breath's lit width at 2 s 0.103 →
- * 0.092 of a stage height, and the peak against the room 5.58 → 5.45 (the floor `plume-contrast.test.ts`
+ * 0.092 of a stage height, and the peak against the room 5.58 → 5.45 (the floor plume-contrast.test.ts（2026-10-10 随 2D 光栅套件退役）
  * holds is 5). The 主体 keeps the authored buoyancy and carries 1.5× the authored alpha, so the halo is
  * added light rather than the body's light spent on it — and the two versions that got that wrong are
  * still in the numbers below: a flat-mean table (core 1.0 / edge 0.55 / curl 0.3) took that ratio to

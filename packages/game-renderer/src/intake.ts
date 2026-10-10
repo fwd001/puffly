@@ -50,7 +50,7 @@ export const MATERIAL_BURSTS: ReadonlySet<BurstKind> = new Set(['ember', 'ash', 
  * relaxation time, borrowed for smoke — the exhaled cloud reached four to eleven tenths of a
  * stage height per second and was outside the frame before the player had finished the breath.
  * At 12, the fix for that, it reached a hundred and twentieth of one: the whole breath became a
- * small tight body parked on the mouth, which is what `plume-column.test.ts` now measures.
+ * small tight body parked on the mouth, which is what plume-column.test.ts（2026-10-10 随 2D 光栅套件退役） now measures.
  *
  * 6 is the middle that matches what a breath actually does — about a tenth of a screen height
  * per second, most of it within a quarter second of letting go. Buoyancy is the acceleration
@@ -115,7 +115,7 @@ const LATERAL_SWING = 0.45;
  * footprint goes 22.2% → 23.0% of the stage and a breath's lit width at 2 s 0.103 → 0.092 stage heights.
  * The `alpha`s weigh out to 1.03 rather than 1 on purpose — the halo is *added* light instead of the
  * body's light spent on it, and spending it is what brought 烟看不清 back (equal alpha alone puts the
- * peak-to-room ratio at 4.60, under the floor `plume-contrast.test.ts` holds at 5). The `rise`s are not
+ * peak-to-room ratio at 4.60, under the floor plume-contrast.test.ts（2026-10-10 随 2D 光栅套件退役） holds at 5). The `rise`s are not
  * weighed at all: the head of a breath is the body's, and it keeps the authored buoyancy, while the
  * outer layers lag behind it. `plume-layers.test.ts` reads all three numbers per layer and per rod.
  */

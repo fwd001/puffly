@@ -96,7 +96,7 @@ export interface Settings {
    * the edges close, how much the tray rocks when ash lands, how springily a spark hops and how lit
    * the breath the player just made is: the cartoon side of 「物理写实、反馈卡通」, which is the list
    * S7 itself draws. It may not move one number in the simulation — no
-   * duration, no puff count, no temperature, no ash weight — which `realism.test.ts` proves by
+   * duration, no puff count, no temperature, no ash weight — which realism.test.ts（2026-10-10 随 2D 光栅套件退役） proves by
    * running the same session at both ends and comparing the whole state.
    */
   realism: number;

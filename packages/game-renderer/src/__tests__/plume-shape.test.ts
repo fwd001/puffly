@@ -139,7 +139,7 @@ describe('the smoke moves as one body (§15)', () => {
     // cloud whose buoyancy was switched off (elongation 1.033) and one whose sideways swing was
     // raised 4.9x (sigmaX 32.2), `elongation >= 1.5` and `sigmaX <= 0.11` both stayed green: they were
     // reading the size of the breath, which no failure mode moves. Narrowness is claimed where it is
-    // actually produced, by `plume-column.test.ts`.
+    // actually produced, by plume-column.test.ts（2026-10-10 随 2D 光栅套件退役）.
     expect(shape.coverage).toBeLessThanOrEqual(0.35);
   });
 

@@ -67,7 +67,7 @@ Adapters therefore consume two different things and never mix them:
 | `EngineEvent` | discrete `burst` / `world` / `session` / `transition` / `unlock` | renderer (particles), audio (cues), storage (log) |
 
 `GameStateView = DeepReadonly<GameState>` is what the core hands out, so the §48 rule "the renderer
-must not modify game state" is a compile error rather than a convention. `rendering.test.ts` then
+must not modify game state" is a compile error rather than a convention. rendering.test.ts（2026-10-10 随 2D 光栅套件退役） then
 proves it at runtime by handing the renderer a **deep-frozen live snapshot** and driving a whole
 break through it: any write would throw a TypeError instead of corrupting the simulation.
 
@@ -98,7 +98,7 @@ break through it: any write would throw a TypeError instead of corrupting the si
   `state.stage.layout.lighter`. A stored copy is only safe with a writer, and this one had none —
   which is also why no test failed: nothing read the field, so nothing could notice it was stale.
   The guard reads the draw call's emitted coordinates back rather than asking the layout where the
-  prop is (`prop-placement.test.ts`), because the weaker version of that test passed on the broken
+  prop is (prop-placement.test.ts（2026-10-10 随 2D 光栅套件退役）), because the weaker version of that test passed on the broken
   build.
 - A rebuild-by-hand drops every field it does not name, so it may only drop one it has a replacement
   for. Two instances, one shape: `readSettings` and `cloneSettings` both rebuild `Settings` from a
@@ -167,7 +167,7 @@ at (§65) — then
 the event stream — `replay.test.ts` asserts the replayed `SessionEvent` sequence equals the recorded
 one, including `SESSION_START`/`SESSION_END`, which replay re-issues at the same steps.
 
-`rendering.test.ts` adds the visual half of the same promise: the same `Burst` seed expands into the
+rendering.test.ts（2026-10-10 随 2D 光栅套件退役） adds the visual half of the same promise: the same `Burst` seed expands into the
 same particle layout, so a reproduced bug looks like the bug.
 
 The other half of that promise is a *counting* rule, and it constrains how the world may be made
@@ -288,7 +288,7 @@ and `StorageAdapter` (`game-storage`).
   the shipped look rather than a change to it, and the ramp is written so each of the row's six detents
   is a different frame (a capped `(1 - realism) / 0.2` left four of them identical). Nothing in
   `game-core` reads it either, and that is a tested claim rather than an intention:
-  `packages/game-renderer/src/__tests__/realism.test.ts` runs one session at `0` and at `1` and compares
+  realism.test.ts（2026-10-10 随 2D 光栅套件退役） runs one session at `0` and at `1` and compares
   the whole state plus every event, which is the Frozen Core rule a skin already lives under, applied to
   a look.
 

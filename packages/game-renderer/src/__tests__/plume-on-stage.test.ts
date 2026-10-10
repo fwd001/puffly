@@ -14,7 +14,7 @@
  * What it measures moved, and the reason is worth keeping. It used to demand that 95% of the cloud
  * be inside the stage box two seconds after the release, which treats the box as the room. A plume
  * that reaches an eighth of a screen height in the first second — which is what the design's 吐烟
- * does, and what `plume-column.test.ts` now pins — has its leading edge out of the top of the frame
+ * does, and what plume-column.test.ts（2026-10-10 随 2D 光栅套件退役） now pins — has its leading edge out of the top of the frame
  * well before it has finished being bright. The two claims cannot both hold, and the one that had
  * to move is this one, because what the player reported was the smoke going to a *corner*, not
  * smoke rising out of sight at the top the way smoke does. So the box rule is now the whole cloud

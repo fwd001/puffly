@@ -319,7 +319,7 @@ export interface LightingSpec {
   /** 0..1 overall exposure of the scene. */
   ambient: number;
   /**
-   * 0 (cool/blue) .. 1 (warm/amber), read off the painted sky by `warmth-scale.test.ts`. The prose
+   * 0 (cool/blue) .. 1 (warm/amber), read off the painted sky by warmth-scale.test.ts（2026-10-10 随 2D 光栅套件退役）. The prose
    * here used to say the reverse; the mix in `background.ts` runs `[210,224,240] -> [255,232,200]`
    * by this number, so a cold concrete stairwell is a low value, not a high one.
    */

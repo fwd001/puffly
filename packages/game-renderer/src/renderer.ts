@@ -58,7 +58,7 @@ export const DECK_SPLIT = 0.8;
  * How far above the core's own alpha the breath sits at one unit of cartoon. 0.5 is a step, not a
  * doubling: measured on the shipped classic at full intensity, the brightest disc of the breath goes
  * from 0.0758 to 0.1137, which lifts it just past the rod's own idle thread (0.0975) — visible, and
- * nowhere near the white ball a larger factor makes. `plume-lift.test.ts` bounds both ends.
+ * nowhere near the white ball a larger factor makes. plume-lift.test.ts（2026-10-10 随 2D 光栅套件退役） bounds both ends.
  */
 export const EXHALE_LIFT = 0.5;
 
@@ -71,7 +71,7 @@ export const EXHALE_LIFT = 0.5;
  * and the breath keeps the alpha the simulation authored for it. Below it the cartoon side grows up
  * to double, which is where 「比真实更脆」 earns its keep.
  *
- * Nothing in the simulation may consult this. `realism.test.ts` runs one session at each end and
+ * Nothing in the simulation may consult this. realism.test.ts（2026-10-10 随 2D 光栅套件退役） runs one session at each end and
  * compares the entire state, because that is the difference between a look and a cheat.
  */
 export const cartoonScale = (realism: number): number => {
