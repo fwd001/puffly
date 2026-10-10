@@ -1605,20 +1605,40 @@ try {
   // show is that the row the player reads follows the mouth off the rod, and that the release which
   // eventually comes does not buy a second count.
   //
-  // Polled rather than timed: the ceiling is this rod's own draw window × 1.6, and the shipped rods
-  // roll anywhere from 2.2 s to 4.2 s — a fixed wait would be measuring a guess. (The first version
-  // waited 3.6 s and reported 1 → 1, which was the *rod* being wrong rather than the code.)
-  //
-  // 2026-10-09, known and unfixed here: this bound is 6 s of WALL clock while the thing it waits for
-  // is up to 6.72 s of SIMULATED hold (4.2 × 1.6), so it cannot cover the longest rod even at a clean
-  // 60 fps, and it reddens outright when frames drop (measured load 12–14.5 on this machine). Widening
-  // it was tried and is the wrong shape of fix: the extra hold pushed a later tap past the 2.6 s idle
-  // fold, and the suite died on an invisible element instead of reporting. The right fix is to stop
-  // racing a held finger at all — set the player's own 单口时长 to its shortest detent first, so the
-  // ceiling lands at ~1.6 s and the whole press fits inside one idle window. Tracked as #99.
+  // Polled rather than timed: the ceiling is this rod's own draw window × 1.6 and the shipped rods
+  // roll anywhere from 2.2 s to 4.2 s, so the rod's own window put this bound above 6 s of WALL
+  // clock against up to 6.72 s of SIMULATED hold — it could not cover the longest rod even at a clean
+  // 60 fps and went red outright when frames dropped (measured load 12–14.5). Widening the wait was
+  // tried and is the wrong shape of fix: the extra hold pushed a later tap past the 2.6 s idle fold,
+  // and the run died on an invisible element instead of reporting. #99 (2026-10-10) settles it the
+  // other way — put the player's own 单口时长 on its shortest detent first, so the ceiling lands at
+  // 1.0 × 1.6 = 1.6 s and the whole press fits inside one idle window. The window is set through the
+  // controls the portrait block walks: one tap for the deck's 2.0 s, Home for the track's floor.
+  await openSheet(page, 'settings');
+  await page.locator('.sheet[data-open="true"] [data-setting="puff"]').tap();
+  await page.locator('.sheet[data-open="true"] [data-setting="puff-track"]').focus();
+  await page.keyboard.press('Home');
+  const ceilingWindow = await page.evaluate(() => {
+    const track = document.querySelector('.sheet[data-open="true"] [data-setting="puff-track"]');
+    const dial = document.querySelector('.sheet[data-open="true"] [data-setting="puff"]');
+    return {
+      value: Number(track?.value ?? -1),
+      min: Number(track?.min ?? -2),
+      shown: dial?.textContent?.replace(/\s+/g, '') ?? '',
+    };
+  });
+  check(
+    'the ceiling check runs on the shortest 单口时长 detent, not the rod’s own window',
+    ceilingWindow.value === ceilingWindow.min && ceilingWindow.shown.startsWith('1.0'),
+    JSON.stringify(ceilingWindow),
+  );
+  await page.locator('.sheet[data-open="true"] .close').tap();
+  await page.waitForTimeout(520);
+
   const countOf = (text) => Number(/^(\d+)\s*\//.exec(text)?.[1] ?? -1);
   const beforeCeiling = await chrome();
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  const ceilingBox = (await page.locator('.pill').boundingBox()) ?? box;
+  await page.mouse.move(ceilingBox.x + ceilingBox.width / 2, ceilingBox.y + ceilingBox.height / 2);
   await page.mouse.down();
   let stillHeld = beforeCeiling;
   let waitedMs = 0;
