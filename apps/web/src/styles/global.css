@@ -451,12 +451,14 @@ html {
    `-webkit-text-fill-color` 而不是 `color`：场景侧要读同一个 `color` 来上色，而 S19 的对比度
    扫描器不看 `-webkit-text-fill-color`，两边互不打扰。图集没落地时这个类不会挂上来。 */
 /* 场景那张画布对指针完全失聪：手势全部属于它下面的 DOM（§5，P3 起就是设计意图）。
-   这条原来写在 SceneStage.vue 的 scoped 样式里，而 TresJS 渲染的是它自己的 canvas ——
-   scoped 属性没落到那个元素上（量出 `pointer-events: auto`，掩膜错位是实测事实）。因果更正
-   见 §12：把它改回 auto 重跑，套件今天不红 —— 所以这条按"设计意图+错位就该修"留在这里，
-   不把当时的吸入失灵记在它头上。 */
+   实测两课：① 原来写在 SceneStage.vue 的 scoped 里，属性落不到 TresJS 自己的 canvas 上；
+   ② 搬到这里之后仍**不生效** —— TresJS 初始化时给 canvas 写了**行内** `pointer-events: auto`
+   （一并 `position: fixed` 全屏），行内样式压过任何规则 ⇒ `elementFromPoint` 在打火机位置
+   返回的就是这张 canvas，**直点舞台的一切（点烟/拖杆/点烟缸）在 ?scene=3d 里全是死的**，
+   药丸能点只因它叠在 canvas 之上。所以要 `!important` 才压得住行内；判据见真机宽屏
+   「鼠标点亮」那一格。 */
 html.scene3d-text canvas.scene3d {
-  pointer-events: none;
+  pointer-events: none !important;
 }
 html.scene3d-text .hud .num {
   -webkit-text-fill-color: transparent;

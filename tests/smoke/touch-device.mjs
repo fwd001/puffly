@@ -1339,10 +1339,54 @@ try {
     wide.frames > 30 && wide.backend !== 'pending' && wide.rod,
     `backend ${String(wide.backend)} frames ${String(wide.frames)} rod ${String(wide.rod)}`,
   );
-  // The wide 3D mouse path (S13) is owed, not asserted: two recipes here — pill click then the
-  // lighter's aim point with retries, with and without the affordance wait — both stayed unlit in
-  // three attempts, while the same geometry lights in the 2D desktop block. Symptom recorded in
-  // #113 rather than a red or a soft skip. The sidebar below still answers the mouse here.
+  // S13's mouse path, in the 3D build: pick the rod up with the pill, then click the lighter's own
+  // published aim point. This is the check that first caught the real defect: TresJS writes an
+  // inline `pointer-events: auto` on its canvas, every direct stage interaction was dead in
+  // `?scene=3d` (only the pill, stacked above, answered), and the global rule needed `!important`.
+  await page
+    .locator('.pill')
+    .click({ timeout: 5000 })
+    .catch(() => {});
+  await page
+    .waitForFunction(
+      () => (document.querySelector('.stage')?.dataset.affordance ?? '') === 'lighter',
+      null,
+      { timeout: 4000, polling: 150 },
+    )
+    .catch(() => {});
+  const wideBox = await page.locator('.stage').boundingBox();
+  let litWide = false;
+  for (let attempt = 0; attempt < 3 && !litWide; attempt += 1) {
+    const aim = await page.evaluate(() => {
+      const parts = new Map();
+      for (const piece of (document.querySelector('.stage')?.dataset.aim ?? '').split(' ')) {
+        const [key, pair] = piece.split(':');
+        const [x, y] = (pair ?? '').split(',').map(Number);
+        if (key !== undefined && Number.isFinite(x) && Number.isFinite(y)) parts.set(key, [x, y]);
+      }
+      return parts.get('lighter') ?? null;
+    });
+    if (aim !== null && wideBox !== null) {
+      await page.mouse.click(
+        wideBox.x + aim[0] * wideBox.width,
+        wideBox.y + aim[1] * wideBox.height,
+      );
+    }
+    litWide = await page
+      .waitForFunction(
+        () => (document.querySelector('.stage')?.dataset.affordance ?? '') === 'puff',
+        null,
+        { timeout: 2600, polling: 150 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!litWide) await page.waitForTimeout(300);
+  }
+  check(
+    '3D wide: the mouse lights it — the S13 path, and the canvas stays deaf to the pointer',
+    litWide,
+    `lit ${String(litWide)}`,
+  );
   const entries = await page.locator('.data-rail [data-entry]').count();
   await page
     .locator('.data-rail [data-entry]')
