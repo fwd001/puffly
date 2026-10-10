@@ -51,3 +51,39 @@ jobs:
         # Serves the real artefact the way Pages will. A wrong base path is invisible in every
         # unit test and shows up as a blank page in production, so this is checked here.
         run: bash tests/smoke/served-build.sh
+
+  smoke:
+    name: The device suite on a real browser
+    runs-on: ubuntu-latest
+    # Eight device blocks driving a real Chromium through the whole interface; give it room.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: The browser the suite drives
+        # Playwright resolves its own Chromium (the suite's default); --with-deps brings the
+        # system libraries a bare runner lacks.
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        env:
+          PUBLIC_BASE: /puffly/
+        run: npm run build
+
+      - name: Serve the build, then drive it
+        # Server and suite share one step on purpose: a background process does not survive its
+        # step, and a suite without a server fails as eight red blocks instead of one message.
+        run: |
+          node tests/smoke/serve.mjs apps/web/dist 4173 127.0.0.1 /puffly/ &
+          SERVER=$!
+          trap 'kill $SERVER' EXIT
+          sleep 1
+          node tests/smoke/touch-device.mjs http://127.0.0.1:4173/puffly/

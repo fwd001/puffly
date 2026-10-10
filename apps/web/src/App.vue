@@ -129,8 +129,11 @@ function jumpToSection(next: string): void {
  * convenience into a broken gesture behind the panel. One press may therefore do both jobs — the
  * panel steps away and the scene answers as it always has.
  */
-/** The 3D stage is opt-in while it grows: `?scene=3d` on the URL. Nothing ships behind it yet. */
-const useScene3d = new URLSearchParams(window.location.search).get('scene') === '3d';
+/**
+ * The 3D stage is the interface now: it mounts unless the URL asks for the painted layer.
+ * `?scene=2d` stays as the escape hatch while the old renderer's pixels retire.
+ */
+const useScene3d = new URLSearchParams(window.location.search).get('scene') !== '2d';
 
 function dismissOnScene(event: PointerEvent): void {
   if (sheet.value === 'none') return;
@@ -159,7 +162,7 @@ function dismissOnScene(event: PointerEvent): void {
     @pointerdown.capture="dismissOnScene"
   >
     <canvas ref="canvas" tabindex="0" :aria-label="announced" />
-    <!-- 3D 层还在长，默认不开：URL 里带 ?scene=3d 才挂（&gl=1 强制走 WebGL2 那条）。 -->
+    <!-- 界面层默认就是 3D 场景（&gl=1 强制走 WebGL2 那条）；?scene=2d 是旧渲染层的逃生口。 -->
     <SceneStage
       v-if="useScene3d"
       :aim="summary.aim"

@@ -25,6 +25,10 @@
  */
 
 const URL_ARG = process.argv[2] ?? 'http://localhost:5175/';
+// The 3D scene is the default landing now (2026-10-10); the blocks below that judge the *painted*
+// layer say so on the URL rather than relying on the default, so flipping the default never
+// silently re-points an old block at the new renderer.
+const URL_2D = `${URL_ARG}?scene=2d`;
 const PLAYWRIGHT_SPEC = process.env['PUFFLY_PLAYWRIGHT'] ?? 'playwright';
 const CHROME = process.env['PUFFLY_CHROME'];
 const ENGINE = process.env['PUFFLY_BROWSER'] ?? 'chromium';
@@ -50,7 +54,16 @@ try {
 }
 
 /** `PUFFLY_CHROME` is any engine's own binary: it points a check at the browser on this machine. */
-const launchOptions = CHROME ? { executablePath: CHROME } : {};
+// With no binary named, Chromium means Playwright's *full* build (`channel: 'chromium'`), not the
+// `chrome-headless-shell` — the shell drops the GPU paths, and WebGPU is half of what this suite
+// is here to judge. (The bundled shell on this machine was also missing its binary; the channel
+// form sidesteps the download entirely.)
+const launchOptions =
+  CHROME !== undefined
+    ? { executablePath: CHROME }
+    : ENGINE === 'chromium'
+      ? { channel: 'chromium' }
+      : {};
 let browser;
 try {
   browser = await browserType.launch(launchOptions);
@@ -97,7 +110,7 @@ async function openPhone({ width, height, dpr, locale }) {
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await page.goto(URL_ARG, { waitUntil: 'networkidle' });
+  await page.goto(URL_2D, { waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
   return { context, page, errors };
 }
@@ -111,7 +124,7 @@ async function openWindow({ width, height }) {
   page.on('console', (message) => {
     if (message.type() === 'error') errors.push(message.text());
   });
-  await page.goto(URL_ARG, { waitUntil: 'networkidle' });
+  await page.goto(URL_2D, { waitUntil: 'networkidle' });
   await page.waitForTimeout(900);
   return { context, page, errors };
 }
@@ -2500,17 +2513,21 @@ try {
 
 // ------------------------------------------- the 3D stage, on both backends (SPEC §76 rewrite)
 //
-// The scene is opt-in (`?scene=3d`), and the acceptance is "两条后端出帧": whatever the machine has
-// faces the default path, and `&gl=1` must land on the WebGL2 backend rather than silently using
-// WebGPU anyway. The digits' check is the atlas's own — the DOM's ink is transparent under the
-// flag, so a bright pixel inside the clock's box is the scene's text and nothing else.
+// The scene is the default landing now (2026-10-10) — a plain URL mounts it — and the acceptance
+// is "两条后端出帧": the default faces whatever the machine has, `?scene=3d` names the same path,
+// and `&gl=1` must land on the WebGL2 backend rather than silently using WebGPU anyway. The
+// `?scene=2d` escape must still find the painted layer, with no scene object at all — that is what
+// keeps the old blocks' URL explicit and the flip honest. The digits' check is the atlas's own —
+// the DOM's ink is transparent under the flag, so a bright pixel inside the clock's box is the
+// scene's text and nothing else.
 {
   const context = await browser.newContext({ viewport: { width: 393, height: 852 } });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (event) => errors.push(String(event).slice(0, 120)));
   for (const [label, query, wanted] of [
-    ['default', '?scene=3d', null],
+    ['default landing', '', null],
+    ['?scene=3d', '?scene=3d', null],
     ['forced WebGL2', '?scene=3d&gl=1', 'webgl2'],
   ]) {
     await page.goto(`${URL_ARG}${query}`, { waitUntil: 'networkidle' });
@@ -3135,6 +3152,21 @@ try {
     '3D: a sheet row is painted by the scene',
     sheet.nameMax >= 140,
     `name max ${String(sheet.nameMax)}`,
+  );
+  // The flip's other half: the escape hatch must still reach the painted layer. Read after every
+  // scene check on purpose — navigating away first would leave the checks above reading the 2D
+  // canvas instead of the scene, which is the one failure this page must not have.
+  await page.goto(`${URL_ARG}?scene=2d`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1200);
+  const escape = await page.evaluate(() => ({
+    scene: typeof window.__pufflyScene,
+    sceneCanvas: document.querySelector('.scene3d') !== null,
+    stageCanvas: document.querySelector('.stage canvas') !== null,
+  }));
+  check(
+    '?scene=2d still reaches the painted layer (no scene mounted, the stage canvas is there)',
+    escape.scene === 'undefined' && !escape.sceneCanvas && escape.stageCanvas,
+    JSON.stringify(escape),
   );
   check('3D: none of it threw', errors.length === 0, errors.slice(0, 2).join(' | '));
   await context.close();

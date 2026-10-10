@@ -111,8 +111,9 @@ Every row is a word and a control, reached from the rail’s `settings` tab. Non
   `grep -n "unlock:" packages/game-content/src/environments.ts` prints which room sits on which.
   Picking one is also measured at the pixel seam rather than assumed: the same state painted with two
   rooms changes most of the colours the background asks for, and a selection that never reached the
-  state would fail its own test
-  (`npx vitest run packages/game-renderer/src/__tests__/scene-change.test.ts`).
+  state would fail its own test. (That pixel test was scene-change.test.ts（2026-10-10 随 2D 光栅套件退役）, retired with the 2D
+  raster suites on 2026-10-10; the palette path stays guarded by
+  `npx vitest run packages/game-renderer/src/__tests__/skin.test.ts` and the real-device S17 checks.)
 - **All four layers are layers** — a skin is 纸面, 余烬, 烟羽 and 光池, and the third one used to
   reach only the haze behind the smoke, where its alpha tops out at 0.033. That was measured by
   recording every colour the renderer asks a sprite for: with a palette whose only non-default layer
@@ -402,12 +403,12 @@ address above is the one to share. Both were probed rather than assumed: the new
 A 404 at the live address after a push means Pages is not set to **GitHub Actions** as its
 source for this repository — the deploy job cannot change that setting itself.
 
-## The 3D rewrite (in progress, behind `?scene=3d`)
+## The 3D interface (the default since 2026-10-10)
 
-A second interface layer is growing inside the same app: the chrome, the stage and the four sheets
-are being redrawn as scene objects (TresJS + `three/webgpu`, with WebGL2 as the automatic fallback),
-the DOM kept only for hit targets and the screen reader. It ships off by default — open
-`…/?scene=3d` to see it (`&gl=1` forces the WebGL2 backend). The contract, the measurements and the
+The chrome, the stage and the four sheets are scene objects now (TresJS + `three/webgpu`, with WebGL2
+as the automatic fallback), the DOM kept only for hit targets and the screen reader. A plain URL
+lands on it; `…/?scene=2d` still reaches the old painted layer (`&gl=1` forces the WebGL2 backend),
+which is kept as the escape hatch while its renderer retires. The contract, the measurements and the
 per-screen ledger live in
 [`docs/superpowers/specs/2026-10-09-scene3d-rewrite-design.md`](docs/superpowers/specs/2026-10-09-scene3d-rewrite-design.md),
 and the real-device suite covers it (`tests/smoke/touch-device.mjs`, the `3D:` checks).
