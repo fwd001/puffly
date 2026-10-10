@@ -5614,3 +5614,10 @@ README 那段"四组"的话也补上了这条条。
 任何地方读版本（`grep` 过 `package.json` / `__VERSION__` / `npm_package` 三条，仍零命中），
 所以这次提号同样不动产物、只动账。提 minor 而不是 patch：这一轮是整层界面（`?scene=3d` 后的
 TresJS 场景 + 直点舞台的修复），比"看得见的小东西"大一级。
+
+
+**版本号跟着走 0.3.0 → 0.3.1**（「仍 2D」清零的那一笔）：十处 `package.json` 加 lock 里 11 行；
+`npm ls --depth=0` 全树 0.3.1（32 行）且没有 missing / invalid。运行时没有任何地方读版本
+（`grep` 过 `package.json` / `__VERSION__` / `npm_package` 三条，仍零命中），所以这次提号同样
+不动产物、只动账。提 patch 而不是 minor：0.3.0 已是"整层界面"的收口，这一笔补齐的是同一层里
+最后一件还在 DOM 画的控件（滑块的 track/thumb），是收尾不是新层；真机套件 132/132 背书。
